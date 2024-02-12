@@ -4,14 +4,16 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::ops::DerefMut;
 
+#[allow(dead_code)]
 struct Header {
     id: u64,
 }
 
-unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+pub unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
     ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())
 }
 
+#[allow(dead_code)]
 fn read_mm() {
     let tempdir = tempfile::tempdir().unwrap();
     let file = OpenOptions::new()
