@@ -1,5 +1,5 @@
 extern crate tempfile;
-use memmap2::Mmap;
+use memmap2::MmapMut;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::ops::DerefMut;
@@ -22,9 +22,9 @@ fn read_mm() {
         .unwrap();
     print!(">>> {:?}", tempdir.path());
     file.set_len(128).unwrap();
-    let mmap = unsafe { Mmap::map(&file).unwrap() };
+    let mut mut_mmap = unsafe { memmap2::MmapMut::map_mut(&file).unwrap() };
 
-    let mut mut_mmap = mmap.make_mut().unwrap();
+    //let mut mut_mmap = mmap.make_mut().unwrap();
     let mut hdr = Header { id: 2 };
     let hdr_buf = unsafe { any_as_u8_slice(&hdr) };
     mut_mmap.deref_mut().write_all(hdr_buf).unwrap();
@@ -39,15 +39,12 @@ fn read_mm() {
         assert!(my_struct.id == 2);
     }
     hdr.id = 22;
-    let hdr_buf = &hdr as *const Header;
-    let mut buf = mut_mmap.as_mut_ptr() as *mut Header;
+    let hdr_src = &hdr as *const Header;
+    let dest_buf = mut_mmap.as_mut_ptr() as *mut Header;
 
-    for i in 0..size_of_header {
-        unsafe {
-            std::ptr::copy(hdr_buf, buf, size_of_header);
-        }
+    unsafe {
+        std::ptr::copy(hdr_src, dest_buf, size_of_header);
     }
-    
 
     {
         let buf = &mut_mmap[0..size_of_header];
