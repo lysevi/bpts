@@ -1,4 +1,5 @@
 extern crate tempfile;
+use crate::utils;
 use memmap2::MmapMut;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -7,10 +8,6 @@ use std::ops::DerefMut;
 #[allow(dead_code)]
 struct Header {
     id: u64,
-}
-
-pub unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())
 }
 
 #[allow(dead_code)]
@@ -28,7 +25,7 @@ fn read_mm() {
 
     //let mut mut_mmap = mmap.make_mut().unwrap();
     let mut hdr = Header { id: 2 };
-    let hdr_buf = unsafe { any_as_u8_slice(&hdr) };
+    let hdr_buf = unsafe { utils::any_as_u8_slice(&hdr) };
     mut_mmap.deref_mut().write_all(hdr_buf).unwrap();
 
     let size_of_header = std::mem::size_of::<Header>();

@@ -1,6 +1,7 @@
 pub mod mfile;
 pub mod rec;
 pub mod types;
+pub mod utils;
 
 use std::collections::HashMap;
 

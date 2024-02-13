@@ -1,5 +1,5 @@
-use crate::mfile;
 use crate::types;
+use crate::utils;
 
 use types::Id;
 
@@ -16,7 +16,7 @@ impl Record {
     }
 
     pub fn from_i32(value: i32) -> Self {
-        let slice = unsafe { mfile::any_as_u8_slice(&value) };
+        let slice = unsafe { utils::any_as_u8_slice(&value) };
         Record {
             value: Vec::from(slice),
         }
