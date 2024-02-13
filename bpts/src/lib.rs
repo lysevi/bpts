@@ -85,13 +85,13 @@ impl NodeStorage for MockNodeStorage {
 }
 
 // TODO to Result<>
-pub fn find<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Option<&'a Record> {
+pub fn scan<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Option<&'a Node> {
     let mut target = root;
 
     loop {
         let rec = target.find(key);
         if target.is_leaf {
-            return rec;
+            return Some(target);
         }
         if rec.is_none() {
             break;
@@ -104,6 +104,11 @@ pub fn find<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Optio
         target = tmp.unwrap();
     }
     return None;
+}
+
+pub fn find<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Option<&'a Record> {
+    let node = scan(storage, root, key);
+    return node.unwrap().find(key);
 }
 
 #[cfg(test)]
