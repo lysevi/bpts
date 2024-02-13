@@ -1,6 +1,6 @@
 # bpts
 
-- [ ] mock storage
+- [x] mock node storage
 - [ ] insertion
 - [ ] remove
 - [ ] link to brother
