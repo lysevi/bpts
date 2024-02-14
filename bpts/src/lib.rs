@@ -10,7 +10,7 @@ use types::Id;
 
 #[derive(Clone)]
 pub struct Node {
-    pub id: Id,
+    pub id: Id, //TODO remove
     pub is_leaf: bool,
     pub keys: Vec<i32>,
     pub data: Vec<Record>,
@@ -59,7 +59,9 @@ impl Node {
 }
 
 pub trait NodeStorage {
-    fn get_node(&self, id: Id) -> Option<&Node>;
+    //TODO get_node(ptr) -> Option<&Node>;
+    fn get_node(&self, id: Id) -> Result<&Node, types::Error>;
+    //TODO add_node(node) -> ptr
     fn add_node(&mut self, node: &Node);
 }
 
@@ -75,8 +77,8 @@ impl MockNodeStorage {
     }
 }
 impl NodeStorage for MockNodeStorage {
-    fn get_node(&self, id: Id) -> Option<&Node> {
-        self.nodes.get(&id)
+    fn get_node(&self, id: Id) -> Result<&Node, types::Error> {
+        Ok(self.nodes.get(&id).unwrap())
     }
 
     fn add_node(&mut self, node: &Node) {
@@ -101,8 +103,12 @@ pub fn scan<'a>(
         }
         let node_id = rec.unwrap().into_id();
         let tmp = storage.get_node(node_id);
-        if tmp.is_none() {
-            return Err(format!("{:?} not found", node_id));
+        if tmp.is_err() {
+            return Err(format!(
+                "{:?} not found - '{}'",
+                node_id,
+                tmp.err().unwrap()
+            ));
         }
         target = tmp.unwrap();
     }
