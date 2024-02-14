@@ -1,5 +1,6 @@
 # bpts
 
+- [ ] refs by ptr
 - [x] mock node storage
 - [ ] insertion
 - [ ] remove
