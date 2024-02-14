@@ -84,14 +84,17 @@ impl NodeStorage for MockNodeStorage {
     }
 }
 
-// TODO to Result<>
-pub fn scan<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Option<&'a Node> {
+pub fn scan<'a>(
+    storage: &'a dyn NodeStorage,
+    root: &'a Node,
+    key: i32,
+) -> Result<&'a Node, types::Error> {
     let mut target = root;
 
     loop {
         let rec = target.find(key);
         if target.is_leaf {
-            return Some(target);
+            return Ok(target);
         }
         if rec.is_none() {
             break;
@@ -99,16 +102,23 @@ pub fn scan<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Optio
         let node_id = rec.unwrap().into_id();
         let tmp = storage.get_node(node_id);
         if tmp.is_none() {
-            panic!("{:?} not found", node_id)
+            return Err(format!("{:?} not found", node_id));
         }
         target = tmp.unwrap();
     }
-    return None;
+    return Err("not found".to_owned());
 }
 
-pub fn find<'a>(storage: &'a dyn NodeStorage, root: &'a Node, key: i32) -> Option<&'a Record> {
+pub fn find<'a>(
+    storage: &'a dyn NodeStorage,
+    root: &'a Node,
+    key: i32,
+) -> Result<&'a Record, types::Error> {
     let node = scan(storage, root, key);
-    return node.unwrap().find(key);
+    match node {
+        Ok(n) => Ok(n.find(key).unwrap()),
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
@@ -153,7 +163,7 @@ mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf1);
         let res = find(&storage, &leaf1, 2);
-        assert!(res.is_some());
+        assert!(res.is_ok());
         assert_eq!(res.unwrap().into_u8(), 2u8);
 
         let leaf2 = Node::new_leaf(1, vec![1], vec![Record::from_u8(1)]);
@@ -163,11 +173,11 @@ mod tests {
 
         storage.add_node(&node1);
         let res_1 = find(&storage, &node1, 1);
-        assert!(res_1.is_some());
+        assert!(res_1.is_ok());
         assert_eq!(res_1.unwrap().into_u8(), 1u8);
 
         let res_2 = find(&storage, &node1, 2);
-        assert!(res_2.is_some());
+        assert!(res_2.is_ok());
         assert_eq!(res_2.unwrap().into_u8(), 2u8);
     }
 }
