@@ -8,6 +8,8 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use rec::Record;
 use types::Id;
 
+pub type RcNode = Rc<RefCell<Node>>;
+
 #[derive(Clone)]
 pub struct Node {
     pub id: Id, //TODO remove
@@ -17,7 +19,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(id: Id, is_leaf: bool, keys: Vec<i32>, data: Vec<Record>) -> Rc<RefCell<Node>> {
+    pub fn new(id: Id, is_leaf: bool, keys: Vec<i32>, data: Vec<Record>) -> RcNode {
         Rc::new(RefCell::new(Node {
             id: id,
             is_leaf: is_leaf,
@@ -26,11 +28,11 @@ impl Node {
         }))
     }
 
-    pub fn new_root(id: Id, keys: Vec<i32>, data: Vec<Record>) -> Rc<RefCell<Node>> {
+    pub fn new_root(id: Id, keys: Vec<i32>, data: Vec<Record>) -> RcNode {
         Node::new(id, false, keys, data)
     }
 
-    pub fn new_leaf(id: Id, keys: Vec<i32>, data: Vec<Record>) -> Rc<RefCell<Node>> {
+    pub fn new_leaf(id: Id, keys: Vec<i32>, data: Vec<Record>) -> RcNode {
         Node::new(id, true, keys, data)
     }
 
@@ -60,13 +62,13 @@ impl Node {
 
 pub trait NodeStorage {
     //TODO get_node(ptr) -> Option<&Node>;
-    fn get_node(&self, id: Id) -> Result<Rc<RefCell<Node>>, types::Error>;
+    fn get_node(&self, id: Id) -> Result<RcNode, types::Error>;
     //TODO add_node(node) -> ptr
-    fn add_node(&mut self, node: &Rc<RefCell<Node>>);
+    fn add_node(&mut self, node: &RcNode);
 }
 
 pub struct MockNodeStorage {
-    nodes: HashMap<Id, Rc<RefCell<Node>>>,
+    nodes: HashMap<Id, RcNode>,
 }
 
 impl MockNodeStorage {
@@ -77,21 +79,21 @@ impl MockNodeStorage {
     }
 }
 impl NodeStorage for MockNodeStorage {
-    fn get_node(&self, id: Id) -> Result<Rc<RefCell<Node>>, types::Error> {
+    fn get_node(&self, id: Id) -> Result<RcNode, types::Error> {
         let r = self.nodes.get(&id);
         Ok(Rc::clone(r.unwrap()))
     }
 
-    fn add_node(&mut self, node: &Rc<RefCell<Node>>) {
+    fn add_node(&mut self, node: &RcNode) {
         self.nodes.insert(node.borrow().id, node.clone());
     }
 }
 
 pub fn scan<'a>(
     storage: &mut dyn NodeStorage,
-    root: &Rc<RefCell<Node>>,
+    root: &RcNode,
     key: i32,
-) -> Result<Rc<RefCell<Node>>, types::Error> {
+) -> Result<RcNode, types::Error> {
     let mut target = Rc::clone(root);
 
     loop {
@@ -122,7 +124,7 @@ pub fn scan<'a>(
 
 pub fn find<'a>(
     storage: &mut dyn NodeStorage,
-    root: &Rc<RefCell<Node>>,
+    root: &RcNode,
     key: i32,
 ) -> Result<Record, types::Error> {
     let node = scan(storage, root, key);
@@ -138,11 +140,11 @@ pub fn find<'a>(
 
 pub fn insert<'a>(
     storage: &mut dyn NodeStorage,
-    root: &Rc<RefCell<Node>>,
+    root: &RcNode,
     key: i32,
     value: &Record,
     t: i32,
-) -> Result<Rc<RefCell<Node>>, types::Error> {
+) -> Result<RcNode, types::Error> {
     let scan_result = scan(storage, &root, key);
     if scan_result.is_err() {
         return Err(scan_result.err().unwrap());
