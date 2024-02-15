@@ -9,6 +9,24 @@ pub struct Record {
 }
 
 impl Record {
+    pub fn empty_array(count: usize, sz: usize) -> Vec<Record> {
+        let mut result = Vec::with_capacity(count);
+
+        for i in 0..count {
+            result.push(Record::empty(sz));
+        }
+        result
+    }
+    pub fn empty(sz: usize) -> Self {
+        Record {
+            value: vec![0u8; sz],
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.value.len()
+    }
+
     pub fn from_u8(value: u8) -> Self {
         let mut v = Vec::new();
         v.push(value);
