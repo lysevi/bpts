@@ -10,3 +10,10 @@
 - [x] link to parent
 - [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
+
+
+keys: [0,1,2,3,4]
+vals: [0,1,2,3,4]
+
+keys:  [0,1,2,3,4]
+pint: [0,1,2,3,4,5]
