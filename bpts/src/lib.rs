@@ -14,26 +14,38 @@ pub type RcNode = Rc<RefCell<Node>>;
 pub struct Node {
     pub id: Id, //TODO remove
     pub is_leaf: bool,
+    pub parent: Id,
+    pub left: Id,
+    pub right: Id,
+    pub size: usize,
     pub keys: Vec<i32>,
     pub data: Vec<Record>,
 }
 
 impl Node {
-    pub fn new(id: Id, is_leaf: bool, keys: Vec<i32>, data: Vec<Record>) -> RcNode {
+    pub fn new(id: Id, is_leaf: bool, keys: Vec<i32>, data: Vec<Record>, size: usize) -> RcNode {
         Rc::new(RefCell::new(Node {
             id: id,
             is_leaf: is_leaf,
             keys: keys,
             data: data,
+            size,
+            left: 0,
+            parent: 0,
+            right: 0,
         }))
     }
 
-    pub fn new_root(id: Id, keys: Vec<i32>, data: Vec<Record>) -> RcNode {
-        Node::new(id, false, keys, data)
+    pub fn new_root(id: Id, keys: Vec<i32>, data: Vec<Record>, size: usize) -> RcNode {
+        Node::new(id, false, keys, data, size)
     }
 
-    pub fn new_leaf(id: Id, keys: Vec<i32>, data: Vec<Record>) -> RcNode {
-        Node::new(id, true, keys, data)
+    pub fn new_leaf(id: Id, keys: Vec<i32>, data: Vec<Record>, size: usize) -> RcNode {
+        Node::new(id, true, keys, data, size)
+    }
+
+    pub fn is_full(&self, t: usize) -> bool {
+        return self.size > (2 * t - 1);
     }
 
     pub fn find(&self, key: i32) -> Option<&Record> {
@@ -57,6 +69,12 @@ impl Node {
             }
         }
         return None;
+    }
+
+    pub fn insert(&mut self, index: usize, key: i32, value: rec::Record) {
+        utils::insert_to_array(&mut self.keys, index, key);
+        utils::insert_to_array(&mut self.data, index, value);
+        self.size += 1;
     }
 }
 
@@ -143,7 +161,7 @@ pub fn insert<'a>(
     root: &RcNode,
     key: i32,
     value: &Record,
-    t: i32,
+    t: usize,
 ) -> Result<RcNode, types::Error> {
     let scan_result = scan(storage, &root, key);
     if scan_result.is_err() {
@@ -151,6 +169,23 @@ pub fn insert<'a>(
     }
 
     let target_node = scan_result.unwrap();
+    let mut mut_ref = target_node.borrow_mut();
+    if !mut_ref.is_full(t) {
+        let mut index = mut_ref.size;
+        for i in 0..mut_ref.size {
+            if mut_ref.keys[i] > key {
+                index = i;
+                break;
+            }
+
+            if mut_ref.keys[i] == 0 {
+                index = i;
+                break;
+            }
+        }
+        mut_ref.insert(index, key, value.clone());
+        return Ok(root.clone());
+    }
 
     todo!();
     return Ok(root.clone());
@@ -172,6 +207,7 @@ mod tests {
                 Record::from_u8(3),
                 Record::from_u8(4),
             ],
+            4,
         );
         let ref_leaf = leaf.borrow();
         if let Some(item) = ref_leaf.find(2) {
@@ -195,7 +231,12 @@ mod tests {
 
     #[test]
     fn find_in_tree() {
-        let leaf1 = Node::new_leaf(0, vec![2, 3], vec![Record::from_u8(2), Record::from_u8(3)]);
+        let leaf1 = Node::new_leaf(
+            0,
+            vec![2, 3],
+            vec![Record::from_u8(2), Record::from_u8(3)],
+            2,
+        );
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf1);
@@ -203,10 +244,10 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(res.unwrap().into_u8(), 2u8);
 
-        let leaf2 = Node::new_leaf(1, vec![1], vec![Record::from_u8(1)]);
+        let leaf2 = Node::new_leaf(1, vec![1], vec![Record::from_u8(1)], 1);
         storage.add_node(&leaf2);
 
-        let node1 = Node::new_root(2, vec![2], vec![Record::from_id(1), Record::from_id(0)]);
+        let node1 = Node::new_root(2, vec![2], vec![Record::from_id(1), Record::from_id(0)], 1);
 
         storage.add_node(&node1);
         let res_1 = find(&mut storage, &node1, 1);
@@ -219,11 +260,45 @@ mod tests {
     }
     #[test]
     fn insert_to_tree() {
-        let leaf1 = Node::new_leaf(0, vec![2, 3], vec![Record::from_u8(2), Record::from_u8(3)]);
+        let mut leaf1 = Node::new_leaf(
+            0,
+            vec![2, 3, 0, 0, 0, 0, 0],
+            vec![
+                Record::from_u8(2),
+                Record::from_u8(3),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+            ],
+            2,
+        );
+
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf1);
 
         let new_value = Record::from_u8(1);
-        let new_root = insert(&mut storage, &leaf1, 1, &new_value, 4);
+        let mut result = insert(&mut storage, &leaf1, 1, &new_value, 5);
+        assert!(result.is_ok());
+        let mut new_root = result.unwrap();
+        assert_eq!(new_root.borrow().size, 3);
+
+        result = insert(&mut storage, &leaf1, 5, &new_value, 5);
+        assert!(result.is_ok());
+        new_root = result.unwrap();
+        assert_eq!(new_root.borrow().size, 4);
+
+        result = insert(&mut storage, &leaf1, 4, &new_value, 4);
+        assert!(result.is_ok());
+        new_root = result.unwrap();
+        assert_eq!(new_root.borrow().size, 5);
+
+        {
+            let r = new_root.borrow();
+            for i in 0..r.size {
+                assert_eq!(r.keys[i], (i + 1) as i32)
+            }
+        }
     }
 }
