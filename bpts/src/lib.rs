@@ -93,37 +93,32 @@ pub fn split_node(
         parent_node = storage.get_node(ref_root.parent).unwrap();
     }
 
-    let new_brother: RcNode;
-    let new_id = storage.get_new_id();
     let mut new_keys = vec![0i32; ref_root.keys.capacity()];
     let mut new_data = Record::empty_array(ref_root.data.len(), ref_root.data[0].size());
 
-    let mut keys_count = 0;
-    let mut data_count = 0;
+    let mut keys_count = t;
+    ref_root.keys_count = t;
+    let mid_key = ref_root.keys[t];
     {
-        let midle_index = (ref_root.keys_count / 2);
-        let last_index = ref_root.keys_count;
-        for i in midle_index..last_index {
-            new_keys[keys_count] = ref_root.keys[i];
-            ref_root.keys[i] = 0;
-            keys_count += 1;
+        for i in 0..keys_count {
+            new_keys[i] = ref_root.keys[i + t];
+            new_data[i] = ref_root.data[i + t].clone();
         }
-    }
-    {
-        let midle_index = (ref_root.data_count / 2);
-        let last_index = ref_root.data_count;
-        for i in midle_index..last_index {
-            new_data[data_count] = ref_root.data[i].clone();
-            data_count += 1
+        if !ref_root.is_leaf {
+            new_data[keys_count] = ref_root.data[2 * t].clone()
         }
     }
 
+    let new_brother: RcNode;
+    let new_id = storage.get_new_id();
     if ref_root.is_leaf {
-        new_brother = Node::new_leaf(new_id, new_keys, new_data, keys_count, data_count)
+        new_brother = Node::new_leaf(new_id, new_keys, new_data, keys_count, keys_count)
     } else {
-        new_brother = Node::new_root(new_id, new_keys, new_data, keys_count, data_count)
+        new_brother = Node::new_root(new_id, new_keys, new_data, keys_count, keys_count)
     }
 
+    new_brother.borrow_mut().parent = parent_node.borrow().id;
+    ref_root.parent = parent_node.borrow().id;
     //TODO! check result
     storage.add_node(&new_brother);
 
@@ -307,11 +302,15 @@ mod tests {
             }
         }
 
-        result = insert(&mut storage, &leaf1, 6, &new_value, 3);
+        let new_data = Record::from_u8(6);
+        result = insert(&mut storage, &leaf1, 6, &new_data, 3);
         assert!(result.is_ok());
         new_root = result.unwrap();
         assert!(!new_root.borrow().is_leaf);
         let search_result = find(&mut storage, &new_root, 6);
         assert!(search_result.is_ok());
+
+        let unpacked = search_result.expect("!");
+        assert_eq!(unpacked.into_u8(), 6u8);
     }
 }

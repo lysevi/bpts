@@ -6,6 +6,7 @@
 - [x] mock node storage
 - [ ] insertion
 - [ ] remove
-- [x] link to brother
+- [ ] link to brother (left, right)
+- [x] link to parent
 - [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
