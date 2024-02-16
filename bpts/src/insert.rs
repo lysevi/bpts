@@ -103,4 +103,37 @@ mod tests {
         let unpacked = search_result.expect("!");
         assert_eq!(unpacked.into_u8(), 6u8);
     }
+    #[test]
+    fn many_inserts() {
+        let mut root_node = Node::new_leaf(
+            1,
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+            ],
+            0,
+            0,
+        );
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&root_node);
+
+        let mut key: i32 = 1;
+        while storage.size() < 10 {
+            println!("key:{}", key);
+            key += 1;
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+        }
+    }
+    #[test]
+    #[ignore]
+    fn insert_duplicate() {
+        todo!();
+    }
 }

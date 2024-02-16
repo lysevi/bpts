@@ -11,6 +11,9 @@ pub struct MockNodeStorage {
 }
 
 impl MockNodeStorage {
+    pub fn size(&self) -> usize {
+        return self.nodes.len();
+    }
     pub fn new() -> MockNodeStorage {
         MockNodeStorage {
             nodes: HashMap::new(),
