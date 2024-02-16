@@ -7,9 +7,8 @@ pub fn insert(
     value: &Record,
     t: usize,
 ) -> Result<RcNode, types::Error> {
+    let target_node: RcNode;
     {
-        //TODO! extract method
-        let target_node: RcNode;
         if root.borrow().is_empty() {
             target_node = root.clone();
         } else {
@@ -41,13 +40,18 @@ pub fn insert(
             return Ok(root.clone());
         }
     }
-    return split_node(storage, root, t, Some(root.clone()));
+    return split_node(storage, &target_node.clone(), t, Some(root.clone()));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{mocks::MockNodeStorage, node::Node, read, rec::Record};
+    use crate::{
+        mocks::MockNodeStorage,
+        node::Node,
+        read::{self, find},
+        rec::Record,
+    };
 
     #[test]
     fn insert_to_tree() {
@@ -124,11 +128,18 @@ mod tests {
 
         let mut key: i32 = 1;
         while storage.size() < 10 {
-            println!("key:{}", key);
             key += 1;
+            // println!("key:{}", key);
+            // if key == 19 {
+            //     println!("!");
+            // }
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
             assert!(res.is_ok());
             root_node = res.unwrap();
+            for i in 0..key {
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+            }
         }
     }
     #[test]

@@ -47,7 +47,7 @@ pub fn split_node(
         // ref_target.keys_count -= 1;
         ref_target.data_count += 1;
         brother_keys_count -= 1;
-        ignore_middle_key += 1;
+        ignore_middle_key = 1;
     }
 
     let middle_key = ref_target.keys[t];
@@ -108,14 +108,16 @@ pub fn split_node(
         return Ok(parent_node.clone());
     } else {
         //TODO! check result;
+        let can_insert = parent_node.borrow().can_insert(t);
         {
             let mut ref_to_parent = parent_node.borrow_mut();
 
-            insert_key_to_parent(&mut ref_target, middle_key, ref_to_brother.id);
+            insert_key_to_parent(&mut ref_to_parent, middle_key, ref_to_brother.id);
             ref_to_parent.keys_count += 1;
             ref_to_parent.data_count += 1;
         }
-        if parent_node.borrow().can_insert(t) {
+
+        if can_insert {
             return Ok(toproot.unwrap().clone());
         } else {
             return split_node(storage, &parent_node, t, toproot);
@@ -204,9 +206,9 @@ mod tests {
     }
 
     #[test]
-    fn split_middle() {
+    fn split_full_middle() {
         /*
-            1, 2, 3, 4, 5, 6     =>
+            1, 2, 3, 4, 5, 6  0   =>
           0, 1, 2, 3, 4, 5, 6
 
                    4
@@ -215,7 +217,7 @@ mod tests {
         */
         let root_node = Node::new_root(
             1,
-            vec![1, 2, 3, 4, 5, 6],
+            vec![1, 2, 3, 4, 5, 6, 0],
             vec![
                 Record::from_u8(0),
                 Record::from_u8(1),
@@ -276,6 +278,75 @@ mod tests {
             assert!(false);
         }
     }
+
+    #[test]
+    fn split_full_middle2() {
+        /*
+             5,  8, 11, 14, 17, 0     =>
+            1, 3,  4,  5,  6 ,7
+
+                    11
+             5, 8,      14, 17
+            1, 3, 4    5,  6, 7
+        */
+        let root_node = Node::new_root(
+            1,
+            vec![5, 8, 11, 14, 17, 0],
+            vec![
+                Record::from_u8(1),
+                Record::from_u8(3),
+                Record::from_u8(4),
+                Record::from_u8(5),
+                Record::from_u8(6),
+                Record::from_u8(7),
+            ],
+            5,
+            6,
+        );
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&root_node);
+
+        let result = split_node(&mut storage, &root_node, 3, None);
+        if let Ok(root) = result {
+            assert_eq!(root.borrow().is_leaf, false);
+            assert_eq!(root.borrow().keys_count, 1);
+            assert_eq!(root.borrow().keys[0], 11);
+            assert_eq!(root.borrow().data_count, 2);
+
+            let subtree1_res = storage.get_node(root.borrow().data[0].into_id());
+            let subtree2_res = storage.get_node(root.borrow().data[1].into_id());
+            assert!(subtree1_res.is_ok());
+            {
+                let node = subtree1_res.unwrap();
+                let keys_count = node.borrow().keys_count;
+                let data_count = node.borrow().data_count;
+                assert_eq!(keys_count, 2);
+                assert_eq!(node.borrow().keys[0..keys_count], vec![5, 8]);
+                assert_eq!(data_count, 3);
+                assert_eq!(
+                    node.borrow().data[0..data_count],
+                    vec![Record::from_u8(1), Record::from_u8(3), Record::from_u8(4)]
+                );
+            }
+
+            assert!(subtree2_res.is_ok());
+            {
+                let node = subtree2_res.unwrap();
+                let keys_count = node.borrow().keys_count;
+                let data_count = node.borrow().data_count;
+                assert_eq!(keys_count, 2);
+                assert_eq!(node.borrow().keys[0..keys_count], vec![14, 17]);
+                assert_eq!(data_count, 3);
+                assert_eq!(
+                    node.borrow().data[0..data_count],
+                    vec![Record::from_u8(5), Record::from_u8(6), Record::from_u8(7),]
+                );
+            }
+        } else {
+            assert!(false);
+        }
+    }
+
     #[test]
     fn add_key_to_parent() {
         let keys = vec![13, 24, 0, 0];
