@@ -1,6 +1,6 @@
 # bpts
 
-- [ ] refs by ptr
+- [ ] refs by ptr (offset from start)
 - [ ] const EMPTY_ID
 - [ ] const EMPTY_PTR
 - [x] mock node storage
