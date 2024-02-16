@@ -81,6 +81,15 @@ impl Node {
             if self.keys[self.keys_count - 1] <= key {
                 return Some(&self.data[self.data_count - 1]);
             }
+
+            for i in 0..self.keys.len() {
+                match (self.keys[i]).cmp(&key) {
+                    std::cmp::Ordering::Less => continue,
+                    std::cmp::Ordering::Equal => return Some(&self.data[i + 1]),
+                    std::cmp::Ordering::Greater => return Some(&self.data[i]),
+                }
+            }
+            return None;
         }
 
         for i in 0..self.keys.len() {
@@ -137,5 +146,49 @@ mod tests {
 
         let is_none = ref_leaf.find(9);
         assert_eq!(is_none, None);
+    }
+
+    #[test]
+    fn find_in_midle() {
+        let leaf = Node::new_root(
+            0,
+            vec![3, 5, 7],
+            vec![
+                Record::from_u8(1),
+                Record::from_u8(3),
+                Record::from_u8(5),
+                Record::from_u8(7),
+            ],
+            3,
+            4,
+        );
+        let ref_leaf = leaf.borrow();
+        if let Some(item) = ref_leaf.find(1) {
+            let v = item.into_u8();
+            assert_eq!(v, 1u8);
+        } else {
+            assert!(false);
+        }
+
+        if let Some(item) = ref_leaf.find(3) {
+            let v = item.into_u8();
+            assert_eq!(v, 3u8);
+        } else {
+            assert!(false);
+        }
+
+        if let Some(item) = ref_leaf.find(4) {
+            let v = item.into_u8();
+            assert_eq!(v, 3u8);
+        } else {
+            assert!(false);
+        }
+
+        if let Some(item) = ref_leaf.find(9) {
+            let v = item.into_u8();
+            assert_eq!(v, 7u8);
+        } else {
+            assert!(false);
+        }
     }
 }
