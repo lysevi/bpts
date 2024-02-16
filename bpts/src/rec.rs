@@ -12,7 +12,7 @@ impl Record {
     pub fn empty_array(count: usize, sz: usize) -> Vec<Record> {
         let mut result = Vec::with_capacity(count);
 
-        for i in 0..count {
+        for _i in 0..count {
             result.push(Record::empty(sz));
         }
         result
