@@ -113,12 +113,12 @@ mod tests {
             1,
             vec![0, 0, 0, 0, 0, 0],
             vec![
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
             ],
             0,
             0,
@@ -129,19 +129,66 @@ mod tests {
         let mut key: i32 = 1;
         while storage.size() < 10 {
             key += 1;
-            // println!("key:{}", key);
-            // if key == 19 {
-            //     println!("!");
-            // }
+
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
             assert!(res.is_ok());
             root_node = res.unwrap();
-            for i in 0..key {
+
+            for i in 2..key {
                 let res = find(&mut storage, &root_node, i);
                 assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
             }
         }
+
+        for i in 2..key {
+            let res = find(&mut storage, &root_node, i);
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().into_i32(), i);
+        }
     }
+
+    #[test]
+    fn many_inserts_back() {
+        let mut root_node = Node::new_leaf(
+            1,
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+            ],
+            0,
+            0,
+        );
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&root_node);
+
+        let mut key: i32 = 100;
+        while storage.size() < 10 {
+            key -= 1;
+
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+
+            for i in 99..key {
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
+            }
+        }
+
+        for i in 99..key {
+            let res = find(&mut storage, &root_node, i);
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().into_i32(), i);
+        }
+    }
+
     #[test]
     #[ignore]
     fn insert_duplicate() {

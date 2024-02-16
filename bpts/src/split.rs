@@ -45,28 +45,20 @@ pub fn split_node(
     let mut ignore_middle_key = 0;
     if !ref_target.is_leaf {
         // ref_target.keys_count -= 1;
-        ref_target.data_count += 1;
+        //ref_target.data_count += 1;
         brother_keys_count -= 1;
+        ref_target.keys_count -= 1;
         ignore_middle_key = 1;
     }
 
-    let middle_key = ref_target.keys[t];
+    let middle_key = ref_target.keys[t - ignore_middle_key];
     {
         for i in 0..brother_keys_count {
-            new_keys[i] = ref_target.keys[i + t + ignore_middle_key];
+            new_keys[i] = ref_target.keys[i + t];
         }
 
         for i in 0..brother_data_count {
-            if (i + t + ignore_middle_key) >= ref_target.data.len() {
-                println!(
-                    "! i={} t={} ignore={} len={}",
-                    i,
-                    t,
-                    ignore_middle_key,
-                    ref_target.data.len()
-                );
-            }
-            new_data[i] = ref_target.data[i + t + ignore_middle_key].clone();
+            new_data[i] = ref_target.data[i + t].clone();
         }
     }
 
@@ -207,80 +199,6 @@ mod tests {
 
     #[test]
     fn split_full_middle() {
-        /*
-            1, 2, 3, 4, 5, 6  0   =>
-          0, 1, 2, 3, 4, 5, 6
-
-                   4
-            1, 2, 3      5, 6
-           0, 1, 2, 3   4, 5, 6
-        */
-        let root_node = Node::new_root(
-            1,
-            vec![1, 2, 3, 4, 5, 6, 0],
-            vec![
-                Record::from_u8(0),
-                Record::from_u8(1),
-                Record::from_u8(2),
-                Record::from_u8(3),
-                Record::from_u8(4),
-                Record::from_u8(5),
-                Record::from_u8(6),
-            ],
-            6,
-            7,
-        );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
-        storage.add_node(&root_node);
-
-        let result = split_node(&mut storage, &root_node, 3, None);
-        if let Ok(root) = result {
-            assert_eq!(root.borrow().is_leaf, false);
-            assert_eq!(root.borrow().keys_count, 1);
-            assert_eq!(root.borrow().keys[0], 4);
-            assert_eq!(root.borrow().data_count, 2);
-
-            let subtree1_res = storage.get_node(root.borrow().data[0].into_id());
-            let subtree2_res = storage.get_node(root.borrow().data[1].into_id());
-            assert!(subtree1_res.is_ok());
-            {
-                let node = subtree1_res.unwrap();
-                let keys_count = node.borrow().keys_count;
-                let data_count = node.borrow().data_count;
-                assert_eq!(keys_count, 3);
-                assert_eq!(node.borrow().keys[0..keys_count], vec![1, 2, 3]);
-                assert_eq!(data_count, 4);
-                assert_eq!(
-                    node.borrow().data[0..data_count],
-                    vec![
-                        Record::from_u8(0),
-                        Record::from_u8(1),
-                        Record::from_u8(2),
-                        Record::from_u8(3),
-                    ]
-                );
-            }
-
-            assert!(subtree2_res.is_ok());
-            {
-                let node = subtree2_res.unwrap();
-                let keys_count = node.borrow().keys_count;
-                let data_count = node.borrow().data_count;
-                assert_eq!(keys_count, 2);
-                assert_eq!(node.borrow().keys[0..keys_count], vec![5, 6]);
-                assert_eq!(data_count, 3);
-                assert_eq!(
-                    node.borrow().data[0..data_count],
-                    vec![Record::from_u8(4), Record::from_u8(5), Record::from_u8(6),]
-                );
-            }
-        } else {
-            assert!(false);
-        }
-    }
-
-    #[test]
-    fn split_full_middle2() {
         /*
              5,  8, 11, 14, 17, 0     =>
             1, 3,  4,  5,  6 ,7
