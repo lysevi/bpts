@@ -83,8 +83,8 @@ pub fn split_node(
     }
     storage.add_node(&new_brother);
     let mut ref_to_brother = new_brother.borrow_mut();
-    ref_to_brother.parent = parent_node.borrow().id.clone();
-    ref_target.parent = parent_node.borrow().id.clone();
+    ref_to_brother.parent = parent_node.borrow().id;
+    ref_target.parent = parent_node.borrow().id;
     //TODO! check result
 
     //let lowest_key = ref_to_brother.keys[0];
@@ -93,8 +93,8 @@ pub fn split_node(
         ref_to_parent.keys[0] = middle_key;
         ref_to_parent.keys_count = 1;
 
-        ref_to_parent.data[0] = Record::from_id(ref_target.id.clone());
-        ref_to_parent.data[1] = Record::from_id(ref_to_brother.id.clone());
+        ref_to_parent.data[0] = Record::from_id(ref_target.id);
+        ref_to_parent.data[1] = Record::from_id(ref_to_brother.id);
         ref_to_parent.data_count = 2;
 
         return Ok(parent_node.clone());
@@ -104,7 +104,7 @@ pub fn split_node(
         {
             let mut ref_to_parent = parent_node.borrow_mut();
 
-            insert_key_to_parent(&mut ref_to_parent, middle_key, ref_to_brother.id.clone());
+            insert_key_to_parent(&mut ref_to_parent, middle_key, ref_to_brother.id);
             ref_to_parent.keys_count += 1;
             ref_to_parent.data_count += 1;
         }

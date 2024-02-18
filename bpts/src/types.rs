@@ -1,7 +1,8 @@
 use std::fmt::Display;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Id(pub i32);
+
 pub struct Ptr(u32);
 #[derive(Debug)]
 pub struct Error(pub String);
