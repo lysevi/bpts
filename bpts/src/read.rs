@@ -13,7 +13,7 @@ pub fn scan<'a>(
     let mut target = Rc::clone(root);
 
     loop {
-        let node_id: i32;
+        let node_id: types::Id;
         {
             let ref_target = target.borrow();
             if ref_target.is_leaf {
@@ -21,17 +21,17 @@ pub fn scan<'a>(
             }
             let rec = ref_target.find(key);
             if rec.is_none() {
-                return Err(format!("{} not found", key));
+                return Err(types::Error(format!("{} not found", key)));
             }
             node_id = rec.unwrap().into_id();
         }
-        let tmp = storage.get_node(node_id);
+        let tmp = storage.get_node(&node_id);
         match tmp {
             Ok(r) => {
                 target = Rc::clone(&r);
             }
             Err(e) => {
-                return Err(format!("{:?} not found - '{}'", node_id, e));
+                return Err(types::Error(format!("{:?} not found - '{}'", node_id, e)));
             }
         }
     }
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn find_in_tree() {
         let leaf1 = Node::new_leaf(
-            0,
+            types::Id(0),
             vec![2, 3],
             vec![Record::from_u8(2), Record::from_u8(3)],
             2,
@@ -74,13 +74,13 @@ mod tests {
         assert!(res.is_ok());
         assert_eq!(res.unwrap().into_u8(), 2u8);
 
-        let leaf2 = Node::new_leaf(1, vec![1], vec![Record::from_u8(1)], 1, 1);
+        let leaf2 = Node::new_leaf(types::Id(1), vec![1], vec![Record::from_u8(1)], 1, 1);
         storage.add_node(&leaf2);
 
         let node1 = Node::new_root(
-            2,
+            types::Id(2),
             vec![2],
-            vec![Record::from_id(1), Record::from_id(0)],
+            vec![Record::from_id(types::Id(1)), Record::from_id(types::Id(0))],
             1,
             2,
         );

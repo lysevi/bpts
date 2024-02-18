@@ -15,7 +15,7 @@ pub fn split_node(
     let parent_node: RcNode;
     let mut ref_target = target_node.borrow_mut();
     let is_new_root;
-    if ref_target.parent == 0
+    if ref_target.parent == types::EMPTY_ID
     /*|| ref_target.is_leaf */
     {
         // create new_root
@@ -32,7 +32,7 @@ pub fn split_node(
     } else {
         //TODO! check unwrap
         is_new_root = false;
-        parent_node = storage.get_node(ref_target.parent).unwrap();
+        parent_node = storage.get_node(&ref_target.parent).unwrap();
     }
 
     let mut new_keys = vec![0i32; ref_target.keys.capacity()];
@@ -83,8 +83,8 @@ pub fn split_node(
     }
     storage.add_node(&new_brother);
     let mut ref_to_brother = new_brother.borrow_mut();
-    ref_to_brother.parent = parent_node.borrow().id;
-    ref_target.parent = parent_node.borrow().id;
+    ref_to_brother.parent = parent_node.borrow().id.clone();
+    ref_target.parent = parent_node.borrow().id.clone();
     //TODO! check result
 
     //let lowest_key = ref_to_brother.keys[0];
@@ -93,8 +93,8 @@ pub fn split_node(
         ref_to_parent.keys[0] = middle_key;
         ref_to_parent.keys_count = 1;
 
-        ref_to_parent.data[0] = Record::from_id(ref_target.id);
-        ref_to_parent.data[1] = Record::from_id(ref_to_brother.id);
+        ref_to_parent.data[0] = Record::from_id(ref_target.id.clone());
+        ref_to_parent.data[1] = Record::from_id(ref_to_brother.id.clone());
         ref_to_parent.data_count = 2;
 
         return Ok(parent_node.clone());
@@ -104,7 +104,7 @@ pub fn split_node(
         {
             let mut ref_to_parent = parent_node.borrow_mut();
 
-            insert_key_to_parent(&mut ref_to_parent, middle_key, ref_to_brother.id);
+            insert_key_to_parent(&mut ref_to_parent, middle_key, ref_to_brother.id.clone());
             ref_to_parent.keys_count += 1;
             ref_to_parent.data_count += 1;
         }
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn split_leaft() {
         let leaf1 = Node::new_leaf(
-            1,
+            types::Id(1),
             vec![1, 2, 3, 4, 5, 6],
             vec![
                 Record::from_u8(1),
@@ -160,7 +160,7 @@ mod tests {
             assert_eq!(root.borrow().keys_count, 1);
             assert_eq!(root.borrow().data_count, 2);
 
-            let subtree1_res = storage.get_node(root.borrow().data[0].into_id());
+            let subtree1_res = storage.get_node(&root.borrow().data[0].into_id());
             assert!(subtree1_res.is_ok());
             {
                 let node = subtree1_res.unwrap();
@@ -174,7 +174,7 @@ mod tests {
                     vec![Record::from_u8(1), Record::from_u8(2), Record::from_u8(3),]
                 );
             }
-            let subtree2_res = storage.get_node(root.borrow().data[1].into_id());
+            let subtree2_res = storage.get_node(&root.borrow().data[1].into_id());
             assert!(subtree2_res.is_ok());
             {
                 let node = subtree2_res.unwrap();
@@ -208,7 +208,7 @@ mod tests {
             1, 3, 4    5,  6, 7
         */
         let root_node = Node::new_root(
-            1,
+            types::Id(1),
             vec![5, 8, 11, 14, 17, 0],
             vec![
                 Record::from_u8(1),
@@ -231,8 +231,8 @@ mod tests {
             assert_eq!(root.borrow().keys[0], 11);
             assert_eq!(root.borrow().data_count, 2);
 
-            let subtree1_res = storage.get_node(root.borrow().data[0].into_id());
-            let subtree2_res = storage.get_node(root.borrow().data[1].into_id());
+            let subtree1_res = storage.get_node(&root.borrow().data[0].into_id());
+            let subtree2_res = storage.get_node(&root.borrow().data[1].into_id());
             assert!(subtree1_res.is_ok());
             {
                 let node = subtree1_res.unwrap();
@@ -269,25 +269,25 @@ mod tests {
     fn add_key_to_parent() {
         let keys = vec![13, 24, 0, 0];
         let data = vec![
-            Record::from_id(2),
-            Record::from_id(13),
-            Record::from_id(24),
-            Record::from_id(0),
-            Record::from_id(0),
+            Record::from_id(types::Id(2)),
+            Record::from_id(types::Id(13)),
+            Record::from_id(types::Id(24)),
+            Record::from_id(types::Id(0)),
+            Record::from_id(types::Id(0)),
         ];
-        let leaf = Node::new_leaf(1, keys, data, 2, 3);
+        let leaf = Node::new_leaf(types::Id(1), keys, data, 2, 3);
         let mut ref_to_leaf = leaf.borrow_mut();
-        insert_key_to_parent(&mut ref_to_leaf, 19, 19);
+        insert_key_to_parent(&mut ref_to_leaf, 19, types::Id(19));
 
         assert_eq!(ref_to_leaf.keys, vec![13, 19, 24, 0]);
         assert_eq!(
             ref_to_leaf.data,
             vec![
-                Record::from_id(2),
-                Record::from_id(13),
-                Record::from_id(19),
-                Record::from_id(24),
-                Record::from_id(0),
+                Record::from_id(types::Id(2)),
+                Record::from_id(types::Id(13)),
+                Record::from_id(types::Id(19)),
+                Record::from_id(types::Id(24)),
+                Record::from_id(types::Id(0)),
             ]
         );
     }
@@ -303,7 +303,7 @@ mod tests {
         1,2,3,  4,5,6     12 13
         */
         let root_node = Node::new_root(
-            1,
+            types::Id(1),
             vec![11],
             vec![Record::from_u8(1), Record::from_u8(2)],
             1,
@@ -313,7 +313,7 @@ mod tests {
         storage.add_node(&root_node);
 
         let leaf1_node = Node::new_leaf(
-            2,
+            types::Id(2),
             vec![1, 2, 3, 4, 5, 6],
             vec![
                 Record::from_u8(1),
@@ -326,19 +326,19 @@ mod tests {
             6,
             7,
         );
-        leaf1_node.borrow_mut().parent = 1;
-        leaf1_node.borrow_mut().right = 3;
+        leaf1_node.borrow_mut().parent = types::Id(1);
+        leaf1_node.borrow_mut().right = types::Id(3);
         storage.add_node(&leaf1_node);
 
         let leaf2_node = Node::new_root(
-            3,
+            types::Id(3),
             vec![11],
             vec![Record::from_u8(1), Record::from_u8(2)],
             1,
             2,
         );
-        leaf1_node.borrow_mut().parent = 1;
-        leaf1_node.borrow_mut().left = 2;
+        leaf1_node.borrow_mut().parent = types::Id(1);
+        leaf1_node.borrow_mut().left = types::Id(2);
         storage.add_node(&leaf2_node);
 
         let result = split_node(&mut storage, &leaf1_node, 3, Some(root_node.clone()));

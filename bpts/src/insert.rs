@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn insert_to_tree() {
         let leaf1 = Node::new_leaf(
-            1,
+            types::Id(1),
             vec![2, 3, 0, 0, 0, 0],
             vec![
                 Record::from_u8(2),
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn many_inserts() {
         let mut root_node = Node::new_leaf(
-            1,
+            types::Id(1),
             vec![0, 0, 0, 0, 0, 0],
             vec![
                 Record::from_i32(0),
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn many_inserts_back() {
         let mut root_node = Node::new_leaf(
-            1,
+            types::Id(1),
             vec![0, 0, 0, 0, 0, 0],
             vec![
                 Record::from_i32(0),

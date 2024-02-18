@@ -38,9 +38,9 @@ impl Node {
             data: data,
             keys_count,
             data_count,
-            left: 0,
-            parent: 0,
-            right: 0,
+            left: types::EMPTY_ID,
+            parent: types::EMPTY_ID,
+            right: types::EMPTY_ID,
         }))
     }
 
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn find_in_leaf() {
         let leaf = Node::new_leaf(
-            0,
+            types::EMPTY_ID,
             vec![1, 2, 3, 4],
             vec![
                 Record::from_u8(1),
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn find_in_midle() {
         let leaf = Node::new_root(
-            0,
+            types::EMPTY_ID,
             vec![3, 5, 7],
             vec![
                 Record::from_u8(1),

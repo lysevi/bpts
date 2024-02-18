@@ -54,11 +54,11 @@ impl Record {
     }
 
     pub fn from_id(value: Id) -> Self {
-        Record::from_i32(value)
+        Record::from_i32(value.unwrap())
     }
 
     pub fn into_id(&self) -> Id {
-        self.into_i32()
+        types::Id(self.into_i32())
     }
 }
 

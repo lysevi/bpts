@@ -1,3 +1,21 @@
-pub type Id = i32;
+use std::fmt::Display;
 
-pub type Error = String;
+#[derive(Clone, Debug, PartialEq)]
+pub struct Id(pub i32);
+pub struct Ptr(u32);
+#[derive(Debug)]
+pub struct Error(pub String);
+
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Error({})", self.0)
+    }
+}
+
+pub const EMPTY_ID: Id = Id(-1);
+
+impl Id {
+    pub fn unwrap(&self) -> i32 {
+        self.0
+    }
+}
