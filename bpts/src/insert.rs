@@ -40,7 +40,12 @@ pub fn insert(
             return Ok(root.clone());
         }
     }
-    return split_node(storage, &target_node.clone(), t, Some(root.clone()));
+    return split_node(
+        storage,
+        &mut target_node.borrow_mut(),
+        t,
+        Some(root.clone()),
+    );
 }
 
 #[cfg(test)]
