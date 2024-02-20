@@ -137,6 +137,16 @@ mod tests {
     use super::*;
     use crate::mocks::MockNodeStorage;
     use crate::read;
+    fn check_link_to_brother(storage: &MockNodeStorage) {
+        let all_links_exists = storage.all(|n| {
+            let n = n.borrow();
+            return n.parent == types::EMPTY_ID
+                || (n.left != types::EMPTY_ID && n.parent != types::EMPTY_ID)
+                || (n.right != types::EMPTY_ID && n.parent != types::EMPTY_ID);
+        });
+
+        assert!(all_links_exists);
+    }
     #[test]
     fn split_leaf() {
         let leaf1 = Node::new_leaf(
@@ -198,14 +208,7 @@ mod tests {
             assert!(false);
         }
 
-        let all_links_exists = storage.all(|n| {
-            let n = n.borrow();
-            return n.parent == types::EMPTY_ID
-                || n.left != types::EMPTY_ID
-                || n.right != types::EMPTY_ID;
-        });
-
-        assert!(all_links_exists);
+        check_link_to_brother(&storage);
     }
 
     #[test]
@@ -275,14 +278,7 @@ mod tests {
             assert!(false);
         }
 
-        let all_links_exists = storage.all(|n| {
-            let n = n.borrow();
-            return n.parent == types::EMPTY_ID
-                || n.left != types::EMPTY_ID
-                || n.right != types::EMPTY_ID;
-        });
-
-        assert!(all_links_exists);
+        check_link_to_brother(&storage);
     }
 
     #[test]
@@ -371,13 +367,6 @@ mod tests {
         assert_eq!(result.unwrap().borrow().id, root_node.borrow().id);
         assert_eq!(storage.size(), 4);
 
-        let all_links_exists = storage.all(|n| {
-            let n = n.borrow();
-            return n.parent == types::EMPTY_ID
-                || n.left != types::EMPTY_ID
-                || n.right != types::EMPTY_ID;
-        });
-
-        assert!(all_links_exists);
+        check_link_to_brother(&storage);
     }
 }
