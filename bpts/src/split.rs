@@ -84,6 +84,9 @@ pub fn split_node(
     let mut ref_to_brother = new_brother.borrow_mut();
     ref_to_brother.parent = parent_node.borrow().id;
     target_node.parent = parent_node.borrow().id;
+
+    target_node.right = ref_to_brother.id;
+    ref_to_brother.left = target_node.right;
     //TODO! check result
 
     //let lowest_key = ref_to_brother.keys[0];
@@ -135,7 +138,7 @@ mod tests {
     use crate::mocks::MockNodeStorage;
     use crate::read;
     #[test]
-    fn split_leaft() {
+    fn split_leaf() {
         let leaf1 = Node::new_leaf(
             types::Id(1),
             vec![1, 2, 3, 4, 5, 6],
@@ -194,6 +197,15 @@ mod tests {
         } else {
             assert!(false);
         }
+
+        let all_links_exists = storage.all(|n| {
+            let n = n.borrow();
+            return n.parent == types::EMPTY_ID
+                || n.left != types::EMPTY_ID
+                || n.right != types::EMPTY_ID;
+        });
+
+        assert!(all_links_exists);
     }
 
     #[test]
@@ -262,6 +274,15 @@ mod tests {
         } else {
             assert!(false);
         }
+
+        let all_links_exists = storage.all(|n| {
+            let n = n.borrow();
+            return n.parent == types::EMPTY_ID
+                || n.left != types::EMPTY_ID
+                || n.right != types::EMPTY_ID;
+        });
+
+        assert!(all_links_exists);
     }
 
     #[test]
@@ -349,5 +370,14 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap().borrow().id, root_node.borrow().id);
         assert_eq!(storage.size(), 4);
+
+        let all_links_exists = storage.all(|n| {
+            let n = n.borrow();
+            return n.parent == types::EMPTY_ID
+                || n.left != types::EMPTY_ID
+                || n.right != types::EMPTY_ID;
+        });
+
+        assert!(all_links_exists);
     }
 }

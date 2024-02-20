@@ -1,6 +1,6 @@
 # bpts
 
-- [ ] link to brother (left, right)
+- [x] link to brother (left, right)
 - [ ] bulk loading
 - [ ] refs by ptr (offset from start)
 

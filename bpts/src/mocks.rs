@@ -19,6 +19,13 @@ impl MockNodeStorage {
             nodes: HashMap::new(),
         }
     }
+
+    pub fn all<F>(&self, f: F) -> bool
+    where
+        F: FnMut(&RcNode) -> bool,
+    {
+        self.nodes.values().all(f)
+    }
 }
 impl NodeStorage for MockNodeStorage {
     fn get_new_id(&self) -> types::Id {
