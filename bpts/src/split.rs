@@ -135,16 +135,6 @@ pub fn split_node(
             insert_key_to_parent(&mut ref_to_parent, middle_key, new_brother.borrow().id);
             ref_to_parent.keys_count += 1;
             ref_to_parent.data_count += 1;
-
-            // for i in 0..ref_to_parent.data_count {
-            //     let child_num = ref_to_parent.data[i].into_id();
-            //     if child_num != target_node.id && child_num != ref_to_brother.id {
-            //         //TODO! check result
-            //         let child = storage.get_node(child_num).unwrap();
-
-            //         child.borrow_mut().parent = ref_to_parent.id;
-            //     }
-            // }
         }
 
         if can_insert {
@@ -261,15 +251,15 @@ mod tests {
             1, 3, 4    5,  6, 7
         */
         let first_root_node = Node::new_root(
-            types::Id(1),
+            types::Id(777),
             vec![5, 8, 11, 14, 17, 0],
             vec![
-                Record::from_u8(1),
-                Record::from_u8(3),
-                Record::from_u8(4),
-                Record::from_u8(5),
-                Record::from_u8(6),
-                Record::from_u8(7),
+                Record::from_i32(1),
+                Record::from_i32(3),
+                Record::from_i32(4),
+                Record::from_i32(5),
+                Record::from_i32(6),
+                Record::from_i32(7),
             ],
             5,
             6,
@@ -277,6 +267,21 @@ mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&first_root_node);
 
+        {
+            let ref_to_node = first_root_node.borrow_mut();
+            for i in &ref_to_node.data {
+                let rec = i.clone();
+                let new_leaf = Node::new_leaf(
+                    types::Id(i.into_i32()),
+                    vec![0],
+                    vec![Record::from_u8(1)],
+                    1,
+                    1,
+                );
+                new_leaf.borrow_mut().left = types::Id(999);
+                storage.add_node(&new_leaf);
+            }
+        }
         let result = split_node(&mut storage, &first_root_node, 3, None);
         let root = result.unwrap();
 
@@ -286,8 +291,10 @@ mod tests {
         assert_eq!(root.borrow().keys[0], 11);
         assert_eq!(root.borrow().data_count, 2);
 
-        let subtree1_res = storage.get_node(root.borrow().data[0].into_id());
-        let subtree2_res = storage.get_node(root.borrow().data[1].into_id());
+        let id_1 = root.borrow().data[0].into_id();
+        let id_2 = root.borrow().data[1].into_id();
+        let subtree1_res = storage.get_node(id_1);
+        let subtree2_res = storage.get_node(id_2);
         assert!(subtree1_res.is_ok());
         {
             let node = subtree1_res.unwrap();
@@ -298,7 +305,11 @@ mod tests {
             assert_eq!(data_count, 3);
             assert_eq!(
                 node.borrow().data[0..data_count],
-                vec![Record::from_u8(1), Record::from_u8(3), Record::from_u8(4)]
+                vec![
+                    Record::from_i32(1),
+                    Record::from_i32(3),
+                    Record::from_i32(4)
+                ]
             );
         }
 
@@ -312,7 +323,11 @@ mod tests {
             assert_eq!(data_count, 3);
             assert_eq!(
                 node.borrow().data[0..data_count],
-                vec![Record::from_u8(5), Record::from_u8(6), Record::from_u8(7),]
+                vec![
+                    Record::from_i32(5),
+                    Record::from_i32(6),
+                    Record::from_i32(7),
+                ]
             );
         }
 

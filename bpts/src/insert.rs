@@ -191,7 +191,7 @@ mod tests {
             root_node = res.unwrap();
 
             for i in (key..99).rev() {
-                println!(">> {}", i);
+                // println!(">> {}", i);
                 let res = find(&mut storage, &root_node, i);
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().into_i32(), i);
