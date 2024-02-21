@@ -38,7 +38,7 @@ impl NodeStorage for MockNodeStorage {
             None => types::Id(1),
         }
     }
-    fn get_node(&self, id: &Id) -> Result<RcNode, types::Error> {
+    fn get_node(&self, id: Id) -> Result<RcNode, types::Error> {
         let res = self.nodes.get(&id.unwrap());
         if let Some(r) = res {
             Ok(Rc::clone(r))

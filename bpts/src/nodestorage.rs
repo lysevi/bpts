@@ -6,7 +6,7 @@ use crate::{
 pub trait NodeStorage {
     fn get_new_id(&self) -> types::Id;
     //TODO get_node(ptr) -> Option<&Node>;
-    fn get_node(&self, id: &Id) -> Result<RcNode, types::Error>;
+    fn get_node(&self, id: Id) -> Result<RcNode, types::Error>;
     //TODO add_node(node) -> ptr
     fn add_node(&mut self, node: &RcNode);
 }

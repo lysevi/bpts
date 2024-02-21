@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::node::*;
 use crate::nodestorage::NodeStorage;
 use crate::rec::Record;
-use crate::types;
+use crate::types::{self, EMPTY_ID};
 
 pub fn scan<'a>(
     storage: &mut dyn NodeStorage,
@@ -25,7 +25,7 @@ pub fn scan<'a>(
             }
             node_id = rec.unwrap().into_id();
         }
-        let tmp = storage.get_node(&node_id);
+        let tmp = storage.get_node(node_id);
         match tmp {
             Ok(r) => {
                 target = Rc::clone(&r);
@@ -51,6 +51,53 @@ pub fn find<'a>(
         }
         Err(e) => Err(e),
     }
+}
+
+pub fn map<'a, F>(
+    storage: &mut dyn NodeStorage,
+    root: &RcNode,
+    from: i32,
+    to: i32,
+    f: &mut F,
+) -> Result<(), types::Error>
+where
+    F: FnMut(i32, &Record),
+{
+    let node_from = scan(storage, root, from);
+    let node_to = scan(storage, root, to);
+
+    match node_from {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
+
+    match node_to {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
+    let from_unwr = node_from.unwrap();
+    let to_unwr = node_to.unwrap();
+
+    let mut cur_node: RcNode = from_unwr.clone();
+
+    loop {
+        {
+            let ref_to = cur_node.borrow();
+            ref_to.map(from, to, f);
+            if ref_to.id == to_unwr.borrow().id {
+                break;
+            }
+        }
+        println!("map: {:?}", cur_node.borrow().right);
+        if cur_node.borrow().right != EMPTY_ID {
+            let next = storage.get_node(cur_node.borrow().right);
+
+            cur_node = next.unwrap();
+        } else {
+            break;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

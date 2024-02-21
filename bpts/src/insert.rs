@@ -19,6 +19,7 @@ pub fn insert(
 
             target_node = scan_result.unwrap();
         }
+        println!("insert into {:?}", target_node.borrow().id);
         let mut mut_ref = target_node.borrow_mut();
         let can_insert = mut_ref.can_insert(t);
 
@@ -40,12 +41,7 @@ pub fn insert(
             return Ok(root.clone());
         }
     }
-    return split_node(
-        storage,
-        &mut target_node.borrow_mut(),
-        t,
-        Some(root.clone()),
-    );
+    return split_node(storage, &target_node, t, Some(root.clone()));
 }
 
 #[cfg(test)]
@@ -54,7 +50,7 @@ mod tests {
     use crate::{
         mocks::MockNodeStorage,
         node::Node,
-        read::{self, find},
+        read::{self, find, map},
         rec::Record,
     };
 
@@ -134,12 +130,19 @@ mod tests {
         let mut key: i32 = 1;
         while storage.size() < 10 {
             key += 1;
-
+            println!("+ {:?} root:{:?}", key, root_node.borrow().id);
+            if key == 22 {
+                println!("kv 22");
+            }
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
             assert!(res.is_ok());
             root_node = res.unwrap();
 
-            for i in 2..key {
+            for i in 2..=key {
+                //println!("! {:?}", i);
+                if key == 22 && i == 20 {
+                    println!("!");
+                }
                 let res = find(&mut storage, &root_node, i);
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().into_i32(), i);
@@ -151,6 +154,13 @@ mod tests {
             assert!(res.is_ok());
             assert_eq!(res.unwrap().into_i32(), i);
         }
+
+        let res = find(&mut storage, &root_node, key - 1);
+        println!(">> {:?}", res);
+        map(&mut storage, &root_node, 2, key - 1, &mut |k, _v| {
+            println!("mapped {:?}", k)
+        })
+        .unwrap();
     }
 
     #[test]
@@ -175,23 +185,31 @@ mod tests {
         let mut key: i32 = 100;
         while storage.size() < 10 {
             key -= 1;
-
+            println!("insert {}", key);
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
             assert!(res.is_ok());
             root_node = res.unwrap();
 
-            for i in 99..key {
+            for i in (key..99).rev() {
+                println!(">> {}", i);
                 let res = find(&mut storage, &root_node, i);
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().into_i32(), i);
             }
         }
 
-        for i in 99..key {
+        for i in (key..99).rev() {
             let res = find(&mut storage, &root_node, i);
             assert!(res.is_ok());
             assert_eq!(res.unwrap().into_i32(), i);
         }
+
+        let res = find(&mut storage, &root_node, key - 1);
+        println!(">> {:?}", res);
+        map(&mut storage, &root_node, key, 99, &mut |k, _v| {
+            println!("mapped {:?}", k)
+        })
+        .unwrap();
     }
 
     #[test]

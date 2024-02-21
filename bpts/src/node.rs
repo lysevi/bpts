@@ -82,7 +82,7 @@ impl Node {
                 return Some(&self.data[self.data_count - 1]);
             }
 
-            for i in 0..self.keys.len() {
+            for i in 0..self.keys_count {
                 match (self.keys[i]).cmp(&key) {
                     std::cmp::Ordering::Less => continue,
                     std::cmp::Ordering::Equal => return Some(&self.data[i + 1]),
@@ -92,7 +92,7 @@ impl Node {
             return None;
         }
 
-        for i in 0..self.keys.len() {
+        for i in 0..self.keys_count {
             match (self.keys[i]).cmp(&key) {
                 std::cmp::Ordering::Less => continue,
                 std::cmp::Ordering::Equal => return Some(&self.data[i]),
@@ -100,6 +100,21 @@ impl Node {
             }
         }
         return None;
+    }
+
+    pub fn map<'a, F>(&self, from: i32, to: i32, f: &mut F)
+    where
+        F: FnMut(i32, &Record),
+    {
+        if !self.is_leaf {
+            panic!()
+        }
+
+        for i in 0..self.keys_count {
+            if self.keys[i] >= from && self.keys[i] <= to {
+                f(self.keys[i], &self.data[i]);
+            }
+        }
     }
 
     pub fn insert_data(&mut self, index: usize, key: i32, value: rec::Record) {
