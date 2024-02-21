@@ -157,10 +157,13 @@ mod tests {
 
         let res = find(&mut storage, &root_node, key - 1);
         println!(">> {:?}", res);
+        let mut count = 0;
         map(&mut storage, &root_node, 2, key - 1, &mut |k, _v| {
-            println!("mapped {:?}", k)
+            println!("mapped {:?}", k);
+            count += 1;
         })
         .unwrap();
+        assert_eq!(count, key - 2);
     }
 
     #[test]
@@ -183,7 +186,9 @@ mod tests {
         storage.add_node(&root_node);
 
         let mut key: i32 = 100;
+        let mut total_count = 0;
         while storage.size() < 10 {
+            total_count += 1;
             key -= 1;
             println!("insert {}", key);
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
@@ -206,10 +211,14 @@ mod tests {
 
         let res = find(&mut storage, &root_node, key - 1);
         println!(">> {:?}", res);
+        let mut count = 0;
         map(&mut storage, &root_node, key, 99, &mut |k, _v| {
-            println!("mapped {:?}", k)
+            println!("mapped {:?}", k);
+            count += 1;
         })
         .unwrap();
+
+        assert_eq!(count, total_count);
     }
 
     #[test]

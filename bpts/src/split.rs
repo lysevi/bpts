@@ -270,7 +270,6 @@ mod tests {
         {
             let ref_to_node = first_root_node.borrow_mut();
             for i in &ref_to_node.data {
-                let rec = i.clone();
                 let new_leaf = Node::new_leaf(
                     types::Id(i.into_i32()),
                     vec![0],
