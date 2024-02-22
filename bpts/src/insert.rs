@@ -261,4 +261,10 @@ mod tests {
     fn insert_duplicate() {
         todo!();
     }
+
+    #[test]
+    #[ignore]
+    fn bulk_write() {
+        todo!()
+    }
 }

@@ -197,9 +197,4 @@ mod tests {
         assert!(res_2.is_ok());
         assert_eq!(res_2.unwrap().into_u8(), 2u8);
     }
-    #[test]
-    #[ignore]
-    fn bulk_read() {
-        todo!()
-    }
 }
