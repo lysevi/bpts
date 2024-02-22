@@ -1,8 +1,8 @@
 # bpts
 
+- [ ] remove
 - [ ] remove ref. to parent.
 - [ ] refs by ptr (offset from start)
-- [ ] remove
 - [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
