@@ -111,6 +111,11 @@ pub fn split_node(
         target_node.borrow_mut().parent = parent_node.borrow().id;
 
         ref_to_brother.right = target_node.borrow().right;
+        if ref_to_brother.right != types::EMPTY_ID {
+            //TODO! check result
+            let right_brother = storage.get_node(ref_to_brother.right).unwrap();
+            right_brother.borrow_mut().left = new_id;
+        }
         target_node.borrow_mut().right = ref_to_brother.id;
         ref_to_brother.left = target_node.borrow().id;
     }

@@ -117,6 +117,22 @@ impl Node {
         }
     }
 
+    pub fn map_rev<'a, F>(&self, from: i32, to: i32, f: &mut F)
+    where
+        F: FnMut(i32, &Record),
+    {
+        if !self.is_leaf {
+            panic!()
+        }
+
+        for i in (0..self.keys_count).rev() {
+            let cur_key = self.keys[i];
+            if cur_key >= from && cur_key <= to {
+                f(self.keys[i], &self.data[i]);
+            }
+        }
+    }
+
     pub fn insert_data(&mut self, index: usize, key: i32, value: rec::Record) {
         utils::insert_to_array(&mut self.keys, index, key);
         utils::insert_to_array(&mut self.data, index, value);

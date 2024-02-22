@@ -104,6 +104,58 @@ where
     Ok(())
 }
 
+//TODO! refact with map.
+pub fn map_rev<'a, F>(
+    storage: &mut dyn NodeStorage,
+    root: &RcNode,
+    from: i32,
+    to: i32,
+    f: &mut F,
+) -> Result<(), types::Error>
+where
+    F: FnMut(i32, &Record),
+{
+    let node_from = scan(storage, root, from);
+    let node_to = scan(storage, root, to);
+
+    match node_from {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
+
+    match node_to {
+        Ok(_) => {}
+        Err(e) => return Err(e),
+    }
+    let from_unwr = node_from.unwrap();
+    let to_unwr = node_to.unwrap();
+
+    let mut cur_node: RcNode = to_unwr.clone();
+
+    loop {
+        {
+            let ref_to = cur_node.borrow();
+            ref_to.map_rev(from, to, f);
+            if ref_to.id == from_unwr.borrow().id {
+                break;
+            }
+        }
+        println!(
+            "map_rev: {:?} {:?}",
+            cur_node.borrow().id,
+            cur_node.borrow().left
+        );
+        if cur_node.borrow().left != EMPTY_ID {
+            let next = storage.get_node(cur_node.borrow().left);
+
+            cur_node = next.unwrap();
+        } else {
+            break;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

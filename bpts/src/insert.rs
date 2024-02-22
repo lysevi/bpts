@@ -50,7 +50,7 @@ mod tests {
     use crate::{
         mocks::MockNodeStorage,
         node::Node,
-        read::{self, find, map},
+        read::{self, find, map, map_rev},
         rec::Record,
     };
 
@@ -157,13 +157,31 @@ mod tests {
 
         let res = find(&mut storage, &root_node, key - 1);
         println!(">> {:?}", res);
-        let mut count = 0;
-        map(&mut storage, &root_node, 2, key - 1, &mut |k, _v| {
+        let mut mapped_values = Vec::new();
+        map(&mut storage, &root_node, 2, key - 1, &mut |k, v| {
             println!("mapped {:?}", k);
-            count += 1;
+            assert_eq!(v.into_i32(), k);
+            mapped_values.push(k);
         })
         .unwrap();
-        assert_eq!(count, key - 2);
+        assert_eq!(mapped_values.len(), (key - 2) as usize);
+
+        for i in 1..mapped_values.len() {
+            assert!(mapped_values[i - 1] < mapped_values[i]);
+        }
+
+        mapped_values.clear();
+        map_rev(&mut storage, &root_node, 2, key - 1, &mut |k, v| {
+            println!("mapped_rev {:?}", k);
+            assert_eq!(v.into_i32(), k);
+            mapped_values.push(k);
+        })
+        .unwrap();
+        assert_eq!(mapped_values.len(), (key - 2) as usize);
+
+        for i in 1..mapped_values.len() {
+            assert!(mapped_values[i - 1] > mapped_values[i]);
+        }
     }
 
     #[test]
@@ -211,14 +229,31 @@ mod tests {
 
         let res = find(&mut storage, &root_node, key - 1);
         println!(">> {:?}", res);
-        let mut count = 0;
-        map(&mut storage, &root_node, key, 99, &mut |k, _v| {
+        let mut mapped_values = Vec::new();
+        map(&mut storage, &root_node, key, 99, &mut |k, v| {
             println!("mapped {:?}", k);
-            count += 1;
+            assert_eq!(v.into_i32(), k);
+            mapped_values.push(k);
         })
         .unwrap();
 
-        assert_eq!(count, total_count);
+        assert_eq!(mapped_values.len(), total_count);
+        for i in 1..mapped_values.len() {
+            assert!(mapped_values[i - 1] < mapped_values[i]);
+        }
+
+        mapped_values.clear();
+        map_rev(&mut storage, &root_node, key, 99, &mut |k, v| {
+            println!("mapped_rev {:?}", k);
+            assert_eq!(v.into_i32(), k);
+            mapped_values.push(k);
+        })
+        .unwrap();
+        assert_eq!(mapped_values.len(), total_count);
+
+        for i in 1..mapped_values.len() {
+            assert!(mapped_values[i - 1] > mapped_values[i]);
+        }
     }
 
     #[test]
