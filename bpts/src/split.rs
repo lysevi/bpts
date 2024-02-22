@@ -110,6 +110,7 @@ pub fn split_node(
         ref_to_brother.parent = parent_node.borrow().id;
         target_node.borrow_mut().parent = parent_node.borrow().id;
 
+        ref_to_brother.right = target_node.borrow().right;
         target_node.borrow_mut().right = ref_to_brother.id;
         ref_to_brother.left = target_node.borrow().id;
     }
