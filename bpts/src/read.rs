@@ -63,6 +63,7 @@ pub fn map<'a, F>(
 where
     F: FnMut(i32, &Record),
 {
+    assert!(from <= to);
     let node_from = scan(storage, root, from);
     let node_to = scan(storage, root, to);
 
@@ -115,6 +116,7 @@ pub fn map_rev<'a, F>(
 where
     F: FnMut(i32, &Record),
 {
+    assert!(from <= to);
     let node_from = scan(storage, root, from);
     let node_to = scan(storage, root, to);
 
