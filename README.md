@@ -5,9 +5,10 @@
 - [ ] remove
 - [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
+- [ ] bulk loading
 
 - [ ] const EMPTY_PTR
-- [x] bulk loading
+- [x] range query
 - [x] const EMPTY_ID
 - [x] mock node storage
 - [x] insertion
