@@ -39,9 +39,13 @@ pub fn split_node(
         println!("split new root: {:?}", parent_node.borrow().id);
     } else {
         println!("split exists root {:?}", target_node.borrow().parent);
-        //TODO! check unwrap
+
         is_new_root = false;
-        parent_node = storage.get_node(target_node.borrow().parent).unwrap();
+        let subres = storage.get_node(target_node.borrow().parent);
+        if subres.is_err() {
+            return subres;
+        }
+        parent_node = subres.unwrap();
     }
 
     let mut new_keys = vec![0i32; target_node.borrow().keys.capacity()];
