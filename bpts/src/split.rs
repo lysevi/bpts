@@ -92,10 +92,12 @@ pub fn split_node(
         for i in 0..brother_data_count {
             let child_num = new_data[i].into_id();
             if child_num != target_id {
-                //TODO! check result
-                let child = storage.get_node(child_num).unwrap();
+                let child = storage.get_node(child_num);
 
-                child.borrow_mut().parent = new_id;
+                if child.is_err() {
+                    return child;
+                }
+                child.unwrap().borrow_mut().parent = new_id;
             }
         }
 
