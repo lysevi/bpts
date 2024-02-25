@@ -13,7 +13,6 @@ pub fn insert_to_array<T>(target: &mut Vec<T>, pos: usize, value: T) {
 pub fn remove_with_shift<T>(target: &mut Vec<T>, pos: usize) {
     let last = target.len();
     for i in pos..last - 1 {
-        println!("swap: {} {}", i, i + 1);
         target.swap(i, i + 1);
     }
 }
