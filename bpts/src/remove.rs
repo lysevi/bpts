@@ -30,8 +30,6 @@ pub fn remove(
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
-
     use super::*;
     use crate::mocks::MockNodeStorage;
     use crate::node::Node;
