@@ -9,4 +9,6 @@ pub trait NodeStorage {
     fn get_node(&self, id: Id) -> Result<RcNode, types::Error>;
     //TODO add_node(node) -> ptr
     fn add_node(&mut self, node: &RcNode);
+
+    fn erase_node(&mut self, id: &Id);
 }

@@ -20,6 +20,10 @@ impl MockNodeStorage {
         }
     }
 
+    pub fn is_exists(&self, id: Id) -> bool {
+        self.nodes.contains_key(&id.0)
+    }
+
     pub fn all<F>(&self, f: F) -> bool
     where
         F: FnMut(&RcNode) -> bool,
@@ -50,5 +54,9 @@ impl NodeStorage for MockNodeStorage {
     fn add_node(&mut self, node: &RcNode) {
         let ref_node = node.borrow();
         self.nodes.insert(ref_node.id.unwrap(), node.clone());
+    }
+
+    fn erase_node(&mut self, id: &Id) {
+        self.nodes.remove(&id.0);
     }
 }
