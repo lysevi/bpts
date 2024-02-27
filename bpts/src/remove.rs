@@ -18,12 +18,14 @@ pub fn erase_key(
                 break;
             }
         }
-        if target_node_ref.data_count < t {
+        if target_node_ref.data_count >= t {
+            //TODO! update parent. with test
+            return Ok(toproot.unwrap());
+        } else {
             let mut try_move_to_brother = true;
             let mut size_of_low = 2 * t;
             let mut size_of_high = 2 * t;
 
-            let mut removed_key_from_parent = 0i32;
             if target_node_ref.left != types::EMPTY_ID {
                 //TODO! check result;
                 let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
@@ -41,7 +43,6 @@ pub fn erase_key(
                     target_node_ref.keys_count += 1;
                     target_node_ref.data_count += 1;
                     try_move_to_brother = false;
-                    removed_key_from_parent = max_key;
                 }
             }
 
@@ -68,7 +69,6 @@ pub fn erase_key(
                     target_node_ref.keys_count += 1;
                     target_node_ref.data_count += 1;
                     try_move_to_brother = false;
-                    removed_key_from_parent = min_key;
                 }
             }
 
@@ -124,8 +124,6 @@ pub fn erase_key(
 
                 //TODO! update parent. with test
             }
-            return Ok(toproot.unwrap());
-        } else {
             return Ok(toproot.unwrap());
         }
     } else {
