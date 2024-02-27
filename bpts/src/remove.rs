@@ -76,7 +76,9 @@ pub fn erase_key(
             }
 
             if try_move_to_brother {
-                todo!()
+                todo!();
+                // let parent = storage.get_node(target_node_ref.parent).unwrap();
+                // return erase_key(storage, &parent, removed_key_from_parent, t, toproot);
             } else {
                 //TODO!
                 let parent = storage.get_node(target_node_ref.parent).unwrap();
