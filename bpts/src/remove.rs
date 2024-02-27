@@ -26,7 +26,7 @@ pub fn erase_key(
             let mut size_of_high = 0;
             let low_side_leaf;
             let high_side_leaf;
-
+            let mut removed_key_from_parent = 0i32;
             if target_node_ref.left != types::EMPTY_ID {
                 //TODO! check result;
                 low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
@@ -44,6 +44,7 @@ pub fn erase_key(
                     target_node_ref.keys_count += 1;
                     target_node_ref.data_count += 1;
                     try_move_to_brother = false;
+                    removed_key_from_parent = max_key;
                 }
             }
 
@@ -70,11 +71,16 @@ pub fn erase_key(
                     target_node_ref.keys_count += 1;
                     target_node_ref.data_count += 1;
                     try_move_to_brother = false;
+                    removed_key_from_parent = min_key;
                 }
             }
 
             if try_move_to_brother {
                 todo!()
+            } else {
+                //TODO!
+                let parent = storage.get_node(target_node_ref.parent).unwrap();
+                return erase_key(storage, &parent, removed_key_from_parent, t, toproot);
             }
             return Ok(toproot.unwrap());
         } else {
