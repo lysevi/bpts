@@ -58,8 +58,9 @@ fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
 
 fn take_key_from_high(target_node: &mut Node, high_side_node: &mut Node) {
     if !target_node.is_leaf {
-        todo!();
-    } else {
+        println!("! take_key_from_high node");
+    }
+    {
         let min_key = high_side_node.keys[0];
         let min_data = high_side_node.data[0].clone();
 
@@ -1029,7 +1030,7 @@ mod tests {
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().into_i32(), i);
             println!("remove {:?}", i);
-            if i == 5 {
+            if i == 3 {
                 println!("!");
             }
             let remove_res = remove_key(&mut storage, &root_node, i, 3);

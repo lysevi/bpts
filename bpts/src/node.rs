@@ -141,10 +141,29 @@ impl Node {
     }
 
     pub fn update_key(&mut self, old_key: i32, new_key: i32) {
-        for i in 0..self.keys_count {
-            if self.keys[i] == old_key {
-                self.keys[i] = new_key;
-                break;
+        if self.is_leaf {
+            for i in 0..self.keys_count {
+                if self.keys[i] == old_key {
+                    self.keys[i] = new_key;
+                    break;
+                }
+            }
+        } else {
+            if new_key < self.keys[0] {
+                //self.keys[0] = new_key;
+                return;
+            }
+
+            if new_key > self.keys[self.keys_count - 1] {
+                self.keys[self.keys_count - 1] = new_key;
+                return;
+            }
+
+            for i in 0..self.keys_count - 1 {
+                if self.keys[i] == new_key || self.keys[i] < new_key && self.keys[i + 1] > new_key {
+                    self.keys[i] = new_key;
+                    return;
+                }
             }
         }
     }
