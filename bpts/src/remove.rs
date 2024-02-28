@@ -1057,6 +1057,7 @@ mod tests {
             if i == 3 {
                 println!("!");
             }
+
             let remove_res = remove_key(&mut storage, &root_node, i, 3);
             assert!(remove_res.is_ok());
 

@@ -16,6 +16,7 @@ pub fn scan<'a>(
         let node_id: types::Id;
         {
             let ref_target = target.borrow();
+            println!("scan > {:?}", ref_target.id);
             if ref_target.is_leaf {
                 return Ok(Rc::clone(&target));
             }
