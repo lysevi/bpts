@@ -1045,6 +1045,13 @@ mod tests {
             root_node = remove_res.unwrap();
             let find_res = find(&mut storage, &root_node, i);
             assert!(!find_res.is_err());
+
+            for k in (i + 1)..key {
+                println!("? {:?}", k);
+                let find_res = find(&mut storage, &root_node, k);
+                assert!(find_res.is_ok());
+                assert_eq!(find_res.unwrap().into_i32(), k);
+            }
         }
 
         //TODO check map map_rev
