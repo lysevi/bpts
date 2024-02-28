@@ -7,163 +7,194 @@ pub fn erase_key(
     t: usize,
     toproot: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
-    if target_node.borrow().is_leaf {
-        let mut target_node_ref = target_node.borrow_mut();
-        let first_key = target_node_ref.keys[0];
-        for i in 0..target_node_ref.keys_count {
-            if target_node_ref.keys[i] == key {
-                utils::remove_with_shift(&mut target_node_ref.keys, i);
+    let is_leaf = target_node.borrow().is_leaf;
+
+    let mut target_node_ref = target_node.borrow_mut();
+    let first_key = target_node_ref.keys[0];
+    for i in 0..target_node_ref.keys_count {
+        if target_node_ref.keys[i] == key {
+            utils::remove_with_shift(&mut target_node_ref.keys, i);
+            if !is_leaf {
+                utils::remove_with_shift(&mut target_node_ref.data, i + 1);
+            } else {
                 utils::remove_with_shift(&mut target_node_ref.data, i);
-                target_node_ref.keys_count -= 1;
-                target_node_ref.data_count -= 1;
-                break;
             }
+            target_node_ref.keys_count -= 1;
+            target_node_ref.data_count -= 1;
+            break;
         }
-        if target_node_ref.data_count >= t {
-            //update keys in parent
-            if first_key != target_node_ref.keys[0] && target_node_ref.parent != types::EMPTY_ID {
-                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                link_to_parent
-                    .borrow_mut()
-                    .update_key(first_key, target_node_ref.first_key());
-            }
-
-            return Ok(toproot.unwrap());
-        } else {
-            let mut size_of_low = 2 * t;
-            let mut size_of_high = 2 * t;
-            let mut link_to_low_side_leaf: Option<RcNode> = None;
-            let mut link_to_high_side_leaf: Option<RcNode> = None;
-            if target_node_ref.left != types::EMPTY_ID {
-                // from low side
-                //TODO! check result;
-                let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
-                link_to_low_side_leaf = Some(low_side_leaf.clone());
-                let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
-                size_of_low = low_side_leaf_ref.keys_count;
-                if low_side_leaf_ref.data_count > t {
-                    let max_key = low_side_leaf_ref.keys[low_side_leaf_ref.keys_count - 1];
-                    let max_data = low_side_leaf_ref.data[low_side_leaf_ref.data_count - 1].clone();
-
-                    utils::insert_to_array(&mut target_node_ref.keys, 0, max_key);
-                    utils::insert_to_array(&mut target_node_ref.data, 0, max_data);
-                    low_side_leaf_ref.keys_count -= 1;
-                    low_side_leaf_ref.data_count -= 1;
-
-                    target_node_ref.keys_count += 1;
-                    target_node_ref.data_count += 1;
-
-                    if target_node_ref.parent != types::EMPTY_ID {
-                        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                        link_to_parent
-                            .borrow_mut()
-                            .update_key(first_key, target_node_ref.first_key());
-                    }
-
-                    return Ok(toproot.unwrap());
-                }
-            }
-            if target_node_ref.right != types::EMPTY_ID {
-                // from high side
-                //TODO! check result;
-                let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
-                link_to_high_side_leaf = Some(high_side_leaf.clone());
-                let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
-                size_of_high = high_side_leaf_ref.keys_count;
-                if high_side_leaf_ref.data_count > t {
-                    let min_key = high_side_leaf_ref.keys[0];
-                    let min_data = high_side_leaf_ref.data[0].clone();
-
-                    let mut position = target_node_ref.keys_count;
-                    target_node_ref.keys[position] = min_key;
-                    position = target_node_ref.data_count;
-                    target_node_ref.data[position] = min_data;
-
-                    utils::remove_with_shift(&mut high_side_leaf_ref.keys, 0);
-                    utils::remove_with_shift(&mut high_side_leaf_ref.data, 0);
-
-                    high_side_leaf_ref.keys_count -= 1;
-                    high_side_leaf_ref.data_count -= 1;
-
-                    target_node_ref.keys_count += 1;
-                    target_node_ref.data_count += 1;
-
-                    if target_node_ref.parent != types::EMPTY_ID {
-                        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                        link_to_parent
-                            .borrow_mut()
-                            .update_key(min_key, high_side_leaf_ref.first_key());
-                    }
-
-                    return Ok(toproot.unwrap());
-                }
-            }
-
-            //try move to brother
-            if (size_of_low + target_node_ref.keys_count) < 2 * t {
-                let low_side_leaf = if link_to_low_side_leaf.is_some() {
-                    link_to_low_side_leaf.unwrap()
-                } else {
-                    storage.get_node(target_node_ref.left).unwrap()
-                };
-
-                let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
-
-                let low_keys_count = low_side_leaf_ref.keys_count;
-                for i in 0..target_node_ref.keys_count {
-                    low_side_leaf_ref.keys[low_keys_count + i] = target_node_ref.keys[i];
-                }
-
-                let low_data_count = low_side_leaf_ref.data_count;
-                for i in 0..target_node_ref.data_count {
-                    low_side_leaf_ref.data[low_data_count + i] = target_node_ref.data[i].clone();
-                }
-
-                low_side_leaf_ref.keys_count += target_node_ref.keys_count;
-                low_side_leaf_ref.data_count += target_node_ref.data_count;
-
-                storage.erase_node(&target_node_ref.id);
-                //TODO! update parent. with test
-            } else if (size_of_high + target_node_ref.keys_count) < 2 * t {
-                let high_side_leaf = if link_to_high_side_leaf.is_some() {
-                    link_to_high_side_leaf.unwrap()
-                } else {
-                    storage.get_node(target_node_ref.right).unwrap()
-                };
-
-                let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
-
-                //TODO! opt
-
-                for i in 0..target_node_ref.keys_count {
-                    utils::insert_to_array(
-                        &mut high_side_leaf_ref.keys,
-                        i,
-                        target_node_ref.keys[i],
-                    );
-                }
-
-                for i in 0..target_node_ref.data_count {
-                    utils::insert_to_array(
-                        &mut high_side_leaf_ref.data,
-                        i,
-                        target_node_ref.data[i].clone(),
-                    );
-                }
-
-                high_side_leaf_ref.keys_count += target_node_ref.keys_count;
-                high_side_leaf_ref.data_count += target_node_ref.data_count;
-
-                storage.erase_node(&target_node_ref.id);
-                //TODO! update parent. with test
-            }
-
-            //TODO! update parent. with test
-
-            return Ok(toproot.unwrap());
+    }
+    if target_node_ref.keys_count == 0 && target_node_ref.parent != types::EMPTY_ID {
+        //TODO add test
+        //TODO! check result
+        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+        return erase_key(
+            storage,
+            &link_to_parent,
+            target_node_ref.first_key(),
+            t,
+            toproot,
+        );
+    }
+    if target_node_ref.data_count >= t {
+        //update keys in parent
+        if first_key != target_node_ref.keys[0] && target_node_ref.parent != types::EMPTY_ID {
+            let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+            link_to_parent
+                .borrow_mut()
+                .update_key(first_key, target_node_ref.first_key());
         }
+
+        return Ok(toproot.unwrap());
     } else {
-        todo!();
+        let mut size_of_low = 2 * t;
+        let mut size_of_high = 2 * t;
+        let mut link_to_low_side_leaf: Option<RcNode> = None;
+        let mut link_to_high_side_leaf: Option<RcNode> = None;
+        if target_node_ref.left != types::EMPTY_ID {
+            // from low side
+            //TODO! check result;
+            let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
+            link_to_low_side_leaf = Some(low_side_leaf.clone());
+            let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
+            size_of_low = low_side_leaf_ref.keys_count;
+            if low_side_leaf_ref.data_count > t {
+                let max_key = low_side_leaf_ref.keys[low_side_leaf_ref.keys_count - 1];
+                let max_data = low_side_leaf_ref.data[low_side_leaf_ref.data_count - 1].clone();
+
+                utils::insert_to_array(&mut target_node_ref.keys, 0, max_key);
+                utils::insert_to_array(&mut target_node_ref.data, 0, max_data);
+                low_side_leaf_ref.keys_count -= 1;
+                low_side_leaf_ref.data_count -= 1;
+
+                target_node_ref.keys_count += 1;
+                target_node_ref.data_count += 1;
+
+                if target_node_ref.parent != types::EMPTY_ID {
+                    //TODO! check result
+                    let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                    link_to_parent
+                        .borrow_mut()
+                        .update_key(first_key, target_node_ref.first_key());
+                }
+
+                return Ok(toproot.unwrap());
+            }
+        }
+        if target_node_ref.right != types::EMPTY_ID {
+            // from high side
+            //TODO! check result;
+            let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
+            link_to_high_side_leaf = Some(high_side_leaf.clone());
+            let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
+            size_of_high = high_side_leaf_ref.keys_count;
+            if high_side_leaf_ref.data_count > t {
+                let min_key = high_side_leaf_ref.keys[0];
+                let min_data = high_side_leaf_ref.data[0].clone();
+
+                let mut position = target_node_ref.keys_count;
+                target_node_ref.keys[position] = min_key;
+                position = target_node_ref.data_count;
+                target_node_ref.data[position] = min_data;
+
+                utils::remove_with_shift(&mut high_side_leaf_ref.keys, 0);
+                utils::remove_with_shift(&mut high_side_leaf_ref.data, 0);
+
+                high_side_leaf_ref.keys_count -= 1;
+                high_side_leaf_ref.data_count -= 1;
+
+                target_node_ref.keys_count += 1;
+                target_node_ref.data_count += 1;
+
+                if target_node_ref.parent != types::EMPTY_ID {
+                    //TODO! check result
+                    let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                    link_to_parent
+                        .borrow_mut()
+                        .update_key(min_key, high_side_leaf_ref.first_key());
+                }
+
+                return Ok(toproot.unwrap());
+            }
+        }
+
+        //try move to brother
+        if (size_of_low + target_node_ref.keys_count) < 2 * t {
+            let low_side_leaf = if link_to_low_side_leaf.is_some() {
+                link_to_low_side_leaf.unwrap()
+            } else {
+                storage.get_node(target_node_ref.left).unwrap()
+            };
+
+            let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
+
+            let low_keys_count = low_side_leaf_ref.keys_count;
+            for i in 0..target_node_ref.keys_count {
+                low_side_leaf_ref.keys[low_keys_count + i] = target_node_ref.keys[i];
+            }
+
+            let low_data_count = low_side_leaf_ref.data_count;
+            for i in 0..target_node_ref.data_count {
+                low_side_leaf_ref.data[low_data_count + i] = target_node_ref.data[i].clone();
+            }
+
+            low_side_leaf_ref.keys_count += target_node_ref.keys_count;
+            low_side_leaf_ref.data_count += target_node_ref.data_count;
+
+            storage.erase_node(&target_node_ref.id);
+
+            if target_node_ref.parent != types::EMPTY_ID {
+                //TODO! check result
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                return erase_key(
+                    storage,
+                    &link_to_parent,
+                    target_node_ref.first_key(),
+                    t,
+                    toproot,
+                );
+            }
+        } else if (size_of_high + target_node_ref.keys_count) < 2 * t {
+            let high_side_leaf = if link_to_high_side_leaf.is_some() {
+                link_to_high_side_leaf.unwrap()
+            } else {
+                storage.get_node(target_node_ref.right).unwrap()
+            };
+
+            let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
+
+            //TODO! opt
+
+            for i in 0..target_node_ref.keys_count {
+                utils::insert_to_array(&mut high_side_leaf_ref.keys, i, target_node_ref.keys[i]);
+            }
+
+            for i in 0..target_node_ref.data_count {
+                utils::insert_to_array(
+                    &mut high_side_leaf_ref.data,
+                    i,
+                    target_node_ref.data[i].clone(),
+                );
+            }
+
+            high_side_leaf_ref.keys_count += target_node_ref.keys_count;
+            high_side_leaf_ref.data_count += target_node_ref.data_count;
+
+            storage.erase_node(&target_node_ref.id);
+            if target_node_ref.parent != types::EMPTY_ID {
+                //TODO! check result
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                return erase_key(
+                    storage,
+                    &link_to_parent,
+                    target_node_ref.first_key(),
+                    t,
+                    toproot,
+                );
+            }
+        }
+
+        return Ok(toproot.unwrap());
     }
 }
 
@@ -612,6 +643,34 @@ mod tests {
             );
             assert_eq!(ref_node.keys_count, 4);
             assert_eq!(ref_node.data_count, 4);
+        }
+    }
+
+    #[test]
+    fn remove_from_node_first() {
+        let node = Node::new_root(
+            types::Id(1),
+            vec![5, 8, 0],
+            vec![Record::from_u8(1), Record::from_u8(5), Record::from_u8(10)],
+            2,
+            3,
+        );
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&node);
+
+        let result = erase_key(&mut storage, &node, 5, 3, Some(node.clone()));
+        assert!(result.is_ok());
+
+        {
+            let root = result.unwrap();
+            let ref_root = root.borrow_mut();
+            assert_eq!(ref_root.keys, vec![8, 0, 5]);
+            assert_eq!(
+                ref_root.data,
+                vec![Record::from_u8(1), Record::from_u8(10), Record::from_u8(5),]
+            );
+            assert_eq!(ref_root.keys_count, 1);
+            assert_eq!(ref_root.data_count, 2);
         }
     }
 }
