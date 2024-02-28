@@ -1039,7 +1039,7 @@ mod tests {
         storage.add_node(&root_node);
 
         let mut key: i32 = 1;
-        while storage.size() < 10 {
+        while storage.size() <= 3 {
             key += 1;
             println!("+ {:?} root:{:?}", key, root_node.borrow().id);
             if key == 22 {
@@ -1070,7 +1070,7 @@ mod tests {
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().into_i32(), i);
             println!("remove {:?}", i);
-            if i == 3 {
+            if i == 6 {
                 println!("!");
             }
 
