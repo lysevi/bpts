@@ -163,7 +163,7 @@ impl Node {
             }
 
             for i in 0..self.keys_count - 1 {
-                if self.keys[i] == new_key || self.keys[i] < new_key && self.keys[i + 1] > new_key {
+                if self.keys[i] == new_key || self.keys[i] <= new_key && self.keys[i + 1] > new_key {
                     self.keys[i] = new_key;
                     return;
                 }
