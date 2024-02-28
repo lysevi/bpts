@@ -47,7 +47,7 @@ impl NodeStorage for MockNodeStorage {
         if let Some(r) = res {
             Ok(Rc::clone(r))
         } else {
-            Err(types::Error("not found".to_owned()))
+            Err(types::Error(format!("not found Id={}", id.0)))
         }
     }
 
@@ -57,6 +57,7 @@ impl NodeStorage for MockNodeStorage {
     }
 
     fn erase_node(&mut self, id: &Id) {
+        println!("erase node: Id={}", id.0);
         self.nodes.remove(&id.0);
     }
 }

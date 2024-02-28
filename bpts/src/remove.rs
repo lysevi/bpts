@@ -1,7 +1,7 @@
 use crate::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
-    types, utils,
+    read, types, utils,
 };
 
 fn erase_key_data(target_node: &mut Node, key: i32) {
@@ -40,67 +40,84 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
 }
 
 fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
-    let max_key = low_side_node.keys[low_side_node.keys_count - 1];
-    let max_data = low_side_node.data[low_side_node.data_count - 1].clone();
+    if !target_node.is_leaf {
+        todo!();
+    } else {
+        let max_key = low_side_node.keys[low_side_node.keys_count - 1];
+        let max_data = low_side_node.data[low_side_node.data_count - 1].clone();
 
-    utils::insert_to_array(&mut target_node.keys, 0, max_key);
-    utils::insert_to_array(&mut target_node.data, 0, max_data);
-    low_side_node.keys_count -= 1;
-    low_side_node.data_count -= 1;
+        utils::insert_to_array(&mut target_node.keys, 0, max_key);
+        utils::insert_to_array(&mut target_node.data, 0, max_data);
+        low_side_node.keys_count -= 1;
+        low_side_node.data_count -= 1;
 
-    target_node.keys_count += 1;
-    target_node.data_count += 1;
+        target_node.keys_count += 1;
+        target_node.data_count += 1;
+    }
 }
 
 fn take_key_from_high(target_node: &mut Node, high_side_node: &mut Node) {
-    let min_key = high_side_node.keys[0];
-    let min_data = high_side_node.data[0].clone();
+    if !target_node.is_leaf {
+        todo!();
+    } else {
+        let min_key = high_side_node.keys[0];
+        let min_data = high_side_node.data[0].clone();
 
-    let mut position = target_node.keys_count;
-    target_node.keys[position] = min_key;
-    position = target_node.data_count;
-    target_node.data[position] = min_data;
+        let mut position = target_node.keys_count;
+        target_node.keys[position] = min_key;
+        position = target_node.data_count;
+        target_node.data[position] = min_data;
 
-    utils::remove_with_shift(&mut high_side_node.keys, 0);
-    utils::remove_with_shift(&mut high_side_node.data, 0);
+        utils::remove_with_shift(&mut high_side_node.keys, 0);
+        utils::remove_with_shift(&mut high_side_node.data, 0);
 
-    high_side_node.keys_count -= 1;
-    high_side_node.data_count -= 1;
+        high_side_node.keys_count -= 1;
+        high_side_node.data_count -= 1;
 
-    target_node.keys_count += 1;
-    target_node.data_count += 1;
+        target_node.keys_count += 1;
+        target_node.data_count += 1;
+    }
 }
 
 fn move_to_lower(target_node: &mut Node, low_side_node: &mut Node) {
-    let low_keys_count = low_side_node.keys_count;
-    for i in 0..target_node.keys_count {
-        low_side_node.keys[low_keys_count + i] = target_node.keys[i];
-    }
+    if !target_node.is_leaf {
+        todo!();
+    } else {
+        let low_keys_count = low_side_node.keys_count;
+        for i in 0..target_node.keys_count {
+            low_side_node.keys[low_keys_count + i] = target_node.keys[i];
+        }
 
-    let low_data_count = low_side_node.data_count;
-    for i in 0..target_node.data_count {
-        low_side_node.data[low_data_count + i] = target_node.data[i].clone();
-    }
+        let low_data_count = low_side_node.data_count;
+        for i in 0..target_node.data_count {
+            low_side_node.data[low_data_count + i] = target_node.data[i].clone();
+        }
 
-    low_side_node.keys_count += target_node.keys_count;
-    low_side_node.data_count += target_node.data_count;
+        low_side_node.keys_count += target_node.keys_count;
+        low_side_node.data_count += target_node.data_count;
+    }
 }
 
 fn move_to_higher(target_node: &mut Node, high_side_node: &mut Node) {
     //TODO! opt
 
-    for i in 0..target_node.keys_count {
-        utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
-    }
+    if !target_node.is_leaf {
+        todo!();
+    } else {
+        for i in 0..target_node.keys_count {
+            utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
+        }
 
-    for i in 0..target_node.data_count {
-        utils::insert_to_array(&mut high_side_node.data, i, target_node.data[i].clone());
-    }
+        for i in 0..target_node.data_count {
+            utils::insert_to_array(&mut high_side_node.data, i, target_node.data[i].clone());
+        }
 
-    high_side_node.keys_count += target_node.keys_count;
-    high_side_node.data_count += target_node.data_count;
+        high_side_node.keys_count += target_node.keys_count;
+        high_side_node.data_count += target_node.data_count;
+    }
 }
-pub fn erase_key(
+
+fn erase_key(
     storage: &mut dyn NodeStorage,
     target_node: &RcNode,
     key: i32,
@@ -112,21 +129,27 @@ pub fn erase_key(
     let mut target_node_ref = target_node.borrow_mut();
     erase_key_data(&mut target_node_ref, key);
 
-    if target_node_ref.keys_count == 0 && target_node_ref.parent != types::EMPTY_ID {
-        if !target_node_ref.is_leaf {
-            todo!();
+    if target_node_ref.keys_count == 0 || target_node_ref.data_count == 0 {
+        if target_node_ref.parent == types::EMPTY_ID {
+            if target_node_ref.data_count > 0 && !target_node_ref.is_leaf {
+                storage.erase_node(&target_node_ref.id);
+                let new_root = storage.get_node(target_node_ref.data[0].into_id());
+                return Ok(new_root.unwrap());
+            }
+            //TODO add test
+            //TODO! check result
+            let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+            storage.erase_node(&target_node_ref.id);
+            return erase_key(
+                storage,
+                &link_to_parent,
+                target_node_ref.first_key(),
+                t,
+                toproot,
+            );
+        } else {
+            todo!()
         }
-        //TODO add test
-        //TODO! check result
-        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-        storage.erase_node(&target_node_ref.id);
-        return erase_key(
-            storage,
-            &link_to_parent,
-            target_node_ref.first_key(),
-            t,
-            toproot,
-        );
     }
     if target_node_ref.data_count >= t {
         //update keys in parent
@@ -223,6 +246,7 @@ pub fn erase_key(
             if (size_of_high + target_node_ref.keys_count) < 2 * t {
                 move_to_higher(&mut target_node_ref, &mut high_side_leaf_ref);
 
+                high_side_leaf_ref.left = target_node_ref.left;
                 storage.erase_node(&target_node_ref.id);
                 update_parent = true;
             }
@@ -244,11 +268,32 @@ pub fn erase_key(
     }
 }
 
+pub fn remove_key(
+    storage: &mut dyn NodeStorage,
+    root: &RcNode,
+    key: i32,
+    t: usize,
+) -> Result<RcNode, types::Error> {
+    let target_node: RcNode;
+
+    let scan_result = read::scan(storage, &root, key);
+    if scan_result.is_err() {
+        return Err(scan_result.err().unwrap());
+    } else {
+        target_node = scan_result.unwrap();
+    }
+
+    println!("remove from {:?}", target_node.borrow().id);
+    return erase_key(storage, &target_node, key, t, Some(root.clone()));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::insert::insert;
     use crate::mocks::MockNodeStorage;
     use crate::node::Node;
+    use crate::read::{find, map, map_rev};
     use crate::rec::Record;
 
     #[test]
@@ -833,7 +878,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_take_from_high_update_parent() {
+    fn remove_from_leaf_move_to_high_update_parent() {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         /*
               9            15
@@ -903,6 +948,8 @@ mod tests {
         let result = erase_key(&mut storage, &leaf_low, 6, 2, Some(root.clone()));
         assert!(result.is_ok());
 
+        let low_id = leaf_low.borrow().id;
+        assert!(!storage.is_exists(low_id));
         {
             let newroot = result.unwrap();
             let ref_root = newroot.borrow();
@@ -936,5 +983,63 @@ mod tests {
             assert_eq!(ref_node.keys_count, 3);
             assert_eq!(ref_node.data_count, 3);
         }
+    }
+
+    #[test]
+    fn many_inserts() {
+        let mut root_node = Node::new_leaf(
+            types::Id(1),
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+            ],
+            0,
+            0,
+        );
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&root_node);
+
+        let mut key: i32 = 1;
+        while storage.size() < 10 {
+            key += 1;
+            println!("+ {:?} root:{:?}", key, root_node.borrow().id);
+            if key == 22 {
+                println!("kv 22");
+            }
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+
+            for i in 2..=key {
+                //println!("! {:?}", i);
+
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
+            }
+        }
+
+        for i in 2..key {
+            let find_res = find(&mut storage, &root_node, i);
+            assert!(find_res.is_ok());
+            assert_eq!(find_res.unwrap().into_i32(), i);
+            println!("remove {:?}", i);
+            if i == 5 {
+                println!("!");
+            }
+            let remove_res = remove_key(&mut storage, &root_node, i, 3);
+            assert!(remove_res.is_ok());
+
+            root_node = remove_res.unwrap();
+            let find_res = find(&mut storage, &root_node, i);
+            assert!(!find_res.is_err());
+        }
+
+        //TODO check map map_rev
     }
 }
