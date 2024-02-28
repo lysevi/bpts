@@ -1019,8 +1019,7 @@ mod tests {
         }
     }
 
-    #[test]
-    fn many_inserts() {
+    fn make_tree(nodes_count: i32) -> (MockNodeStorage, RcNode, Vec<i32>) {
         let mut root_node = Node::new_leaf(
             types::Id(1),
             vec![0, 0, 0, 0, 0, 0],
@@ -1039,24 +1038,28 @@ mod tests {
         storage.add_node(&root_node);
 
         let mut key: i32 = 1;
+        let mut keys = Vec::new();
         while storage.size() <= 3 {
             key += 1;
-            println!("+ {:?} root:{:?}", key, root_node.borrow().id);
-            if key == 22 {
-                println!("kv 22");
-            }
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
+            keys.push(key);
             assert!(res.is_ok());
             root_node = res.unwrap();
 
             for i in 2..=key {
-                //println!("! {:?}", i);
-
                 let res = find(&mut storage, &root_node, i);
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().into_i32(), i);
             }
         }
+        return (storage, root_node, keys);
+    }
+
+    #[test]
+    fn many_inserts() {
+        let (mut storage, mut root_node, keys) = make_tree(1);
+
+        let key = *keys.last().unwrap();
         for i in 2..=key {
             //println!("! {:?}", i);
 
