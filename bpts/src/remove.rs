@@ -25,10 +25,12 @@ pub fn erase_key(
             let mut try_move_to_brother = true;
             let mut size_of_low = 2 * t;
             let mut size_of_high = 2 * t;
-
+            let mut link_to_low_side_leaf: Option<RcNode> = None;
+            let mut link_to_high_side_leaf: Option<RcNode> = None;
             if target_node_ref.left != types::EMPTY_ID {
                 //TODO! check result;
                 let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
+                link_to_low_side_leaf = Some(low_side_leaf.clone());
                 let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
                 size_of_low = low_side_leaf_ref.keys_count;
                 if low_side_leaf_ref.data_count > t {
@@ -49,6 +51,7 @@ pub fn erase_key(
             if target_node_ref.right != types::EMPTY_ID {
                 //TODO! check result;
                 let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
+                link_to_high_side_leaf = Some(high_side_leaf.clone());
                 let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
                 size_of_high = high_side_leaf_ref.keys_count;
                 if high_side_leaf_ref.data_count > t {
@@ -74,7 +77,12 @@ pub fn erase_key(
 
             if try_move_to_brother {
                 if (size_of_low + target_node_ref.keys_count) < 2 * t {
-                    let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
+                    let low_side_leaf = if link_to_low_side_leaf.is_some() {
+                        link_to_low_side_leaf.unwrap()
+                    } else {
+                        storage.get_node(target_node_ref.left).unwrap()
+                    };
+
                     let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
 
                     let low_keys_count = low_side_leaf_ref.keys_count;
@@ -94,7 +102,12 @@ pub fn erase_key(
                     storage.erase_node(&target_node_ref.id);
                     //TODO! update parent. with test
                 } else if (size_of_high + target_node_ref.keys_count) < 2 * t {
-                    let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
+                    let high_side_leaf = if link_to_high_side_leaf.is_some() {
+                        link_to_high_side_leaf.unwrap()
+                    } else {
+                        storage.get_node(target_node_ref.right).unwrap()
+                    };
+
                     let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
 
                     //TODO! opt
