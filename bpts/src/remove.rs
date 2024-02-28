@@ -99,23 +99,29 @@ fn move_to_lower(target_node: &mut Node, low_side_node: &mut Node) {
     }
 }
 
-fn move_to_higher(target_node: &mut Node, high_side_node: &mut Node) {
+fn move_to_higher(
+    storage: &mut dyn NodeStorage,
+    target_node: &mut Node,
+    high_side_node: &mut Node,
+) {
     //TODO! opt
 
     if !target_node.is_leaf {
-        todo!();
-    } else {
-        for i in 0..target_node.keys_count {
-            utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
-        }
-
-        for i in 0..target_node.data_count {
-            utils::insert_to_array(&mut high_side_node.data, i, target_node.data[i].clone());
-        }
-
-        high_side_node.keys_count += target_node.keys_count;
-        high_side_node.data_count += target_node.data_count;
+        //TODO! check
+        let first_leaf = storage.get_node(high_side_node.data[0].into_id()).unwrap();
+        let first_key = first_leaf.borrow().keys[0];
+        utils::insert_to_array(&mut high_side_node.keys, 0, first_key);
     }
+    for i in 0..target_node.keys_count {
+        utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
+    }
+
+    for i in 0..target_node.data_count {
+        utils::insert_to_array(&mut high_side_node.data, i, target_node.data[i].clone());
+    }
+
+    high_side_node.keys_count += target_node.keys_count;
+    high_side_node.data_count += target_node.data_count;
 }
 
 fn erase_key(
@@ -245,7 +251,7 @@ fn erase_key(
             let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
             let size_of_high = high_side_leaf_ref.keys_count;
             if (size_of_high + target_node_ref.keys_count) < 2 * t {
-                move_to_higher(&mut target_node_ref, &mut high_side_leaf_ref);
+                move_to_higher(storage, &mut target_node_ref, &mut high_side_leaf_ref);
 
                 high_side_leaf_ref.left = target_node_ref.left;
                 storage.erase_node(&target_node_ref.id);
