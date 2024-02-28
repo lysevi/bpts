@@ -16,7 +16,7 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
             target_node.data_count -= 1;
             return;
         }
-        if key > target_node.keys[target_node.keys_count - 1] {
+        if key >= target_node.keys[target_node.keys_count - 1] {
             utils::remove_with_shift(&mut target_node.data, target_node.data_count - 1);
             utils::remove_with_shift(&mut target_node.keys, target_node.keys_count - 1);
             target_node.keys_count -= 1;

@@ -157,7 +157,7 @@ impl Node {
                 return;
             }
 
-            if new_key > self.keys[self.keys_count - 1] {
+            if new_key >= self.keys[self.keys_count - 1] {
                 self.keys[self.keys_count - 1] = new_key;
                 return;
             }
