@@ -1,5 +1,88 @@
-use crate::{node::RcNode, nodestorage::NodeStorage, types, utils};
+use std::cell::RefMut;
 
+use crate::{
+    node::{Node, RcNode},
+    nodestorage::NodeStorage,
+    types, utils,
+};
+
+fn erase_key_data(target_node: &mut Node, key: i32) {
+    for i in 0..target_node.keys_count {
+        if target_node.keys[i] == key {
+            utils::remove_with_shift(&mut target_node.keys, i);
+            if !target_node.is_leaf {
+                utils::remove_with_shift(&mut target_node.data, i + 1);
+            } else {
+                utils::remove_with_shift(&mut target_node.data, i);
+            }
+            target_node.keys_count -= 1;
+            target_node.data_count -= 1;
+            break;
+        }
+    }
+}
+
+fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
+    let max_key = low_side_node.keys[low_side_node.keys_count - 1];
+    let max_data = low_side_node.data[low_side_node.data_count - 1].clone();
+
+    utils::insert_to_array(&mut target_node.keys, 0, max_key);
+    utils::insert_to_array(&mut target_node.data, 0, max_data);
+    low_side_node.keys_count -= 1;
+    low_side_node.data_count -= 1;
+
+    target_node.keys_count += 1;
+    target_node.data_count += 1;
+}
+
+fn take_key_from_high(target_node: &mut Node, high_side_node: &mut Node) {
+    let min_key = high_side_node.keys[0];
+    let min_data = high_side_node.data[0].clone();
+
+    let mut position = target_node.keys_count;
+    target_node.keys[position] = min_key;
+    position = target_node.data_count;
+    target_node.data[position] = min_data;
+
+    utils::remove_with_shift(&mut high_side_node.keys, 0);
+    utils::remove_with_shift(&mut high_side_node.data, 0);
+
+    high_side_node.keys_count -= 1;
+    high_side_node.data_count -= 1;
+
+    target_node.keys_count += 1;
+    target_node.data_count += 1;
+}
+
+fn move_to_lower(target_node: &mut Node, low_side_node: &mut Node) {
+    let low_keys_count = low_side_node.keys_count;
+    for i in 0..target_node.keys_count {
+        low_side_node.keys[low_keys_count + i] = target_node.keys[i];
+    }
+
+    let low_data_count = low_side_node.data_count;
+    for i in 0..target_node.data_count {
+        low_side_node.data[low_data_count + i] = target_node.data[i].clone();
+    }
+
+    low_side_node.keys_count += target_node.keys_count;
+    low_side_node.data_count += target_node.data_count;
+}
+
+fn move_to_higher(target_node: &mut Node, high_side_node: &mut Node) {
+    //TODO! opt
+
+    for i in 0..target_node.keys_count {
+        utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
+    }
+
+    for i in 0..target_node.data_count {
+        utils::insert_to_array(&mut high_side_node.data, i, target_node.data[i].clone());
+    }
+
+    high_side_node.keys_count += target_node.keys_count;
+    high_side_node.data_count += target_node.data_count;
+}
 pub fn erase_key(
     storage: &mut dyn NodeStorage,
     target_node: &RcNode,
@@ -8,26 +91,16 @@ pub fn erase_key(
     toproot: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
     let is_leaf = target_node.borrow().is_leaf;
+    let first_key = target_node.borrow().keys[0];
 
     let mut target_node_ref = target_node.borrow_mut();
-    let first_key = target_node_ref.keys[0];
-    for i in 0..target_node_ref.keys_count {
-        if target_node_ref.keys[i] == key {
-            utils::remove_with_shift(&mut target_node_ref.keys, i);
-            if !is_leaf {
-                utils::remove_with_shift(&mut target_node_ref.data, i + 1);
-            } else {
-                utils::remove_with_shift(&mut target_node_ref.data, i);
-            }
-            target_node_ref.keys_count -= 1;
-            target_node_ref.data_count -= 1;
-            break;
-        }
-    }
+    erase_key_data(&mut target_node_ref, key);
+
     if target_node_ref.keys_count == 0 && target_node_ref.parent != types::EMPTY_ID {
         //TODO add test
         //TODO! check result
         let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+        storage.erase_node(&target_node_ref.id);
         return erase_key(
             storage,
             &link_to_parent,
@@ -47,8 +120,6 @@ pub fn erase_key(
 
         return Ok(toproot.unwrap());
     } else {
-        let mut size_of_low = 2 * t;
-        let mut size_of_high = 2 * t;
         let mut link_to_low_side_leaf: Option<RcNode> = None;
         let mut link_to_high_side_leaf: Option<RcNode> = None;
         if target_node_ref.left != types::EMPTY_ID {
@@ -57,18 +128,9 @@ pub fn erase_key(
             let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
             link_to_low_side_leaf = Some(low_side_leaf.clone());
             let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
-            size_of_low = low_side_leaf_ref.keys_count;
+
             if low_side_leaf_ref.data_count > t {
-                let max_key = low_side_leaf_ref.keys[low_side_leaf_ref.keys_count - 1];
-                let max_data = low_side_leaf_ref.data[low_side_leaf_ref.data_count - 1].clone();
-
-                utils::insert_to_array(&mut target_node_ref.keys, 0, max_key);
-                utils::insert_to_array(&mut target_node_ref.data, 0, max_data);
-                low_side_leaf_ref.keys_count -= 1;
-                low_side_leaf_ref.data_count -= 1;
-
-                target_node_ref.keys_count += 1;
-                target_node_ref.data_count += 1;
+                take_key_from_low(&mut target_node_ref, &mut low_side_leaf_ref);
 
                 if target_node_ref.parent != types::EMPTY_ID {
                     //TODO! check result
@@ -87,24 +149,10 @@ pub fn erase_key(
             let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
             link_to_high_side_leaf = Some(high_side_leaf.clone());
             let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
-            size_of_high = high_side_leaf_ref.keys_count;
+
             if high_side_leaf_ref.data_count > t {
                 let min_key = high_side_leaf_ref.keys[0];
-                let min_data = high_side_leaf_ref.data[0].clone();
-
-                let mut position = target_node_ref.keys_count;
-                target_node_ref.keys[position] = min_key;
-                position = target_node_ref.data_count;
-                target_node_ref.data[position] = min_data;
-
-                utils::remove_with_shift(&mut high_side_leaf_ref.keys, 0);
-                utils::remove_with_shift(&mut high_side_leaf_ref.data, 0);
-
-                high_side_leaf_ref.keys_count -= 1;
-                high_side_leaf_ref.data_count -= 1;
-
-                target_node_ref.keys_count += 1;
-                target_node_ref.data_count += 1;
+                take_key_from_high(&mut target_node_ref, &mut high_side_leaf_ref);
 
                 if target_node_ref.parent != types::EMPTY_ID {
                     //TODO! check result
@@ -119,42 +167,26 @@ pub fn erase_key(
         }
 
         //try move to brother
-        if (size_of_low + target_node_ref.keys_count) < 2 * t {
+        let mut update_parent = false;
+        if target_node_ref.left != types::EMPTY_ID {
             let low_side_leaf = if link_to_low_side_leaf.is_some() {
                 link_to_low_side_leaf.unwrap()
             } else {
                 storage.get_node(target_node_ref.left).unwrap()
             };
-
             let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
 
-            let low_keys_count = low_side_leaf_ref.keys_count;
-            for i in 0..target_node_ref.keys_count {
-                low_side_leaf_ref.keys[low_keys_count + i] = target_node_ref.keys[i];
+            let size_of_low = low_side_leaf_ref.keys_count;
+            if (size_of_low + target_node_ref.keys_count) < 2 * t {
+                move_to_lower(&mut target_node_ref, &mut low_side_leaf_ref);
+
+                storage.erase_node(&target_node_ref.id);
+
+                update_parent = true;
             }
+        }
 
-            let low_data_count = low_side_leaf_ref.data_count;
-            for i in 0..target_node_ref.data_count {
-                low_side_leaf_ref.data[low_data_count + i] = target_node_ref.data[i].clone();
-            }
-
-            low_side_leaf_ref.keys_count += target_node_ref.keys_count;
-            low_side_leaf_ref.data_count += target_node_ref.data_count;
-
-            storage.erase_node(&target_node_ref.id);
-
-            if target_node_ref.parent != types::EMPTY_ID {
-                //TODO! check result
-                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                return erase_key(
-                    storage,
-                    &link_to_parent,
-                    target_node_ref.first_key(),
-                    t,
-                    toproot,
-                );
-            }
-        } else if (size_of_high + target_node_ref.keys_count) < 2 * t {
+        if target_node_ref.right != types::EMPTY_ID {
             let high_side_leaf = if link_to_high_side_leaf.is_some() {
                 link_to_high_side_leaf.unwrap()
             } else {
@@ -162,36 +194,25 @@ pub fn erase_key(
             };
 
             let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
+            let size_of_high = high_side_leaf_ref.keys_count;
+            if (size_of_high + target_node_ref.keys_count) < 2 * t {
+                move_to_higher(&mut target_node_ref, &mut high_side_leaf_ref);
 
-            //TODO! opt
-
-            for i in 0..target_node_ref.keys_count {
-                utils::insert_to_array(&mut high_side_leaf_ref.keys, i, target_node_ref.keys[i]);
+                storage.erase_node(&target_node_ref.id);
+                update_parent = true;
             }
+        }
 
-            for i in 0..target_node_ref.data_count {
-                utils::insert_to_array(
-                    &mut high_side_leaf_ref.data,
-                    i,
-                    target_node_ref.data[i].clone(),
-                );
-            }
-
-            high_side_leaf_ref.keys_count += target_node_ref.keys_count;
-            high_side_leaf_ref.data_count += target_node_ref.data_count;
-
-            storage.erase_node(&target_node_ref.id);
-            if target_node_ref.parent != types::EMPTY_ID {
-                //TODO! check result
-                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                return erase_key(
-                    storage,
-                    &link_to_parent,
-                    target_node_ref.first_key(),
-                    t,
-                    toproot,
-                );
-            }
+        if update_parent && target_node_ref.parent != types::EMPTY_ID {
+            //TODO! check result
+            let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+            return erase_key(
+                storage,
+                &link_to_parent,
+                target_node_ref.first_key(),
+                t,
+                toproot,
+            );
         }
 
         return Ok(toproot.unwrap());
