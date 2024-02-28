@@ -9,6 +9,7 @@ pub fn erase_key(
 ) -> Result<RcNode, types::Error> {
     if target_node.borrow().is_leaf {
         let mut target_node_ref = target_node.borrow_mut();
+        let first_key = target_node_ref.keys[0];
         for i in 0..target_node_ref.keys_count {
             if target_node_ref.keys[i] == key {
                 utils::remove_with_shift(&mut target_node_ref.keys, i);
@@ -19,15 +20,22 @@ pub fn erase_key(
             }
         }
         if target_node_ref.data_count >= t {
-            //TODO! update parent. with test
+            //update keys in parent
+            if first_key != target_node_ref.keys[0] && target_node_ref.parent != types::EMPTY_ID {
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                link_to_parent
+                    .borrow_mut()
+                    .update_key(first_key, target_node_ref.first_key());
+            }
+
             return Ok(toproot.unwrap());
         } else {
-            let mut try_move_to_brother = true;
             let mut size_of_low = 2 * t;
             let mut size_of_high = 2 * t;
             let mut link_to_low_side_leaf: Option<RcNode> = None;
             let mut link_to_high_side_leaf: Option<RcNode> = None;
             if target_node_ref.left != types::EMPTY_ID {
+                // from low side
                 //TODO! check result;
                 let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
                 link_to_low_side_leaf = Some(low_side_leaf.clone());
@@ -44,11 +52,19 @@ pub fn erase_key(
 
                     target_node_ref.keys_count += 1;
                     target_node_ref.data_count += 1;
-                    try_move_to_brother = false;
+
+                    if target_node_ref.parent != types::EMPTY_ID {
+                        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                        link_to_parent
+                            .borrow_mut()
+                            .update_key(first_key, target_node_ref.first_key());
+                    }
+
+                    return Ok(toproot.unwrap());
                 }
             }
-
             if target_node_ref.right != types::EMPTY_ID {
+                // from high side
                 //TODO! check result;
                 let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
                 link_to_high_side_leaf = Some(high_side_leaf.clone());
@@ -71,72 +87,79 @@ pub fn erase_key(
 
                     target_node_ref.keys_count += 1;
                     target_node_ref.data_count += 1;
-                    try_move_to_brother = false;
+
+                    if target_node_ref.parent != types::EMPTY_ID {
+                        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                        link_to_parent
+                            .borrow_mut()
+                            .update_key(min_key, high_side_leaf_ref.first_key());
+                    }
+
+                    return Ok(toproot.unwrap());
                 }
             }
 
-            if try_move_to_brother {
-                if (size_of_low + target_node_ref.keys_count) < 2 * t {
-                    let low_side_leaf = if link_to_low_side_leaf.is_some() {
-                        link_to_low_side_leaf.unwrap()
-                    } else {
-                        storage.get_node(target_node_ref.left).unwrap()
-                    };
+            //try move to brother
+            if (size_of_low + target_node_ref.keys_count) < 2 * t {
+                let low_side_leaf = if link_to_low_side_leaf.is_some() {
+                    link_to_low_side_leaf.unwrap()
+                } else {
+                    storage.get_node(target_node_ref.left).unwrap()
+                };
 
-                    let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
+                let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
 
-                    let low_keys_count = low_side_leaf_ref.keys_count;
-                    for i in 0..target_node_ref.keys_count {
-                        low_side_leaf_ref.keys[low_keys_count + i] = target_node_ref.keys[i];
-                    }
-
-                    let low_data_count = low_side_leaf_ref.data_count;
-                    for i in 0..target_node_ref.data_count {
-                        low_side_leaf_ref.data[low_data_count + i] =
-                            target_node_ref.data[i].clone();
-                    }
-
-                    low_side_leaf_ref.keys_count += target_node_ref.keys_count;
-                    low_side_leaf_ref.data_count += target_node_ref.data_count;
-
-                    storage.erase_node(&target_node_ref.id);
-                    //TODO! update parent. with test
-                } else if (size_of_high + target_node_ref.keys_count) < 2 * t {
-                    let high_side_leaf = if link_to_high_side_leaf.is_some() {
-                        link_to_high_side_leaf.unwrap()
-                    } else {
-                        storage.get_node(target_node_ref.right).unwrap()
-                    };
-
-                    let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
-
-                    //TODO! opt
-
-                    for i in 0..target_node_ref.keys_count {
-                        utils::insert_to_array(
-                            &mut high_side_leaf_ref.keys,
-                            i,
-                            target_node_ref.keys[i],
-                        );
-                    }
-
-                    for i in 0..target_node_ref.data_count {
-                        utils::insert_to_array(
-                            &mut high_side_leaf_ref.data,
-                            i,
-                            target_node_ref.data[i].clone(),
-                        );
-                    }
-
-                    high_side_leaf_ref.keys_count += target_node_ref.keys_count;
-                    high_side_leaf_ref.data_count += target_node_ref.data_count;
-
-                    storage.erase_node(&target_node_ref.id);
-                    //TODO! update parent. with test
+                let low_keys_count = low_side_leaf_ref.keys_count;
+                for i in 0..target_node_ref.keys_count {
+                    low_side_leaf_ref.keys[low_keys_count + i] = target_node_ref.keys[i];
                 }
 
+                let low_data_count = low_side_leaf_ref.data_count;
+                for i in 0..target_node_ref.data_count {
+                    low_side_leaf_ref.data[low_data_count + i] = target_node_ref.data[i].clone();
+                }
+
+                low_side_leaf_ref.keys_count += target_node_ref.keys_count;
+                low_side_leaf_ref.data_count += target_node_ref.data_count;
+
+                storage.erase_node(&target_node_ref.id);
+                //TODO! update parent. with test
+            } else if (size_of_high + target_node_ref.keys_count) < 2 * t {
+                let high_side_leaf = if link_to_high_side_leaf.is_some() {
+                    link_to_high_side_leaf.unwrap()
+                } else {
+                    storage.get_node(target_node_ref.right).unwrap()
+                };
+
+                let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
+
+                //TODO! opt
+
+                for i in 0..target_node_ref.keys_count {
+                    utils::insert_to_array(
+                        &mut high_side_leaf_ref.keys,
+                        i,
+                        target_node_ref.keys[i],
+                    );
+                }
+
+                for i in 0..target_node_ref.data_count {
+                    utils::insert_to_array(
+                        &mut high_side_leaf_ref.data,
+                        i,
+                        target_node_ref.data[i].clone(),
+                    );
+                }
+
+                high_side_leaf_ref.keys_count += target_node_ref.keys_count;
+                high_side_leaf_ref.data_count += target_node_ref.data_count;
+
+                storage.erase_node(&target_node_ref.id);
                 //TODO! update parent. with test
             }
+
+            //TODO! update parent. with test
+
             return Ok(toproot.unwrap());
         }
     } else {
@@ -194,7 +217,107 @@ mod tests {
     }
 
     #[test]
+    fn remove_from_leaf_update_parent() {
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let leaf1 = Node::new_leaf(
+            types::Id(1),
+            vec![1, 2, 3, 4],
+            vec![
+                Record::from_u8(1),
+                Record::from_u8(2),
+                Record::from_u8(3),
+                Record::from_u8(4),
+            ],
+            4,
+            4,
+        );
+        storage.add_node(&leaf1);
+
+        let leaf2 = Node::new_leaf(
+            types::Id(2),
+            vec![5, 6, 7, 8],
+            vec![
+                Record::from_u8(5),
+                Record::from_u8(6),
+                Record::from_u8(7),
+                Record::from_u8(8),
+            ],
+            4,
+            4,
+        );
+        storage.add_node(&leaf2);
+
+        let root = Node::new_leaf(
+            types::Id(3),
+            vec![5, 0, 0, 0],
+            vec![
+                Record::from_id(types::Id(1)),
+                Record::from_id(types::Id(2)),
+                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::EMPTY_ID),
+            ],
+            1,
+            2,
+        );
+        storage.add_node(&root);
+        leaf1.borrow_mut().parent = root.borrow().id;
+        leaf2.borrow_mut().parent = root.borrow().id;
+
+        let result = erase_key(&mut storage, &leaf2, 5, 3, Some(root.clone()));
+        assert!(result.is_ok());
+        {
+            let newroot = result.unwrap();
+            let ref_root = newroot.borrow();
+            assert_eq!(ref_root.id, root.borrow().id);
+            assert_eq!(ref_root.keys, vec![6, 0, 0, 0]);
+            assert_eq!(
+                ref_root.data,
+                vec![
+                    Record::from_id(types::Id(1)),
+                    Record::from_id(types::Id(2)),
+                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::EMPTY_ID),
+                ]
+            );
+            assert_eq!(ref_root.keys_count, 1);
+            assert_eq!(ref_root.data_count, 2);
+        }
+
+        {
+            let ref_leaf2 = leaf2.borrow_mut();
+            assert_eq!(ref_leaf2.keys, vec![6, 7, 8, 5]);
+            assert_eq!(
+                ref_leaf2.data,
+                vec![
+                    Record::from_u8(6),
+                    Record::from_u8(7),
+                    Record::from_u8(8),
+                    Record::from_u8(5),
+                ]
+            );
+            assert_eq!(ref_leaf2.keys_count, 3);
+            assert_eq!(ref_leaf2.data_count, 3);
+        }
+    }
+
+    #[test]
     fn remove_from_leaf_take_from_lower() {
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+
+        let root = Node::new_leaf(
+            types::Id(3),
+            vec![5, 0, 0, 0],
+            vec![
+                Record::from_id(types::Id(1)),
+                Record::from_id(types::Id(2)),
+                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::EMPTY_ID),
+            ],
+            1,
+            2,
+        );
+        storage.add_node(&root);
+
         let leaf_high = Node::new_leaf(
             types::Id(1),
             vec![5, 6, 7, 0],
@@ -207,7 +330,7 @@ mod tests {
             3,
             3,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+
         storage.add_node(&leaf_high);
 
         let leaf_low = Node::new_leaf(
@@ -222,19 +345,36 @@ mod tests {
             4,
             4,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf_low);
+
+        leaf_high.borrow_mut().parent = root.borrow().id;
+        leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_high.borrow_mut().left = leaf_low.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf_high, 6, 3, Some(leaf_high.clone()));
+        let result = erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
         assert!(result.is_ok());
 
         {
-            let root = result.unwrap();
-            let ref_root = root.borrow_mut();
-            assert_eq!(ref_root.keys, vec![4, 5, 7, 0]);
+            let ref_node: std::cell::RefMut<'_, Node> = root.borrow_mut();
+            assert_eq!(ref_node.keys, vec![4, 0, 0, 0]);
             assert_eq!(
-                ref_root.data,
+                ref_node.data,
+                vec![
+                    Record::from_id(types::Id(1)),
+                    Record::from_id(types::Id(2)),
+                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::EMPTY_ID),
+                ]
+            );
+            assert_eq!(ref_node.keys_count, 1);
+            assert_eq!(ref_node.data_count, 2);
+        }
+
+        {
+            let ref_node = leaf_high.borrow_mut();
+            assert_eq!(ref_node.keys, vec![4, 5, 7, 0]);
+            assert_eq!(
+                ref_node.data,
                 vec![
                     Record::from_u8(4),
                     Record::from_u8(5),
@@ -242,8 +382,8 @@ mod tests {
                     Record::from_u8(0),
                 ]
             );
-            assert_eq!(ref_root.keys_count, 3);
-            assert_eq!(ref_root.data_count, 3);
+            assert_eq!(ref_node.keys_count, 3);
+            assert_eq!(ref_node.data_count, 3);
         }
 
         {
@@ -264,7 +404,111 @@ mod tests {
     }
 
     #[test]
+    fn remove_from_leaf_take_from_high() {
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let root = Node::new_leaf(
+            types::Id(3),
+            vec![9, 0, 0, 0],
+            vec![
+                Record::from_id(types::Id(1)),
+                Record::from_id(types::Id(2)),
+                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::EMPTY_ID),
+            ],
+            1,
+            2,
+        );
+        storage.add_node(&root);
+
+        let leaf_low = Node::new_leaf(
+            types::Id(1),
+            vec![5, 6, 7, 0],
+            vec![
+                Record::from_u8(5),
+                Record::from_u8(6),
+                Record::from_u8(7),
+                Record::from_u8(0),
+            ],
+            3,
+            3,
+        );
+        storage.add_node(&leaf_low);
+
+        let leaf_high = Node::new_leaf(
+            types::Id(2),
+            vec![9, 10, 11, 12],
+            vec![
+                Record::from_u8(9),
+                Record::from_u8(10),
+                Record::from_u8(11),
+                Record::from_u8(12),
+            ],
+            4,
+            4,
+        );
+        storage.add_node(&leaf_high);
+        leaf_low.borrow_mut().right = leaf_high.borrow().id;
+        leaf_high.borrow_mut().parent = root.borrow().id;
+        leaf_low.borrow_mut().parent = root.borrow().id;
+
+        let result = erase_key(&mut storage, &leaf_low, 6, 3, Some(root.clone()));
+        assert!(result.is_ok());
+
+        {
+            let newroot = result.unwrap();
+            let ref_root = newroot.borrow();
+            assert_eq!(ref_root.id, root.borrow().id);
+            assert_eq!(ref_root.keys, vec![10, 0, 0, 0]);
+            assert_eq!(
+                ref_root.data,
+                vec![
+                    Record::from_id(types::Id(1)),
+                    Record::from_id(types::Id(2)),
+                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::EMPTY_ID),
+                ]
+            );
+            assert_eq!(ref_root.keys_count, 1);
+            assert_eq!(ref_root.data_count, 2);
+        }
+
+        {
+            let ref_node = leaf_low.borrow_mut();
+            assert_eq!(ref_node.keys, vec![5, 7, 9, 6]);
+            assert_eq!(
+                ref_node.data,
+                vec![
+                    Record::from_u8(5),
+                    Record::from_u8(7),
+                    Record::from_u8(9),
+                    Record::from_u8(6),
+                ]
+            );
+            assert_eq!(ref_node.keys_count, 3);
+            assert_eq!(ref_node.data_count, 3);
+        }
+
+        {
+            let ref_node = leaf_high.borrow_mut();
+            assert_eq!(ref_node.keys, vec![10, 11, 12, 9]);
+            assert_eq!(
+                ref_node.data,
+                vec![
+                    Record::from_u8(10),
+                    Record::from_u8(11),
+                    Record::from_u8(12),
+                    Record::from_u8(9),
+                ]
+            );
+            assert_eq!(ref_node.keys_count, 3);
+            assert_eq!(ref_node.data_count, 3);
+        }
+    }
+
+    #[test]
     fn remove_from_leaf_move_to_lower() {
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+
         let leaf_high = Node::new_leaf(
             types::Id(1),
             vec![5, 6, 0, 0],
@@ -277,7 +521,7 @@ mod tests {
             2,
             2,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+
         storage.add_node(&leaf_high);
 
         let leaf_low = Node::new_leaf(
@@ -292,7 +536,7 @@ mod tests {
             2,
             2,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+
         storage.add_node(&leaf_low);
         leaf_high.borrow_mut().left = leaf_low.borrow().id;
 
@@ -310,76 +554,6 @@ mod tests {
                     Record::from_u8(2),
                     Record::from_u8(5),
                     Record::from_u8(0),
-                ]
-            );
-            assert_eq!(ref_node.keys_count, 3);
-            assert_eq!(ref_node.data_count, 3);
-        }
-    }
-
-    #[test]
-    fn remove_from_leaf_take_from_high() {
-        let leaf_low = Node::new_leaf(
-            types::Id(1),
-            vec![5, 6, 7, 0],
-            vec![
-                Record::from_u8(5),
-                Record::from_u8(6),
-                Record::from_u8(7),
-                Record::from_u8(0),
-            ],
-            3,
-            3,
-        );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
-        storage.add_node(&leaf_low);
-
-        let leaf_high = Node::new_leaf(
-            types::Id(2),
-            vec![9, 10, 11, 12],
-            vec![
-                Record::from_u8(9),
-                Record::from_u8(10),
-                Record::from_u8(11),
-                Record::from_u8(12),
-            ],
-            4,
-            4,
-        );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
-        storage.add_node(&leaf_high);
-        leaf_low.borrow_mut().right = leaf_high.borrow().id;
-
-        let result = erase_key(&mut storage, &leaf_low, 6, 3, Some(leaf_low.clone()));
-        assert!(result.is_ok());
-
-        {
-            let root = result.unwrap();
-            let ref_root = root.borrow_mut();
-            assert_eq!(ref_root.keys, vec![5, 7, 9, 6]);
-            assert_eq!(
-                ref_root.data,
-                vec![
-                    Record::from_u8(5),
-                    Record::from_u8(7),
-                    Record::from_u8(9),
-                    Record::from_u8(6),
-                ]
-            );
-            assert_eq!(ref_root.keys_count, 3);
-            assert_eq!(ref_root.data_count, 3);
-        }
-
-        {
-            let ref_node = leaf_high.borrow_mut();
-            assert_eq!(ref_node.keys, vec![10, 11, 12, 9]);
-            assert_eq!(
-                ref_node.data,
-                vec![
-                    Record::from_u8(10),
-                    Record::from_u8(11),
-                    Record::from_u8(12),
-                    Record::from_u8(9),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);

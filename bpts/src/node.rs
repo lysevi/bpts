@@ -139,6 +139,22 @@ impl Node {
         self.keys_count += 1;
         self.data_count += 1;
     }
+
+    pub fn update_key(&mut self, old_key: i32, new_key: i32) {
+        for i in 0..self.keys_count {
+            if self.keys[i] == old_key {
+                self.keys[i] = new_key;
+                break;
+            }
+        }
+    }
+
+    pub fn first_key(&self) -> i32 {
+        if self.keys_count > 0 {
+            return self.keys[0];
+        }
+        panic!("empty node");
+    }
 }
 
 #[cfg(test)]
