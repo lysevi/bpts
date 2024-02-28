@@ -5,6 +5,7 @@ use crate::{
 };
 
 fn erase_key_data(target_node: &mut Node, key: i32) {
+    println!("erase_key_data from={:?} key={}", target_node.id, key);
     let is_leaf = target_node.is_leaf;
 
     if !is_leaf {
@@ -40,6 +41,10 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
 }
 
 fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
+    println!(
+        "take_key_from_low target={:?} low={:?}",
+        target_node.id, low_side_node.id
+    );
     if !target_node.is_leaf {
         todo!();
     } else {
@@ -57,6 +62,10 @@ fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
 }
 
 fn take_key_from_high(target_node: &mut Node, high_side_node: &mut Node) {
+    println!(
+        "take_key_from_high target={:?} high={:?}",
+        target_node.id, high_side_node.id
+    );
     if !target_node.is_leaf {
         println!("! take_key_from_high node");
     }
@@ -81,6 +90,10 @@ fn take_key_from_high(target_node: &mut Node, high_side_node: &mut Node) {
 }
 
 fn move_to_lower(target_node: &mut Node, low_side_node: &mut Node) {
+    println!(
+        "move_to_lower target={:?} low={:?}",
+        target_node.id, low_side_node.id
+    );
     if !target_node.is_leaf {
         todo!();
     } else {
@@ -104,6 +117,11 @@ fn move_to_higher(
     target_node: &mut Node,
     high_side_node: &mut Node,
 ) {
+    println!(
+        "move_to_lower target={:?} low={:?}",
+        target_node.id, high_side_node.id
+    );
+
     //TODO! opt
 
     if !target_node.is_leaf {
@@ -1048,6 +1066,9 @@ mod tests {
 
             for k in (i + 1)..key {
                 println!("? {:?}", k);
+                if k == 11 {
+                    println!("!!");
+                }
                 let find_res = find(&mut storage, &root_node, k);
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), k);

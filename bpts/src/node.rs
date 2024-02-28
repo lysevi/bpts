@@ -141,6 +141,9 @@ impl Node {
     }
 
     pub fn update_key(&mut self, old_key: i32, new_key: i32) {
+        if old_key == 14 || new_key == 14 {
+            print!("");
+        }
         if self.is_leaf {
             for i in 0..self.keys_count {
                 if self.keys[i] == old_key {
