@@ -5,10 +5,10 @@ use crate::{
 };
 
 fn erase_key_data(target_node: &mut Node, key: i32) {
-    println!("erase_key_data from={:?} key={}", target_node.id, key);
     let is_leaf = target_node.is_leaf;
 
     if !is_leaf {
+        println!("erase_key_data node from={:?} key={}", target_node.id, key);
         if key < target_node.keys[0] {
             utils::remove_with_shift(&mut target_node.data, 0);
             utils::remove_with_shift(&mut target_node.keys, 0);
@@ -23,6 +23,8 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
             target_node.data_count -= 1;
             return;
         }
+    } else {
+        println!("erase_key_data leaf from={:?} key={}", target_node.id, key);
     }
 
     for i in 0..target_node.keys_count {
@@ -77,6 +79,7 @@ fn take_key_from_high(
 
         let min_data_node = storage.get_node(min_data.into_id()).unwrap();
         min_key = min_data_node.borrow().keys[0];
+        min_data_node.borrow_mut().parent = target_node.id;
     }
     {
         let mut position = target_node.keys_count;
@@ -509,7 +512,7 @@ mod tests {
 
         {
             let ref_node: std::cell::RefMut<'_, Node> = root.borrow_mut();
-            assert_eq!(ref_node.keys, vec![4, 0, 0, 0]);
+            assert_eq!(ref_node.keys, vec![5, 0, 0, 0]);
             assert_eq!(
                 ref_node.data,
                 vec![
