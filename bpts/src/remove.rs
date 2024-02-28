@@ -61,18 +61,24 @@ fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
     }
 }
 
-fn take_key_from_high(target_node: &mut Node, high_side_node: &mut Node) {
+fn take_key_from_high(
+    storage: &mut dyn NodeStorage,
+    target_node: &mut Node,
+    high_side_node: &mut Node,
+) {
     println!(
         "take_key_from_high target={:?} high={:?}",
         target_node.id, high_side_node.id
     );
+    let mut min_key = high_side_node.keys[0];
+    let min_data = high_side_node.data[0].clone();
     if !target_node.is_leaf {
         println!("! take_key_from_high node");
+
+        let min_data_node = storage.get_node(min_data.into_id()).unwrap();
+        min_key = min_data_node.borrow().keys[0];
     }
     {
-        let min_key = high_side_node.keys[0];
-        let min_data = high_side_node.data[0].clone();
-
         let mut position = target_node.keys_count;
         target_node.keys[position] = min_key;
         position = target_node.data_count;
@@ -219,7 +225,7 @@ fn erase_key(
 
             if high_side_leaf_ref.data_count > t {
                 let min_key = high_side_leaf_ref.keys[0];
-                take_key_from_high(&mut target_node_ref, &mut high_side_leaf_ref);
+                take_key_from_high(storage, &mut target_node_ref, &mut high_side_leaf_ref);
 
                 if target_node_ref.parent != types::EMPTY_ID {
                     //TODO! check result
@@ -1048,6 +1054,13 @@ mod tests {
                 assert_eq!(res.unwrap().into_i32(), i);
             }
         }
+        for i in 2..=key {
+            //println!("! {:?}", i);
+
+            let res = find(&mut storage, &root_node, i);
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().into_i32(), i);
+        }
 
         for i in 2..key {
             let find_res = find(&mut storage, &root_node, i);
@@ -1067,7 +1080,7 @@ mod tests {
 
             for k in (i + 1)..key {
                 println!("? {:?}", k);
-                if k == 11 {
+                if k == 14 {
                     println!("!!");
                 }
                 let find_res = find(&mut storage, &root_node, k);
