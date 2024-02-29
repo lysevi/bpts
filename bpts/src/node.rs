@@ -89,7 +89,7 @@ impl Node {
             match (self.keys[i]).cmp(&key) {
                 std::cmp::Ordering::Less => continue,
                 std::cmp::Ordering::Equal => return Some(&self.keys[i]),
-                std::cmp::Ordering::Greater => return Some(&self.keys[i]),
+                std::cmp::Ordering::Greater => return Some(&self.keys[i - 1]),
             }
         }
         return None;

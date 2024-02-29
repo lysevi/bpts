@@ -87,7 +87,7 @@ impl MockNodeStorage {
 
     fn print_node(node: &node::Node, graphviz: bool, graph_name: &String) {
         if graphviz {
-            let key_slice = &node.keys[0..node.keys_count];
+            let key_slice = &node.keys[0..node.keys_count - 1];
             let key_as_string = format!("{:?}", key_slice);
             let shape = if node.is_leaf { "box" } else { "ellipse" };
             print!(
