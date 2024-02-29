@@ -19,4 +19,12 @@ impl Id {
     pub fn unwrap(&self) -> i32 {
         self.0
     }
+
+    pub fn is_empty(self) -> bool {
+        return self == EMPTY_ID;
+    }
+
+    pub fn clear(&mut self) {
+        self.0 = EMPTY_ID.0;
+    }
 }

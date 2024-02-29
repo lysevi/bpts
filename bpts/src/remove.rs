@@ -164,11 +164,13 @@ fn erase_key(
     erase_key_data(&mut target_node_ref, key);
 
     if target_node_ref.keys_count == 0 || target_node_ref.data_count == 0 {
-        if target_node_ref.parent == types::EMPTY_ID {
+        if target_node_ref.parent.is_empty() {
             if target_node_ref.data_count > 0 && !target_node_ref.is_leaf {
                 storage.erase_node(&target_node_ref.id);
-                let new_root = storage.get_node(target_node_ref.data[0].into_id());
-                return Ok(new_root.unwrap());
+                let new_root_res = storage.get_node(target_node_ref.data[0].into_id());
+                let new_root = new_root_res.unwrap();
+                new_root.borrow_mut().parent.clear();
+                return Ok(new_root);
             }
             //TODO add test
             //TODO! check result
@@ -1076,11 +1078,14 @@ mod tests {
             if i == 6 {
                 println!("!");
             }
-
+            println!("before");
+            storage.print(root_node.clone());
             let remove_res = remove_key(&mut storage, &root_node, i, 3);
             assert!(remove_res.is_ok());
-
             root_node = remove_res.unwrap();
+            println!("after");
+            storage.print(root_node.clone());
+
             let find_res = find(&mut storage, &root_node, i);
             assert!(!find_res.is_err());
 

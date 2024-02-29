@@ -1,7 +1,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use crate::{
-    node::RcNode,
+    node::{self, RcNode},
     nodestorage::NodeStorage,
     types::{self, Id},
 };
@@ -29,6 +29,51 @@ impl MockNodeStorage {
         F: FnMut(&RcNode) -> bool,
     {
         self.nodes.values().all(f)
+    }
+
+    pub fn print(&self, root: RcNode) {
+        let mut to_print = Vec::new();
+        to_print.push(root.clone());
+
+        while !to_print.is_empty() {
+            let mut children = Vec::new();
+            for item in &to_print {
+                let r_ref = item.borrow();
+                MockNodeStorage::print_node(&r_ref);
+                print!("  ");
+
+                if !r_ref.is_leaf {
+                    let data = &r_ref.data[0..r_ref.data_count];
+                    for id in data.into_iter().map(|x| x.into_id()) {
+                        children.push(self.get_node(id).unwrap());
+                    }
+                }
+            }
+            to_print = children;
+            println!("");
+        }
+    }
+
+    fn print_node(node: &node::Node) {
+        let key_slice = &node.keys[0..node.keys_count];
+        let string_data = if node.is_leaf {
+            let unpack: Vec<u8> = node
+                .data
+                .iter()
+                .take(node.data_count)
+                .map(|f| f.into_u8())
+                .collect();
+            format!("{:?}", unpack)
+        } else {
+            let unpack: Vec<types::Id> = node
+                .data
+                .iter()
+                .take(node.data_count)
+                .map(|f| f.into_id())
+                .collect();
+            format!("{:?}", unpack)
+        };
+        print!("Id:{:?}  [{:?}]->[{}]", node.id.0, key_slice, string_data);
     }
 }
 impl NodeStorage for MockNodeStorage {
