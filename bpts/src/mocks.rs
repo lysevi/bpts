@@ -73,7 +73,32 @@ impl MockNodeStorage {
                 .collect();
             format!("{:?}", unpack)
         };
-        print!("Id:{:?}  [{:?}]->[{}]", node.id.0, key_slice, string_data);
+        let left = if node.left.exists() {
+            format!("{}", node.left.0)
+        } else {
+            "_".to_owned()
+        };
+
+        let right = if node.right.exists() {
+            format!("{}", node.right.0)
+        } else {
+            "_".to_owned()
+        };
+
+        let up = if node.parent.exists() {
+            format!("{}", node.parent.0)
+        } else {
+            "_".to_owned()
+        };
+        let is_leaf_sfx = if node.is_leaf {
+            " ".to_owned()
+        } else {
+            "*".to_owned()
+        };
+        print!(
+            "Id:{:?}{}({},{},{})  [{:?}]->[{}]",
+            node.id.0, is_leaf_sfx, left, right, up, key_slice, string_data
+        );
     }
 }
 impl NodeStorage for MockNodeStorage {

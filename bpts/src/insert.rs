@@ -19,7 +19,7 @@ pub fn insert(
 
             target_node = scan_result.unwrap();
         }
-        println!("insert into {:?}", target_node.borrow().id);
+        // println!("insert into {:?}", target_node.borrow().id);
         let mut mut_ref = target_node.borrow_mut();
         let can_insert = mut_ref.can_insert(t);
 

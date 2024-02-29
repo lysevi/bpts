@@ -12,11 +12,7 @@ pub fn split_node(
     t: usize,
     toproot: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
-    println!(
-        "split:is_leaf:{} target:{:?}",
-        target_node.borrow().is_leaf,
-        target_node.borrow().id
-    );
+    // println!(        "split:is_leaf:{} target:{:?}",        target_node.borrow().is_leaf,        target_node.borrow().id    );
     let parent_node: RcNode;
     let is_new_root;
     if target_node.borrow().parent.is_empty()
@@ -36,9 +32,9 @@ pub fn split_node(
             0,
         );
         storage.add_node(&parent_node);
-        println!("split new root: {:?}", parent_node.borrow().id);
+        // println!("split new root: {:?}", parent_node.borrow().id);
     } else {
-        println!("split exists root {:?}", target_node.borrow().parent);
+        // println!("split exists root {:?}", target_node.borrow().parent);
 
         is_new_root = false;
         let subres = storage.get_node(target_node.borrow().parent);
@@ -60,7 +56,7 @@ pub fn split_node(
     target_node.borrow_mut().data_count = t;
     let mut ignore_middle_key = 0;
     if !target_node.borrow().is_leaf {
-        println!("split target is middle");
+        // println!("split target is middle");
         brother_keys_count -= 1;
         target_node.borrow_mut().keys_count -= 1;
         ignore_middle_key = 1;
@@ -109,7 +105,7 @@ pub fn split_node(
             brother_data_count,
         )
     }
-    println!("split new brother id: {:?}", new_id);
+    // println!("split new brother id: {:?}", new_id);
     {
         storage.add_node(&new_brother);
         let mut ref_to_brother = new_brother.borrow_mut();

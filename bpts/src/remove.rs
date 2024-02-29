@@ -42,7 +42,11 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
     }
 }
 
-fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
+fn take_key_from_low(
+    storage: &mut dyn NodeStorage,
+    target_node: &mut Node,
+    low_side_node: &mut Node,
+) {
     println!(
         "take_key_from_low target={:?} low={:?}",
         target_node.id, low_side_node.id
@@ -52,6 +56,11 @@ fn take_key_from_low(target_node: &mut Node, low_side_node: &mut Node) {
     } else {
         let max_key = low_side_node.keys[low_side_node.keys_count - 1];
         let max_data = low_side_node.data[low_side_node.data_count - 1].clone();
+
+        if !target_node.is_leaf {
+            let min_data_node = storage.get_node(max_data.into_id()).unwrap();
+            min_data_node.borrow_mut().parent = target_node.id;
+        }
 
         utils::insert_to_array(&mut target_node.keys, 0, max_key);
         utils::insert_to_array(&mut target_node.data, 0, max_data);
@@ -75,8 +84,6 @@ fn take_key_from_high(
     let mut min_key = high_side_node.keys[0];
     let min_data = high_side_node.data[0].clone();
     if !target_node.is_leaf {
-        println!("! take_key_from_high node");
-
         let min_data_node = storage.get_node(min_data.into_id()).unwrap();
         min_key = min_data_node.borrow().keys[0];
         min_data_node.borrow_mut().parent = target_node.id;
@@ -98,7 +105,7 @@ fn take_key_from_high(
     }
 }
 
-fn move_to_lower(target_node: &mut Node, low_side_node: &mut Node) {
+fn move_to_lower(storage: &mut dyn NodeStorage, target_node: &mut Node, low_side_node: &mut Node) {
     println!(
         "move_to_lower target={:?} low={:?}",
         target_node.id, low_side_node.id
@@ -113,7 +120,13 @@ fn move_to_lower(target_node: &mut Node, low_side_node: &mut Node) {
 
         let low_data_count = low_side_node.data_count;
         for i in 0..target_node.data_count {
-            low_side_node.data[low_data_count + i] = target_node.data[i].clone();
+            let node_ptr = target_node.data[i].clone();
+            low_side_node.data[low_data_count + i] = node_ptr.clone();
+
+            if !target_node.is_leaf {
+                let node = storage.get_node(node_ptr.into_id()).unwrap();
+                node.borrow_mut().parent = low_side_node.id;
+            }
         }
 
         low_side_node.keys_count += target_node.keys_count;
@@ -127,7 +140,7 @@ fn move_to_higher(
     high_side_node: &mut Node,
 ) {
     println!(
-        "move_to_lower target={:?} low={:?}",
+        "move_to_higher target={:?} low={:?}",
         target_node.id, high_side_node.id
     );
 
@@ -138,6 +151,7 @@ fn move_to_higher(
         let first_leaf = storage.get_node(high_side_node.data[0].into_id()).unwrap();
         let first_key = first_leaf.borrow().keys[0];
         utils::insert_to_array(&mut high_side_node.keys, 0, first_key);
+        high_side_node.keys_count += target_node.keys_count;
     }
     for i in 0..target_node.keys_count {
         utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
@@ -145,6 +159,11 @@ fn move_to_higher(
 
     for i in 0..target_node.data_count {
         utils::insert_to_array(&mut high_side_node.data, i, target_node.data[i].clone());
+
+        if !target_node.is_leaf {
+            let node = storage.get_node(target_node.data[i].into_id()).unwrap();
+            node.borrow_mut().parent = high_side_node.id;
+        }
     }
 
     high_side_node.keys_count += target_node.keys_count;
@@ -172,17 +191,7 @@ fn erase_key(
                 new_root.borrow_mut().parent.clear();
                 return Ok(new_root);
             }
-            //TODO add test
-            //TODO! check result
-            let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-            storage.erase_node(&target_node_ref.id);
-            return erase_key(
-                storage,
-                &link_to_parent,
-                target_node_ref.first_key(),
-                t,
-                toproot,
-            );
+            return Ok(target_node.clone());
         } else {
             todo!()
         }
@@ -208,7 +217,7 @@ fn erase_key(
             let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
 
             if low_side_leaf_ref.data_count > t {
-                take_key_from_low(&mut target_node_ref, &mut low_side_leaf_ref);
+                take_key_from_low(storage, &mut target_node_ref, &mut low_side_leaf_ref);
 
                 if target_node_ref.parent.exists() {
                     //TODO! check result
@@ -256,7 +265,7 @@ fn erase_key(
 
             let size_of_low = low_side_leaf_ref.keys_count;
             if (size_of_low + target_node_ref.keys_count) < 2 * t {
-                move_to_lower(&mut target_node_ref, &mut low_side_leaf_ref);
+                move_to_lower(storage, &mut target_node_ref, &mut low_side_leaf_ref);
 
                 storage.erase_node(&target_node_ref.id);
 
@@ -1021,7 +1030,7 @@ mod tests {
         }
     }
 
-    fn make_tree(nodes_count: i32) -> (MockNodeStorage, RcNode, Vec<i32>) {
+    fn make_tree(nodes_count: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
         let mut root_node = Node::new_leaf(
             types::Id(1),
             vec![0, 0, 0, 0, 0, 0],
@@ -1041,7 +1050,7 @@ mod tests {
 
         let mut key: i32 = 1;
         let mut keys = Vec::new();
-        while storage.size() <= 3 {
+        while storage.size() <= nodes_count {
             key += 1;
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
             keys.push(key);
@@ -1059,7 +1068,7 @@ mod tests {
 
     #[test]
     fn many_inserts() {
-        let (mut storage, mut root_node, keys) = make_tree(1);
+        let (mut storage, mut root_node, keys) = make_tree(6);
 
         let key = *keys.last().unwrap();
         for i in 2..=key {
@@ -1070,12 +1079,12 @@ mod tests {
             assert_eq!(res.unwrap().into_i32(), i);
         }
 
-        for i in 2..key {
+        for i in 2..=key {
             let find_res = find(&mut storage, &root_node, i);
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().into_i32(), i);
             println!("remove {:?}", i);
-            if i == 6 {
+            if i == 19 {
                 println!("!");
             }
             println!("before");
@@ -1085,6 +1094,11 @@ mod tests {
             root_node = remove_res.unwrap();
             println!("after");
             storage.print(root_node.clone());
+
+            if root_node.borrow().is_empty() {
+                assert!(i == key);
+                break;
+            }
 
             let find_res = find(&mut storage, &root_node, i);
             assert!(!find_res.is_err());
