@@ -1113,7 +1113,7 @@ mod tests {
     fn many_inserts() {
         //for H in 3..29
         {
-            let (mut storage, mut root_node, keys) = make_tree(29);
+            let (mut storage, mut root_node, keys) = make_tree(76);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
