@@ -89,9 +89,10 @@ impl MockNodeStorage {
         if graphviz {
             let key_slice = &node.keys[0..node.keys_count];
             let key_as_string = format!("{:?}", key_slice);
+            let shape = if node.is_leaf { "box" } else { "ellipse" };
             print!(
-                "{}_{} [label=\"{} \\n {}\"];",
-                graph_name, node.id.0, node.id.0, key_as_string
+                "{}_{} [label=\"{} \\n {}\" shape=\"{}\"];",
+                graph_name, node.id.0, node.id.0, key_as_string, shape
             );
             if node.right.exists() {
                 print!(

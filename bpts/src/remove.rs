@@ -85,22 +85,19 @@ fn take_key_from_high(
     storage: &mut dyn NodeStorage,
     target_node: &mut Node,
     high_side_node: &mut Node,
+    middle: Option<i32>,
 ) -> i32 {
     println!(
-        "take_key_from_high target={:?} high={:?}",
-        target_node.id, high_side_node.id
+        "take_key_from_high target={:?} high={:?} minKey={}",
+        target_node.id, high_side_node.id, high_side_node.keys[0]
     );
 
     let mut min_key = high_side_node.keys[0];
     let mut result = min_key;
     let min_data = high_side_node.data[0].clone();
     if !target_node.is_leaf {
-        let mut min_data_node = storage.get_node(min_data.into_id()).unwrap();
-        min_key = min_data_node.borrow().keys[0];
-        min_data_node.borrow_mut().parent = target_node.id;
-
-        min_data_node = storage.get_node(high_side_node.data[1].into_id()).unwrap();
-        result = min_data_node.borrow().keys[0];
+        min_key = middle.unwrap();
+        println!(" new minKey={}", min_key);
     }
     {
         let mut position = target_node.keys_count;
@@ -272,8 +269,20 @@ fn erase_key(
 
             if high_side_leaf_ref.data_count > t {
                 let min_key = high_side_leaf_ref.keys[0];
-                let new_min_key =
-                    take_key_from_high(storage, &mut target_node_ref, &mut high_side_leaf_ref);
+                let mut middle: Option<i32> = None;
+                if !target_node_ref.is_leaf {
+                    let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
+                    let ref_to_praent = link_to_parent.borrow();
+                    let rec = ref_to_praent.find_key(min_key);
+                    middle = Some(*rec.unwrap());
+                }
+
+                let new_min_key = take_key_from_high(
+                    storage,
+                    &mut target_node_ref,
+                    &mut high_side_leaf_ref,
+                    middle,
+                );
 
                 if target_node_ref.parent.exists() {
                     //TODO! check result

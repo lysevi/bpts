@@ -73,6 +73,28 @@ impl Node {
         return self.keys_count == 0;
     }
 
+    pub fn find_key(&self, key: i32) -> Option<&i32> {
+        if self.is_leaf {
+            panic!();
+        }
+        if key < self.keys[0] {
+            return self.keys.first();
+        }
+
+        if self.keys[self.keys_count - 1] <= key {
+            return Some(&self.keys[self.keys_count - 1]);
+        }
+
+        for i in 0..self.keys_count {
+            match (self.keys[i]).cmp(&key) {
+                std::cmp::Ordering::Less => continue,
+                std::cmp::Ordering::Equal => return Some(&self.keys[i]),
+                std::cmp::Ordering::Greater => return Some(&self.keys[i]),
+            }
+        }
+        return None;
+    }
+
     pub fn find(&self, key: i32) -> Option<&Record> {
         if key < self.keys[0] {
             return self.data.first();
