@@ -31,15 +31,40 @@ impl MockNodeStorage {
         self.nodes.values().all(f)
     }
 
-    pub fn print(&self, root: RcNode) {
+    pub fn print(&self, root: RcNode, graphviz: bool, graph_name: &String) {
         let mut to_print = Vec::new();
         to_print.push(root.clone());
-
+        if graphviz {
+            println!("subgraph cluster{} {{", graph_name);
+            println!(" label=\"{}\"", graph_name);
+        }
         while !to_print.is_empty() {
             let mut children = Vec::new();
+            if graphviz {
+                print!("{{ rank = same; ");
+                for item in &to_print {
+                    print!("\"{}_{}\"; ", graph_name, item.borrow().id.0);
+                }
+                println!("}}");
+            }
             for item in &to_print {
                 let r_ref = item.borrow();
-                MockNodeStorage::print_node(&r_ref);
+                if !graphviz {
+                    MockNodeStorage::print_node(&r_ref, false, graph_name);
+                } else {
+                    MockNodeStorage::print_node(&r_ref, graphviz, graph_name);
+                    if !r_ref.is_leaf {
+                        for d in 0..r_ref.data_count {
+                            print!(
+                                "{}_{} -> {}_{};",
+                                graph_name,
+                                r_ref.id.0,
+                                graph_name,
+                                r_ref.data[d].into_id().0
+                            );
+                        }
+                    }
+                }
                 print!("  ");
 
                 if !r_ref.is_leaf {
@@ -49,56 +74,91 @@ impl MockNodeStorage {
                     }
                 }
             }
+            //println!("");
             to_print = children;
-            println!("");
+            if !graphviz {
+                println!("");
+            }
+        }
+        if graphviz {
+            println!("}}");
         }
     }
 
-    fn print_node(node: &node::Node) {
-        let key_slice = &node.keys[0..node.keys_count];
-        let string_data = if node.is_leaf {
-            let unpack: Vec<u8> = node
-                .data
-                .iter()
-                .take(node.data_count)
-                .map(|f| f.into_u8())
-                .collect();
-            format!("{:?}", unpack)
-        } else {
-            let unpack: Vec<types::Id> = node
-                .data
-                .iter()
-                .take(node.data_count)
-                .map(|f| f.into_id())
-                .collect();
-            format!("{:?}", unpack)
-        };
-        let left = if node.left.exists() {
-            format!("{}", node.left.0)
-        } else {
-            "_".to_owned()
-        };
+    fn print_node(node: &node::Node, graphviz: bool, graph_name: &String) {
+        if graphviz {
+            let key_slice = &node.keys[0..node.keys_count];
+            let key_as_string = format!("{:?}", key_slice);
+            print!(
+                "{}_{} [label=\"{} \\n {}\"];",
+                graph_name, node.id.0, node.id.0, key_as_string
+            );
+            if node.right.exists() {
+                print!(
+                    "{}_{} -> {}_{};",
+                    graph_name, node.id.0, graph_name, node.right.0
+                );
+            }
 
-        let right = if node.right.exists() {
-            format!("{}", node.right.0)
-        } else {
-            "_".to_owned()
-        };
+            if node.left.exists() {
+                print!(
+                    "{}_{} -> {}_{};",
+                    graph_name, node.id.0, graph_name, node.left.0
+                );
+            }
 
-        let up = if node.parent.exists() {
-            format!("{}", node.parent.0)
+            if node.parent.exists() {
+                print!(
+                    "{}_{} -> {}_{};",
+                    graph_name, node.id.0, graph_name, node.parent.0
+                );
+            }
         } else {
-            "_".to_owned()
-        };
-        let is_leaf_sfx = if node.is_leaf {
-            " ".to_owned()
-        } else {
-            "*".to_owned()
-        };
-        print!(
-            "Id:{:?}{}({},{},{})  <{:?}->{}>",
-            node.id.0, is_leaf_sfx, left, right, up, key_slice, string_data
-        );
+            let key_slice = &node.keys[0..node.keys_count];
+            let string_data = if node.is_leaf {
+                let unpack: Vec<u8> = node
+                    .data
+                    .iter()
+                    .take(node.data_count)
+                    .map(|f| f.into_u8())
+                    .collect();
+                format!("{:?}", unpack)
+            } else {
+                let unpack: Vec<types::Id> = node
+                    .data
+                    .iter()
+                    .take(node.data_count)
+                    .map(|f| f.into_id())
+                    .collect();
+                format!("{:?}", unpack)
+            };
+            let left = if node.left.exists() {
+                format!("{}", node.left.0)
+            } else {
+                "_".to_owned()
+            };
+
+            let right = if node.right.exists() {
+                format!("{}", node.right.0)
+            } else {
+                "_".to_owned()
+            };
+
+            let up = if node.parent.exists() {
+                format!("{}", node.parent.0)
+            } else {
+                "_".to_owned()
+            };
+            let is_leaf_sfx = if node.is_leaf {
+                " ".to_owned()
+            } else {
+                "*".to_owned()
+            };
+            print!(
+                "Id:{:?}{}({},{},{})  <{:?}->{}>",
+                node.id.0, is_leaf_sfx, left, right, up, key_slice, string_data
+            );
+        }
     }
 }
 impl NodeStorage for MockNodeStorage {

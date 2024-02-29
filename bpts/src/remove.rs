@@ -4,7 +4,12 @@ use crate::{
     read, types, utils,
 };
 
-fn erase_key_data(target_node: &mut Node, key: i32) {
+enum ErasePosition {
+    First,
+    Other,
+}
+
+fn erase_key_data(target_node: &mut Node, key: i32) -> ErasePosition {
     let is_leaf = target_node.is_leaf;
 
     if !is_leaf {
@@ -14,14 +19,14 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
             utils::remove_with_shift(&mut target_node.keys, 0);
             target_node.keys_count -= 1;
             target_node.data_count -= 1;
-            return;
+            return ErasePosition::First;
         }
         if key >= target_node.keys[target_node.keys_count - 1] {
             utils::remove_with_shift(&mut target_node.data, target_node.data_count - 1);
             utils::remove_with_shift(&mut target_node.keys, target_node.keys_count - 1);
             target_node.keys_count -= 1;
             target_node.data_count -= 1;
-            return;
+            return ErasePosition::Other;
         }
     } else {
         println!("erase_key_data leaf from={:?} key={}", target_node.id, key);
@@ -40,6 +45,7 @@ fn erase_key_data(target_node: &mut Node, key: i32) {
             break;
         }
     }
+    return ErasePosition::Other;
 }
 
 fn take_key_from_low(
@@ -205,7 +211,7 @@ fn erase_key(
     let first_key = target_node.borrow().keys[0];
 
     let mut target_node_ref = target_node.borrow_mut();
-    erase_key_data(&mut target_node_ref, key);
+    let _erase_pos = erase_key_data(&mut target_node_ref, key);
 
     if target_node_ref.keys_count == 0 || target_node_ref.data_count == 0 {
         if target_node_ref.parent.is_empty() {
@@ -227,7 +233,7 @@ fn erase_key(
             let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
             link_to_parent
                 .borrow_mut()
-                .update_key(first_key, target_node_ref.first_key());
+                .update_key(storage, first_key, target_node_ref.first_key());
         }
 
         return Ok(toproot.unwrap());
@@ -247,9 +253,11 @@ fn erase_key(
                 if target_node_ref.parent.exists() {
                     //TODO! check result
                     let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                    link_to_parent
-                        .borrow_mut()
-                        .update_key(first_key, target_node_ref.first_key());
+                    link_to_parent.borrow_mut().update_key(
+                        storage,
+                        first_key,
+                        target_node_ref.first_key(),
+                    );
                 }
 
                 return Ok(toproot.unwrap());
@@ -269,8 +277,10 @@ fn erase_key(
 
                 if target_node_ref.parent.exists() {
                     //TODO! check result
-                    let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                    link_to_parent.borrow_mut().update_key(min_key, new_min_key);
+                    let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
+                    link_to_parent
+                        .borrow_mut()
+                        .update_key(storage, min_key, new_min_key);
                 }
 
                 return Ok(toproot.unwrap());
@@ -1092,7 +1102,7 @@ mod tests {
 
     #[test]
     fn many_inserts() {
-        //for H in 3..23 
+        //for H in 3..29
         {
             let (mut storage, mut root_node, keys) = make_tree(29);
 
@@ -1112,12 +1122,13 @@ mod tests {
                     println!("!");
                 }
                 println!("before");
-                storage.print(root_node.clone());
+                storage.print(root_node.clone(), true, &String::from("before"));
+
                 let remove_res = remove_key(&mut storage, &root_node, i, 3);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
                 println!("after");
-                storage.print(root_node.clone());
+                storage.print(root_node.clone(), true, &String::from("after"));
                 //break;
                 if root_node.borrow().is_empty() {
                     assert!(i == key);

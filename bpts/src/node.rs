@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use crate::nodestorage::NodeStorage;
 use crate::rec;
 use crate::types;
 use crate::utils;
@@ -140,7 +141,11 @@ impl Node {
         self.data_count += 1;
     }
 
-    pub fn update_key(&mut self, old_key: i32, new_key: i32) {
+    pub fn update_key(&mut self, _storage: &mut dyn NodeStorage, old_key: i32, new_key: i32) {
+        println!(
+            "update key target={:?} old={} new={}",
+            self.id, old_key, new_key
+        );
         if old_key == 14 || new_key == 14 {
             print!("");
         }
