@@ -38,9 +38,9 @@ impl Node {
             data: data,
             keys_count,
             data_count,
-            left: types::EMPTY_ID,
-            parent: types::EMPTY_ID,
-            right: types::EMPTY_ID,
+            left: Id::empty(),
+            parent: Id::empty(),
+            right: Id::empty(),
         }))
     }
 
@@ -163,7 +163,8 @@ impl Node {
             }
 
             for i in 0..self.keys_count - 1 {
-                if self.keys[i] == new_key || self.keys[i] <= new_key && self.keys[i + 1] > new_key {
+                if self.keys[i] == new_key || self.keys[i] <= new_key && self.keys[i + 1] > new_key
+                {
                     self.keys[i] = new_key;
                     return;
                 }
@@ -186,7 +187,7 @@ mod tests {
     #[test]
     fn find_in_leaf() {
         let leaf = Node::new_leaf(
-            types::EMPTY_ID,
+            Id::empty(),
             vec![1, 2, 3, 4],
             vec![
                 Record::from_u8(1),
@@ -220,7 +221,7 @@ mod tests {
     #[test]
     fn find_in_midle() {
         let leaf = Node::new_root(
-            types::EMPTY_ID,
+            Id::empty(),
             vec![3, 5, 7],
             vec![
                 Record::from_u8(1),

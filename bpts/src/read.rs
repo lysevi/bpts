@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::node::*;
 use crate::nodestorage::NodeStorage;
 use crate::rec::Record;
-use crate::types::{self, EMPTY_ID};
+use crate::types::{self};
 
 pub fn scan<'a>(
     storage: &mut dyn NodeStorage,
@@ -95,7 +95,7 @@ where
             cur_node.borrow().id,
             cur_node.borrow().right
         );
-        if cur_node.borrow().right != EMPTY_ID {
+        if cur_node.borrow().right.exists() {
             let next = storage.get_node(cur_node.borrow().right);
 
             cur_node = next.unwrap();
@@ -148,7 +148,7 @@ where
             cur_node.borrow().id,
             cur_node.borrow().left
         );
-        if cur_node.borrow().left != EMPTY_ID {
+        if cur_node.borrow().left.exists() {
             let next = storage.get_node(cur_node.borrow().left);
 
             cur_node = next.unwrap();

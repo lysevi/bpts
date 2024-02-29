@@ -13,15 +13,22 @@ impl Display for Error {
     }
 }
 
-pub const EMPTY_ID: Id = Id(-1);
+const EMPTY_ID: Id = Id(-1);
 
 impl Id {
+    pub fn empty() -> Id {
+        EMPTY_ID
+    }
     pub fn unwrap(&self) -> i32 {
         self.0
     }
 
     pub fn is_empty(self) -> bool {
         return self == EMPTY_ID;
+    }
+
+    pub fn exists(self) -> bool {
+        return !self.is_empty();
     }
 
     pub fn clear(&mut self) {

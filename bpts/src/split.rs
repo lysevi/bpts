@@ -19,7 +19,7 @@ pub fn split_node(
     );
     let parent_node: RcNode;
     let is_new_root;
-    if target_node.borrow().parent == types::EMPTY_ID
+    if target_node.borrow().parent.is_empty()
     /*|| ref_target.is_leaf */
     {
         // create new_root
@@ -117,7 +117,7 @@ pub fn split_node(
         target_node.borrow_mut().parent = parent_node.borrow().id;
 
         ref_to_brother.right = target_node.borrow().right;
-        if ref_to_brother.right != types::EMPTY_ID {
+        if ref_to_brother.right.exists() {
             //TODO! check result
             let right_brother = storage.get_node(ref_to_brother.right).unwrap();
             right_brother.borrow_mut().left = new_id;
@@ -178,9 +178,9 @@ mod tests {
     fn check_link_to_brother(storage: &MockNodeStorage) {
         let all_links_exists = storage.all(|n| {
             let n = n.borrow();
-            return n.parent == types::EMPTY_ID
-                || (n.left != types::EMPTY_ID && n.parent != types::EMPTY_ID)
-                || (n.right != types::EMPTY_ID && n.parent != types::EMPTY_ID);
+            return n.parent.is_empty()
+                || (n.left.exists() && n.parent.exists())
+                || (n.right.exists() && n.parent.exists());
         });
 
         assert!(all_links_exists);

@@ -189,7 +189,7 @@ fn erase_key(
     }
     if target_node_ref.data_count >= t {
         //update keys in parent
-        if first_key != target_node_ref.keys[0] && target_node_ref.parent != types::EMPTY_ID {
+        if first_key != target_node_ref.keys[0] && target_node_ref.parent.exists() {
             let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
             link_to_parent
                 .borrow_mut()
@@ -200,7 +200,7 @@ fn erase_key(
     } else {
         let mut link_to_low_side_leaf: Option<RcNode> = None;
         let mut link_to_high_side_leaf: Option<RcNode> = None;
-        if target_node_ref.left != types::EMPTY_ID {
+        if target_node_ref.left.exists() {
             // from low side
             //TODO! check result;
             let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
@@ -210,7 +210,7 @@ fn erase_key(
             if low_side_leaf_ref.data_count > t {
                 take_key_from_low(&mut target_node_ref, &mut low_side_leaf_ref);
 
-                if target_node_ref.parent != types::EMPTY_ID {
+                if target_node_ref.parent.exists() {
                     //TODO! check result
                     let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
                     link_to_parent
@@ -221,7 +221,7 @@ fn erase_key(
                 return Ok(toproot.unwrap());
             }
         }
-        if target_node_ref.right != types::EMPTY_ID {
+        if target_node_ref.right.exists() {
             // from high side
             //TODO! check result;
             let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
@@ -232,7 +232,7 @@ fn erase_key(
                 let min_key = high_side_leaf_ref.keys[0];
                 take_key_from_high(storage, &mut target_node_ref, &mut high_side_leaf_ref);
 
-                if target_node_ref.parent != types::EMPTY_ID {
+                if target_node_ref.parent.exists() {
                     //TODO! check result
                     let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
                     link_to_parent
@@ -246,7 +246,7 @@ fn erase_key(
 
         //try move to brother
         let mut update_parent = false;
-        if target_node_ref.left != types::EMPTY_ID {
+        if target_node_ref.left.exists() {
             let low_side_leaf = if link_to_low_side_leaf.is_some() {
                 link_to_low_side_leaf.unwrap()
             } else {
@@ -261,7 +261,7 @@ fn erase_key(
                 storage.erase_node(&target_node_ref.id);
 
                 //TODO! check result;
-                if target_node_ref.right != types::EMPTY_ID {
+                if target_node_ref.right.exists() {
                     let right_side = storage.get_node(target_node_ref.right).unwrap();
                     right_side.borrow_mut().left = target_node_ref.left;
                 }
@@ -270,7 +270,7 @@ fn erase_key(
             }
         }
 
-        if target_node_ref.right != types::EMPTY_ID {
+        if target_node_ref.right.exists() {
             let high_side_leaf = if link_to_high_side_leaf.is_some() {
                 link_to_high_side_leaf.unwrap()
             } else {
@@ -288,7 +288,7 @@ fn erase_key(
             }
         }
 
-        if update_parent && target_node_ref.parent != types::EMPTY_ID {
+        if update_parent && target_node_ref.parent.exists() {
             //TODO! check result
             let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
             return erase_key(
@@ -411,8 +411,8 @@ mod tests {
             vec![
                 Record::from_id(types::Id(1)),
                 Record::from_id(types::Id(2)),
-                Record::from_id(types::EMPTY_ID),
-                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::Id::empty()),
+                Record::from_id(types::Id::empty()),
             ],
             1,
             2,
@@ -433,8 +433,8 @@ mod tests {
                 vec![
                     Record::from_id(types::Id(1)),
                     Record::from_id(types::Id(2)),
-                    Record::from_id(types::EMPTY_ID),
-                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::Id::empty()),
+                    Record::from_id(types::Id::empty()),
                 ]
             );
             assert_eq!(ref_root.keys_count, 1);
@@ -468,8 +468,8 @@ mod tests {
             vec![
                 Record::from_id(types::Id(1)),
                 Record::from_id(types::Id(2)),
-                Record::from_id(types::EMPTY_ID),
-                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::Id::empty()),
+                Record::from_id(types::Id::empty()),
             ],
             1,
             2,
@@ -520,8 +520,8 @@ mod tests {
                 vec![
                     Record::from_id(types::Id(1)),
                     Record::from_id(types::Id(2)),
-                    Record::from_id(types::EMPTY_ID),
-                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::Id::empty()),
+                    Record::from_id(types::Id::empty()),
                 ]
             );
             assert_eq!(ref_node.keys_count, 1);
@@ -570,8 +570,8 @@ mod tests {
             vec![
                 Record::from_id(types::Id(1)),
                 Record::from_id(types::Id(2)),
-                Record::from_id(types::EMPTY_ID),
-                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::Id::empty()),
+                Record::from_id(types::Id::empty()),
             ],
             1,
             2,
@@ -622,8 +622,8 @@ mod tests {
                 vec![
                     Record::from_id(types::Id(1)),
                     Record::from_id(types::Id(2)),
-                    Record::from_id(types::EMPTY_ID),
-                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::Id::empty()),
+                    Record::from_id(types::Id::empty()),
                 ]
             );
             assert_eq!(ref_root.keys_count, 1);
@@ -812,7 +812,7 @@ mod tests {
                 Record::from_id(types::Id(2)),
                 Record::from_id(types::Id(1)),
                 Record::from_id(types::Id(3)),
-                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::Id::empty()),
             ],
             2,
             3,
@@ -904,7 +904,7 @@ mod tests {
                 vec![
                     Record::from_id(types::Id(2)),
                     Record::from_id(types::Id(3)),
-                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::Id::empty()),
                     Record::from_id(types::Id(1)),
                 ]
             );
@@ -927,7 +927,7 @@ mod tests {
                 Record::from_id(types::Id(1)),
                 Record::from_id(types::Id(2)),
                 Record::from_id(types::Id(4)),
-                Record::from_id(types::EMPTY_ID),
+                Record::from_id(types::Id::empty()),
             ],
             2,
             3,
@@ -996,7 +996,7 @@ mod tests {
                 vec![
                     Record::from_id(types::Id(2)),
                     Record::from_id(types::Id(4)),
-                    Record::from_id(types::EMPTY_ID),
+                    Record::from_id(types::Id::empty()),
                     Record::from_id(types::Id(1)),
                 ]
             );
