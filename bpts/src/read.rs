@@ -93,11 +93,11 @@ where
                 break;
             }
         }
-        println!(
-            "map: {:?} {:?}",
-            cur_node.borrow().id,
-            cur_node.borrow().right
-        );
+        // println!(
+        //     "map: {:?} {:?}",
+        //     cur_node.borrow().id,
+        //     cur_node.borrow().right
+        // );
         if cur_node.borrow().right.exists() {
             let next = storage.get_node(cur_node.borrow().right);
 

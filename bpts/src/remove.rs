@@ -1140,13 +1140,29 @@ mod tests {
 
                 let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
 
+                let mut mapped_values = Vec::new();
+                map(&mut storage, &root_node, i, key, &mut |k, v| {
+                    //println!("mapped {:?}", k);
+                    assert_eq!(v.into_i32(), k);
+                    mapped_values.push(k);
+                })
+                .unwrap();
+
+                for i in 1..mapped_values.len() {
+                    if mapped_values[i - 1] >= mapped_values[i] {
+                        println!("bad order");
+                        print_state(&str_before, &str_after);
+                        assert!(mapped_values[i - 1] < mapped_values[i]);
+                    }
+                }
+
                 //storage.print(root_node.clone(), true, &String::from("after"));
                 // break;
                 if root_node.borrow().is_empty() {
                     assert!(i == key);
                     break;
                 }
-
+                //print_state(&str_before, &str_after);
                 let find_res = find(&mut storage, &root_node, i);
                 if find_res.is_err() {
                     break;
