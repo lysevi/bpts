@@ -48,6 +48,9 @@ pub fn find<'a>(
         Ok(n) => {
             let b = n.borrow();
             let r = b.find(key);
+            if r.is_none() {
+                return Err(types::Error("not found".to_owned()));
+            }
             return Ok(r.unwrap().clone());
         }
         Err(e) => Err(e),

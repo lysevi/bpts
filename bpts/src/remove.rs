@@ -1111,7 +1111,7 @@ mod tests {
     fn many_inserts() {
         //for H in 3..29
         {
-            let (mut storage, mut root_node, keys) = make_tree(76);
+            let (mut storage, mut root_node, keys) = make_tree(90);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1125,24 +1125,32 @@ mod tests {
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 println!("remove {:?}", i);
-                if i == 2 {
+                if i == 127 {
                     println!("!");
                 }
                 // println!("before");
+                let str_before =
+                    storage.to_string(root_node.clone(), true, &String::from("before"));
                 // storage.print(root_node.clone(), true, &String::from("before"));
 
                 let remove_res = remove_key(&mut storage, &root_node, i, 3);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
                 // println!("after");
-                // storage.print(root_node.clone(), true, &String::from("after"));
-                //break;
+
+                let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+
+                //storage.print(root_node.clone(), true, &String::from("after"));
+                // break;
                 if root_node.borrow().is_empty() {
                     assert!(i == key);
                     break;
                 }
 
                 let find_res = find(&mut storage, &root_node, i);
+                if find_res.is_err() {
+                    break;
+                }
                 assert!(!find_res.is_err());
 
                 for k in (i + 1)..key {
@@ -1151,6 +1159,9 @@ mod tests {
                         println!("!!");
                     }
                     let find_res = find(&mut storage, &root_node, k);
+                    if find_res.is_err() {
+                        print_state(&str_before, &str_after);
+                    }
                     assert!(find_res.is_ok());
                     assert_eq!(find_res.unwrap().into_i32(), k);
                 }
@@ -1158,5 +1169,12 @@ mod tests {
         }
 
         //TODO check map map_rev
+    }
+
+    fn print_state(str_before: &String, str_after: &String) {
+        println!("digraph G {{");
+        println!("{}", str_before);
+        println!("{}", str_after);
+        println!("}}");
     }
 }

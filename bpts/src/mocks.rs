@@ -6,6 +6,8 @@ use crate::{
     types::{self, Id},
 };
 
+use string_builder::Builder;
+
 pub struct MockNodeStorage {
     nodes: HashMap<i32, RcNode>,
 }
@@ -31,41 +33,42 @@ impl MockNodeStorage {
         self.nodes.values().all(f)
     }
 
-    pub fn print(&self, root: RcNode, graphviz: bool, graph_name: &String) {
+    pub fn to_string(&self, root: RcNode, graphviz: bool, graph_name: &String) -> String {
+        let mut bldr = Builder::new(1024);
         let mut to_print = Vec::new();
         to_print.push(root.clone());
         if graphviz {
-            println!("subgraph cluster{} {{", graph_name);
-            println!(" label=\"{}\"", graph_name);
+            bldr.append(format!("subgraph cluster{} {{\n", graph_name));
+            bldr.append(format!(" label=\"{}\"\n", graph_name));
         }
         while !to_print.is_empty() {
             let mut children = Vec::new();
             if graphviz {
-                print!("{{ rank = same; ");
+                bldr.append(format!("{{ rank = same; "));
                 for item in &to_print {
-                    print!("\"{}_{}\"; ", graph_name, item.borrow().id.0);
+                    bldr.append(format!("\"{}_{}\"; ", graph_name, item.borrow().id.0));
                 }
-                println!("}}");
+                bldr.append(format!("}}\n"));
             }
             for item in &to_print {
                 let r_ref = item.borrow();
                 if !graphviz {
-                    MockNodeStorage::print_node(&r_ref, false, graph_name);
+                    MockNodeStorage::node_as_string(&mut bldr, &r_ref, false, graph_name);
                 } else {
-                    MockNodeStorage::print_node(&r_ref, graphviz, graph_name);
+                    MockNodeStorage::node_as_string(&mut bldr, &r_ref, graphviz, graph_name);
                     if !r_ref.is_leaf {
                         for d in 0..r_ref.data_count {
-                            print!(
+                            bldr.append(format!(
                                 "{}_{} -> {}_{};",
                                 graph_name,
                                 r_ref.id.0,
                                 graph_name,
                                 r_ref.data[d].into_id().0
-                            );
+                            ));
                         }
                     }
                 }
-                print!("  ");
+                bldr.append(format!("  "));
 
                 if !r_ref.is_leaf {
                     let data = &r_ref.data[0..r_ref.data_count];
@@ -81,38 +84,39 @@ impl MockNodeStorage {
             }
         }
         if graphviz {
-            println!("}}");
+            bldr.append(format!("}}\n"));
         }
+        return bldr.string().unwrap();
     }
 
-    fn print_node(node: &node::Node, graphviz: bool, graph_name: &String) {
+    fn node_as_string(b: &mut Builder, node: &node::Node, graphviz: bool, graph_name: &String) {
         if graphviz {
-            let key_slice = &node.keys[0..node.keys_count - 1];
+            let key_slice = &node.keys[0..node.keys_count];
             let key_as_string = format!("{:?}", key_slice);
             let shape = if node.is_leaf { "box" } else { "ellipse" };
-            print!(
+            b.append(format!(
                 "{}_{} [label=\"{} \\n {}\" shape=\"{}\"];",
                 graph_name, node.id.0, node.id.0, key_as_string, shape
-            );
+            ));
             if node.right.exists() {
-                print!(
+                b.append(format!(
                     "{}_{} -> {}_{};",
                     graph_name, node.id.0, graph_name, node.right.0
-                );
+                ));
             }
 
             if node.left.exists() {
-                print!(
+                b.append(format!(
                     "{}_{} -> {}_{};",
                     graph_name, node.id.0, graph_name, node.left.0
-                );
+                ));
             }
 
             if node.parent.exists() {
-                print!(
+                b.append(format!(
                     "{}_{} -> {}_{};",
                     graph_name, node.id.0, graph_name, node.parent.0
-                );
+                ));
             }
         } else {
             let key_slice = &node.keys[0..node.keys_count];
@@ -155,10 +159,10 @@ impl MockNodeStorage {
             } else {
                 "*".to_owned()
             };
-            print!(
+            b.append(format!(
                 "Id:{:?}{}({},{},{})  <{:?}->{}>",
                 node.id.0, is_leaf_sfx, left, right, up, key_slice, string_data
-            );
+            ));
         }
     }
 }
