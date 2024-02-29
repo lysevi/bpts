@@ -1109,9 +1109,8 @@ mod tests {
 
     #[test]
     fn many_inserts() {
-        //for H in 3..29
-        {
-            let (mut storage, mut root_node, keys) = make_tree(90);
+        for H in 3..50 {
+            let (mut storage, mut root_node, keys) = make_tree(H);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1188,9 +1187,9 @@ mod tests {
     }
 
     fn print_state(str_before: &String, str_after: &String) {
-        println!("digraph G {{");
-        println!("{}", str_before);
-        println!("{}", str_after);
+        print!("digraph G {{");
+        print!("{}", str_before);
+        print!("{}", str_after);
         println!("}}");
     }
 }

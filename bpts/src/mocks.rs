@@ -95,26 +95,26 @@ impl MockNodeStorage {
             let key_as_string = format!("{:?}", key_slice);
             let shape = if node.is_leaf { "box" } else { "ellipse" };
             b.append(format!(
-                "{}_{} [label=\"{} \\n {}\" shape=\"{}\"];",
+                "{}_{} [label=\"{} \\n {}\" shape=\"{}\"];\n",
                 graph_name, node.id.0, node.id.0, key_as_string, shape
             ));
             if node.right.exists() {
                 b.append(format!(
-                    "{}_{} -> {}_{};",
+                    "{}_{} -> {}_{};\n",
                     graph_name, node.id.0, graph_name, node.right.0
                 ));
             }
 
             if node.left.exists() {
                 b.append(format!(
-                    "{}_{} -> {}_{};",
+                    "{}_{} -> {}_{};\n",
                     graph_name, node.id.0, graph_name, node.left.0
                 ));
             }
 
             if node.parent.exists() {
                 b.append(format!(
-                    "{}_{} -> {}_{};",
+                    "{}_{} -> {}_{};\n",
                     graph_name, node.id.0, graph_name, node.parent.0
                 ));
             }
