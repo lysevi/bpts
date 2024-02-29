@@ -76,17 +76,22 @@ fn take_key_from_high(
     storage: &mut dyn NodeStorage,
     target_node: &mut Node,
     high_side_node: &mut Node,
-) {
+) -> i32 {
     println!(
         "take_key_from_high target={:?} high={:?}",
         target_node.id, high_side_node.id
     );
+
     let mut min_key = high_side_node.keys[0];
+    let mut result = min_key;
     let min_data = high_side_node.data[0].clone();
     if !target_node.is_leaf {
-        let min_data_node = storage.get_node(min_data.into_id()).unwrap();
+        let mut min_data_node = storage.get_node(min_data.into_id()).unwrap();
         min_key = min_data_node.borrow().keys[0];
         min_data_node.borrow_mut().parent = target_node.id;
+
+        min_data_node = storage.get_node(high_side_node.data[1].into_id()).unwrap();
+        result = min_data_node.borrow().keys[0];
     }
     {
         let mut position = target_node.keys_count;
@@ -103,6 +108,7 @@ fn take_key_from_high(
         target_node.keys_count += 1;
         target_node.data_count += 1;
     }
+    return result;
 }
 
 fn move_to_lower(storage: &mut dyn NodeStorage, target_node: &mut Node, low_side_node: &mut Node) {
@@ -239,14 +245,13 @@ fn erase_key(
 
             if high_side_leaf_ref.data_count > t {
                 let min_key = high_side_leaf_ref.keys[0];
-                take_key_from_high(storage, &mut target_node_ref, &mut high_side_leaf_ref);
+                let new_min_key =
+                    take_key_from_high(storage, &mut target_node_ref, &mut high_side_leaf_ref);
 
                 if target_node_ref.parent.exists() {
                     //TODO! check result
                     let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                    link_to_parent
-                        .borrow_mut()
-                        .update_key(min_key, high_side_leaf_ref.first_key());
+                    link_to_parent.borrow_mut().update_key(min_key, new_min_key);
                 }
 
                 return Ok(toproot.unwrap());
@@ -1068,12 +1073,10 @@ mod tests {
 
     #[test]
     fn many_inserts() {
-        let (mut storage, mut root_node, keys) = make_tree(6);
+        let (mut storage, mut root_node, keys) = make_tree(9);
 
         let key = *keys.last().unwrap();
         for i in 2..=key {
-            //println!("! {:?}", i);
-
             let res = find(&mut storage, &root_node, i);
             assert!(res.is_ok());
             assert_eq!(res.unwrap().into_i32(), i);
@@ -1084,7 +1087,7 @@ mod tests {
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().into_i32(), i);
             println!("remove {:?}", i);
-            if i == 19 {
+            if i == 2 {
                 println!("!");
             }
             println!("before");

@@ -96,7 +96,7 @@ impl MockNodeStorage {
             "*".to_owned()
         };
         print!(
-            "Id:{:?}{}({},{},{})  [{:?}]->[{}]",
+            "Id:{:?}{}({},{},{})  <{:?}->{}>",
             node.id.0, is_leaf_sfx, left, right, up, key_slice, string_data
         );
     }
