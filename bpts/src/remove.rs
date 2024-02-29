@@ -51,6 +51,9 @@ fn take_key_from_low(
         "take_key_from_low target={:?} low={:?}",
         target_node.id, low_side_node.id
     );
+    if target_node.id.0 == 27 {
+        println!("");
+    }
     if !target_node.is_leaf {
         todo!();
     } else {
@@ -108,6 +111,9 @@ fn take_key_from_high(
         target_node.keys_count += 1;
         target_node.data_count += 1;
     }
+    if target_node.is_leaf {
+        result = high_side_node.keys[0];
+    }
     return result;
 }
 
@@ -151,11 +157,24 @@ fn move_to_higher(
     );
 
     //TODO! opt
-
+    if high_side_node.id.0 == 27 {
+        println!("");
+    }
     if !target_node.is_leaf {
         //TODO! check
-        let first_leaf = storage.get_node(high_side_node.data[0].into_id()).unwrap();
-        let first_key = first_leaf.borrow().keys[0];
+        let id_child = high_side_node.data[0].into_id();
+        let mut node = storage.get_node(id_child).unwrap();
+        let mut first_key = node.borrow().keys[0];
+
+        if !node.borrow().is_leaf {
+            let id_of_grandchild = node.borrow().data[0].into_id();
+            node = storage.get_node(id_of_grandchild).unwrap();
+            //let first_key = node.borrow().first_key();
+            //if !node.borrow().is_leaf
+            {
+                first_key = node.borrow().first_key();
+            }
+        }
         utils::insert_to_array(&mut high_side_node.keys, 0, first_key);
         high_side_node.keys_count += target_node.keys_count;
     }
@@ -1073,47 +1092,50 @@ mod tests {
 
     #[test]
     fn many_inserts() {
-        let (mut storage, mut root_node, keys) = make_tree(9);
+        //for H in 3..23 
+        {
+            let (mut storage, mut root_node, keys) = make_tree(29);
 
-        let key = *keys.last().unwrap();
-        for i in 2..=key {
-            let res = find(&mut storage, &root_node, i);
-            assert!(res.is_ok());
-            assert_eq!(res.unwrap().into_i32(), i);
-        }
-
-        for i in 2..=key {
-            let find_res = find(&mut storage, &root_node, i);
-            assert!(find_res.is_ok());
-            assert_eq!(find_res.unwrap().into_i32(), i);
-            println!("remove {:?}", i);
-            if i == 2 {
-                println!("!");
-            }
-            println!("before");
-            storage.print(root_node.clone());
-            let remove_res = remove_key(&mut storage, &root_node, i, 3);
-            assert!(remove_res.is_ok());
-            root_node = remove_res.unwrap();
-            println!("after");
-            storage.print(root_node.clone());
-
-            if root_node.borrow().is_empty() {
-                assert!(i == key);
-                break;
+            let key = *keys.last().unwrap();
+            for i in 2..=key {
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
             }
 
-            let find_res = find(&mut storage, &root_node, i);
-            assert!(!find_res.is_err());
-
-            for k in (i + 1)..key {
-                println!("? {:?}", k);
-                if k == 14 {
-                    println!("!!");
-                }
-                let find_res = find(&mut storage, &root_node, k);
+            for i in 2..=key {
+                let find_res = find(&mut storage, &root_node, i);
                 assert!(find_res.is_ok());
-                assert_eq!(find_res.unwrap().into_i32(), k);
+                assert_eq!(find_res.unwrap().into_i32(), i);
+                println!("remove {:?}", i);
+                if i == 2 {
+                    println!("!");
+                }
+                println!("before");
+                storage.print(root_node.clone());
+                let remove_res = remove_key(&mut storage, &root_node, i, 3);
+                assert!(remove_res.is_ok());
+                root_node = remove_res.unwrap();
+                println!("after");
+                storage.print(root_node.clone());
+                //break;
+                if root_node.borrow().is_empty() {
+                    assert!(i == key);
+                    break;
+                }
+
+                let find_res = find(&mut storage, &root_node, i);
+                assert!(!find_res.is_err());
+
+                for k in (i + 1)..key {
+                    println!("? {:?}", k);
+                    if k == 14 {
+                        println!("!!");
+                    }
+                    let find_res = find(&mut storage, &root_node, k);
+                    assert!(find_res.is_ok());
+                    assert_eq!(find_res.unwrap().into_i32(), k);
+                }
             }
         }
 
