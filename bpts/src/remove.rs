@@ -139,7 +139,7 @@ fn move_to_lower(
             low_side_node.keys_count,
             middle.unwrap(),
         );
-        low_side_node.keys_count += target_node.keys_count;
+        low_side_node.keys_count += 1;
     }
     {
         let low_keys_count = low_side_node.keys_count;
@@ -178,7 +178,7 @@ fn move_to_higher(
     //TODO! opt
     if !target_node.is_leaf {
         utils::insert_to_array(&mut high_side_node.keys, 0, middle.unwrap());
-        high_side_node.keys_count += target_node.keys_count;
+        high_side_node.keys_count += 1;
     }
     for i in 0..target_node.keys_count {
         utils::insert_to_array(&mut high_side_node.keys, i, target_node.keys[i]);
@@ -439,21 +439,15 @@ mod tests {
     use crate::read::{find, map, map_rev};
     use crate::rec::Record;
 
-    fn make_tree(nodes_count: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
-        let mut root_node = Node::new_leaf(
-            types::Id(1),
-            vec![0, 0, 0, 0, 0, 0],
-            vec![
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-            ],
-            0,
-            0,
-        );
+    fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
+        let mut keys = Vec::with_capacity(t * 2);
+        let mut recs = Vec::with_capacity(t * 2);
+        for _i in 0..(t * 2) {
+            recs.push(Record::from_i32(0));
+            keys.push(0i32);
+        }
+        let mut root_node = Node::new_leaf(types::Id(1), keys, recs, 0, 0);
+
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
 
@@ -461,7 +455,7 @@ mod tests {
         let mut keys = Vec::new();
         while storage.size() <= nodes_count {
             key += 1;
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), t);
             keys.push(key);
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -1166,8 +1160,10 @@ mod tests {
 
     #[test]
     fn many_inserts() {
+        let t = 3;
         for hight in 3..75 {
-            let (mut storage, mut root_node, keys) = make_tree(hight);
+            // let hight = 22;
+            let (mut storage, mut root_node, keys) = make_tree(hight, t);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1180,11 +1176,12 @@ mod tests {
                 let find_res = find(&mut storage, &root_node, i);
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
-                //println!("remove {:?}", i);
+                // /                println!("remove {:?}", i);
+
                 let str_before =
                     storage.to_string(root_node.clone(), true, &String::from("before"));
 
-                let remove_res = remove_key(&mut storage, &root_node, i, 3);
+                let remove_res = remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
@@ -1214,9 +1211,10 @@ mod tests {
                     break;
                 }
                 assert!(!find_res.is_err());
-
+                // print_state(&str_before, &str_after);
+                // break;
                 for k in (i + 1)..key {
-                    // println!("? {:?}", k);
+                    //println!("? {:?}", k);
                     // if k == 14 {
                     //     println!("!!");
                     // }
@@ -1225,7 +1223,11 @@ mod tests {
                         print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_ok());
-                    assert_eq!(find_res.unwrap().into_i32(), k);
+                    let d = find_res.unwrap();
+                    if d.into_i32() != k {
+                        print_state(&str_before, &str_after);
+                    }
+                    assert_eq!(d.into_i32(), k);
                 }
             }
         }
@@ -1235,8 +1237,9 @@ mod tests {
 
     #[test]
     fn many_inserts_rev() {
+        let t = 3;
         for hight in 3..75 {
-            let (mut storage, mut root_node, keys) = make_tree(hight);
+            let (mut storage, mut root_node, keys) = make_tree(hight, t);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1253,7 +1256,7 @@ mod tests {
                 let str_before =
                     storage.to_string(root_node.clone(), true, &String::from("before"));
 
-                let remove_res = remove_key(&mut storage, &root_node, i, 3);
+                let remove_res = remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
                 let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
