@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::nodestorage::NodeStorage;
 use crate::rec;
 use crate::types;
 use crate::utils;
@@ -163,39 +162,68 @@ impl Node {
         self.data_count += 1;
     }
 
-    pub fn update_key(&mut self, _storage: &mut dyn NodeStorage, old_key: i32, new_key: i32) {
+    pub fn update_key(&mut self, child: Id, new_key: i32) {
         println!(
-            "update key target={:?} old={} new={}",
-            self.id, old_key, new_key
+            "update key target={:?} child={:?} new={}",
+            self.id, child, new_key
         );
-        if old_key == 14 || new_key == 14 {
-            print!("");
-        }
+
         if self.is_leaf {
-            for i in 0..self.keys_count {
-                if self.keys[i] == old_key {
-                    self.keys[i] = new_key;
-                    break;
-                }
-            }
+            panic!("logic error");
         } else {
-            if new_key < self.keys[0] {
-                //self.keys[0] = new_key;
+            if self.data[0].into_id() == child {
                 return;
             }
 
-            if new_key >= self.keys[self.keys_count - 1] {
+            if self.data[self.data_count - 1].into_id() == child {
                 self.keys[self.keys_count - 1] = new_key;
                 return;
             }
 
-            for i in 0..self.keys_count - 1 {
-                if self.keys[i] == new_key || self.keys[i] <= new_key && self.keys[i + 1] > new_key
-                {
-                    self.keys[i] = new_key;
+            for i in 1..self.data_count {
+                if self.data[i].into_id() == child {
+                    self.keys[i - 1] = new_key;
                     return;
                 }
             }
+        }
+    }
+
+    pub fn erase_link(&mut self, child: Id) {
+        println!("erase_link target={:?} child={:?}", self.id, child);
+
+        if self.is_leaf {
+            panic!("logic error");
+        } else {
+            if self.data[0].into_id() == child {
+                utils::remove_with_shift(&mut self.keys, 0);
+                self.keys_count -= 1;
+                utils::remove_with_shift(&mut self.data, 0);
+                self.data_count -= 1;
+                return;
+            }
+
+            if self.data[self.data_count - 1].into_id() == child {
+                utils::remove_with_shift(&mut self.keys, self.keys_count - 1);
+                self.keys_count -= 1;
+                utils::remove_with_shift(&mut self.data, self.data_count - 1);
+                self.data_count -= 1;
+                return;
+            }
+
+            for i in 0..self.data_count {
+                if self.data[i].into_id() == child {
+                    if i != 0 {
+                        utils::remove_with_shift(&mut self.keys, i - 1);
+                        self.keys_count -= 1;
+                    }
+                    utils::remove_with_shift(&mut self.data, i);
+                    self.data_count -= 1;
+                    return;
+                }
+            }
+
+            panic!("not found");
         }
     }
 

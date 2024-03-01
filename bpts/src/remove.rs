@@ -190,10 +190,34 @@ fn erase_key(
     toproot: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
     let first_key = target_node.borrow().keys[0];
+    {
+        let mut target_node_ref = target_node.borrow_mut();
+        let _erase_pos = erase_key_data(&mut target_node_ref, key);
+        if target_node_ref.data_count >= t {
+            //update keys in parent
+            if first_key != target_node_ref.keys[0] && target_node_ref.parent.exists() {
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                link_to_parent
+                    .borrow_mut()
+                    .update_key(target_node_ref.id, target_node_ref.first_key());
+            }
 
+            return Ok(toproot.unwrap());
+        }
+    }
+    return resize(storage, target_node, t, toproot);
+}
+
+fn resize(
+    storage: &mut dyn NodeStorage,
+    target_node: &RcNode,
+    t: usize,
+    toproot: Option<RcNode>,
+) -> Result<RcNode, types::Error> {
     let mut target_node_ref = target_node.borrow_mut();
-    let _erase_pos = erase_key_data(&mut target_node_ref, key);
-
+    if target_node_ref.data_count >= t {
+        return Ok(toproot.unwrap());
+    }
     if target_node_ref.keys_count == 0 || target_node_ref.data_count == 0 {
         if target_node_ref.parent.is_empty() {
             if target_node_ref.data_count > 0 && !target_node_ref.is_leaf {
@@ -208,150 +232,142 @@ fn erase_key(
             todo!()
         }
     }
-    if target_node_ref.data_count >= t {
-        //update keys in parent
-        if first_key != target_node_ref.keys[0] && target_node_ref.parent.exists() {
-            let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-            link_to_parent
-                .borrow_mut()
-                .update_key(storage, first_key, target_node_ref.first_key());
-        }
 
-        return Ok(toproot.unwrap());
-    } else {
-        let mut link_to_low_side_leaf: Option<RcNode> = None;
-        let mut link_to_high_side_leaf: Option<RcNode> = None;
-        if target_node_ref.left.exists() {
-            // from low side
-            //TODO! check result;
-            let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
-            link_to_low_side_leaf = Some(low_side_leaf.clone());
-            let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
+    let mut link_to_low_side_leaf: Option<RcNode> = None;
+    let mut link_to_high_side_leaf: Option<RcNode> = None;
+    if target_node_ref.left.exists() {
+        // from low side
+        //TODO! check result;
+        let low_side_leaf = storage.get_node(target_node_ref.left).unwrap();
+        link_to_low_side_leaf = Some(low_side_leaf.clone());
+        let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
 
-            if low_side_leaf_ref.data_count > t {
-                take_key_from_low(storage, &mut target_node_ref, &mut low_side_leaf_ref);
+        if low_side_leaf_ref.data_count > t {
+            take_key_from_low(storage, &mut target_node_ref, &mut low_side_leaf_ref);
 
-                if target_node_ref.parent.exists() {
-                    //TODO! check result
-                    let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-                    link_to_parent.borrow_mut().update_key(
-                        storage,
-                        first_key,
-                        target_node_ref.first_key(),
-                    );
-                }
-
-                return Ok(toproot.unwrap());
+            if target_node_ref.parent.exists() {
+                //TODO! check result
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                link_to_parent
+                    .borrow_mut()
+                    .update_key(target_node_ref.id, target_node_ref.first_key());
             }
+
+            return Ok(toproot.unwrap());
         }
-        if target_node_ref.right.exists() {
-            // from high side
-            //TODO! check result;
-            let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
-            link_to_high_side_leaf = Some(high_side_leaf.clone());
-            let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
-
-            if high_side_leaf_ref.data_count > t {
-                let min_key = high_side_leaf_ref.keys[0];
-                let mut middle: Option<i32> = None;
-                if !target_node_ref.is_leaf {
-                    let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
-                    let ref_to_praent = link_to_parent.borrow();
-                    let rec = ref_to_praent.find_key(min_key);
-                    middle = Some(*rec.unwrap());
-                }
-
-                let new_min_key = take_key_from_high(
-                    storage,
-                    &mut target_node_ref,
-                    &mut high_side_leaf_ref,
-                    middle,
-                );
-
-                if target_node_ref.parent.exists() {
-                    //TODO! check result
-                    let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
-                    link_to_parent
-                        .borrow_mut()
-                        .update_key(storage, min_key, new_min_key);
-                }
-
-                return Ok(toproot.unwrap());
-            }
-        }
-
-        //try move to brother
-        let mut update_parent = false;
-        if target_node_ref.left.exists() {
-            let low_side_leaf = if link_to_low_side_leaf.is_some() {
-                link_to_low_side_leaf.unwrap()
-            } else {
-                storage.get_node(target_node_ref.left).unwrap()
-            };
-            let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
-
-            let size_of_low = low_side_leaf_ref.keys_count;
-            if (size_of_low + target_node_ref.keys_count) < 2 * t {
-                move_to_lower(storage, &mut target_node_ref, &mut low_side_leaf_ref);
-
-                storage.erase_node(&target_node_ref.id);
-
-                //TODO! check result;
-                if target_node_ref.right.exists() {
-                    let right_side = storage.get_node(target_node_ref.right).unwrap();
-                    right_side.borrow_mut().left = target_node_ref.left;
-                }
-                low_side_leaf_ref.right = target_node_ref.right;
-                update_parent = true;
-            }
-        }
-
-        if target_node_ref.right.exists() {
-            let high_side_leaf = if link_to_high_side_leaf.is_some() {
-                link_to_high_side_leaf.unwrap()
-            } else {
-                storage.get_node(target_node_ref.right).unwrap()
-            };
-
-            let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
-            let size_of_high = high_side_leaf_ref.keys_count;
-            if (size_of_high + target_node_ref.keys_count) < 2 * t {
-                let min_key = high_side_leaf_ref.keys[0];
-                let mut middle: Option<i32> = None;
-                if !target_node_ref.is_leaf {
-                    let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
-                    let ref_to_praent = link_to_parent.borrow();
-                    let rec = ref_to_praent.find_key(min_key);
-                    middle = Some(*rec.unwrap());
-                }
-
-                move_to_higher(
-                    storage,
-                    &mut target_node_ref,
-                    &mut high_side_leaf_ref,
-                    middle,
-                );
-
-                high_side_leaf_ref.left = target_node_ref.left;
-                storage.erase_node(&target_node_ref.id);
-                update_parent = true;
-            }
-        }
-
-        if update_parent && target_node_ref.parent.exists() {
-            //TODO! check result
-            let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
-            return erase_key(
-                storage,
-                &link_to_parent,
-                target_node_ref.first_key(),
-                t,
-                toproot,
-            );
-        }
-
-        return Ok(toproot.unwrap());
     }
+    if target_node_ref.right.exists() {
+        // from high side
+        //TODO! check result;
+        let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
+        link_to_high_side_leaf = Some(high_side_leaf.clone());
+        let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
+
+        if high_side_leaf_ref.data_count > t {
+            let min_key = high_side_leaf_ref.keys[0];
+            let mut middle: Option<i32> = None;
+            if !target_node_ref.is_leaf {
+                let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
+                let ref_to_praent = link_to_parent.borrow();
+                let rec = ref_to_praent.find_key(min_key);
+                middle = Some(*rec.unwrap());
+            }
+
+            let new_min_key = take_key_from_high(
+                storage,
+                &mut target_node_ref,
+                &mut high_side_leaf_ref,
+                middle,
+            );
+            if !target_node_ref.is_leaf {
+                let taked_id = target_node_ref.data[target_node_ref.data_count - 1].into_id();
+                let taked_node = storage.get_node(taked_id).unwrap();
+                taked_node.borrow_mut().parent = target_node_ref.id;
+            }
+
+            if target_node_ref.parent.exists() {
+                //TODO! check result
+                let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
+                link_to_parent
+                    .borrow_mut()
+                    .update_key(high_side_leaf_ref.id, new_min_key);
+            }
+
+            return Ok(toproot.unwrap());
+        }
+    }
+
+    //try move to brother
+    let mut update_parent = false;
+    if target_node_ref.left.exists() {
+        let low_side_leaf = if link_to_low_side_leaf.is_some() {
+            link_to_low_side_leaf.unwrap()
+        } else {
+            storage.get_node(target_node_ref.left).unwrap()
+        };
+        let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
+
+        let size_of_low = low_side_leaf_ref.keys_count;
+        if (size_of_low + target_node_ref.keys_count) < 2 * t {
+            move_to_lower(storage, &mut target_node_ref, &mut low_side_leaf_ref);
+
+            storage.erase_node(&target_node_ref.id);
+
+            //TODO! check result;
+            if target_node_ref.right.exists() {
+                let right_side = storage.get_node(target_node_ref.right).unwrap();
+                right_side.borrow_mut().left = target_node_ref.left;
+            }
+            low_side_leaf_ref.right = target_node_ref.right;
+            update_parent = true;
+        }
+    }
+
+    if target_node_ref.right.exists() {
+        let high_side_leaf = if link_to_high_side_leaf.is_some() {
+            link_to_high_side_leaf.unwrap()
+        } else {
+            storage.get_node(target_node_ref.right).unwrap()
+        };
+
+        let mut high_side_leaf_ref = high_side_leaf.borrow_mut();
+        let size_of_high = high_side_leaf_ref.keys_count;
+        if (size_of_high + target_node_ref.keys_count) < 2 * t {
+            let min_key = high_side_leaf_ref.keys[0];
+            let mut middle: Option<i32> = None;
+            if target_node_ref.parent.exists() {
+                let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
+                if !target_node_ref.is_leaf {
+                    let ref_to_praent = link_to_parent.borrow();
+                    let rec = ref_to_praent.find_key(min_key);
+                    middle = Some(*rec.unwrap());
+                }
+                link_to_parent.borrow_mut().erase_link(target_node_ref.id);
+            }
+
+            move_to_higher(
+                storage,
+                &mut target_node_ref,
+                &mut high_side_leaf_ref,
+                middle,
+            );
+
+            high_side_leaf_ref.left = target_node_ref.left;
+            storage.erase_node(&target_node_ref.id);
+
+            update_parent = true;
+        }
+    }
+
+    if update_parent && target_node_ref.parent.exists() {
+        //TODO! check result
+        let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+        if link_to_parent.borrow().keys_count < t {
+            return resize(storage, &link_to_parent, t, toproot);
+        }
+    }
+
+    return Ok(toproot.unwrap());
 }
 
 pub fn remove_key(
@@ -381,6 +397,42 @@ mod tests {
     use crate::node::Node;
     use crate::read::{find, map, map_rev};
     use crate::rec::Record;
+
+    fn make_tree(nodes_count: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
+        let mut root_node = Node::new_leaf(
+            types::Id(1),
+            vec![0, 0, 0, 0, 0, 0],
+            vec![
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+            ],
+            0,
+            0,
+        );
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&root_node);
+
+        let mut key: i32 = 1;
+        let mut keys = Vec::new();
+        while storage.size() <= nodes_count {
+            key += 1;
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
+            keys.push(key);
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+
+            for i in 2..=key {
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
+            }
+        }
+        return (storage, root_node, keys);
+    }
 
     #[test]
     fn remove_from_leaf() {
@@ -1071,47 +1123,10 @@ mod tests {
         }
     }
 
-    fn make_tree(nodes_count: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
-        let mut root_node = Node::new_leaf(
-            types::Id(1),
-            vec![0, 0, 0, 0, 0, 0],
-            vec![
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-            ],
-            0,
-            0,
-        );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
-        storage.add_node(&root_node);
-
-        let mut key: i32 = 1;
-        let mut keys = Vec::new();
-        while storage.size() <= nodes_count {
-            key += 1;
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), 3);
-            keys.push(key);
-            assert!(res.is_ok());
-            root_node = res.unwrap();
-
-            for i in 2..=key {
-                let res = find(&mut storage, &root_node, i);
-                assert!(res.is_ok());
-                assert_eq!(res.unwrap().into_i32(), i);
-            }
-        }
-        return (storage, root_node, keys);
-    }
-
     #[test]
     fn many_inserts() {
-        //for H in 3..50 
-        {
-            let (mut storage, mut root_node, keys) = make_tree(33);
+        for H in 3..75 {
+            let (mut storage, mut root_node, keys) = make_tree(H);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1124,25 +1139,18 @@ mod tests {
                 let find_res = find(&mut storage, &root_node, i);
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
-                println!("remove {:?}", i);
-                if i == 127 {
-                    println!("!");
-                }
-                // println!("before");
+                //println!("remove {:?}", i);
                 let str_before =
                     storage.to_string(root_node.clone(), true, &String::from("before"));
-                // storage.print(root_node.clone(), true, &String::from("before"));
 
                 let remove_res = remove_key(&mut storage, &root_node, i, 3);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
-                // println!("after");
 
                 let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
 
                 let mut mapped_values = Vec::new();
                 map(&mut storage, &root_node, i, key, &mut |k, v| {
-                    //println!("mapped {:?}", k);
                     assert_eq!(v.into_i32(), k);
                     mapped_values.push(k);
                 })
@@ -1156,13 +1164,10 @@ mod tests {
                     }
                 }
 
-                //storage.print(root_node.clone(), true, &String::from("after"));
-                // break;
                 if root_node.borrow().is_empty() {
                     assert!(i == key);
                     break;
                 }
-                //print_state(&str_before, &str_after);
                 let find_res = find(&mut storage, &root_node, i);
                 if find_res.is_err() {
                     break;
@@ -1170,10 +1175,10 @@ mod tests {
                 assert!(!find_res.is_err());
 
                 for k in (i + 1)..key {
-                    println!("? {:?}", k);
-                    if k == 14 {
-                        println!("!!");
-                    }
+                    // println!("? {:?}", k);
+                    // if k == 14 {
+                    //     println!("!!");
+                    // }
                     let find_res = find(&mut storage, &root_node, k);
                     if find_res.is_err() {
                         print_state(&str_before, &str_after);

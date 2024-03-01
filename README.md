@@ -7,6 +7,7 @@
 - [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
+- [ ] record => {Id, Offset}
 
 - [ ] const EMPTY_PTR
 - [x] range query
