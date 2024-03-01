@@ -69,6 +69,7 @@ fn take_key_from_low(
         let max_data = low_side_node.data[low_side_node.data_count - 1].clone();
 
         if !target_node.is_leaf {
+            //TODO! move to resize
             let min_data_node = storage.get_node(max_data.into_id()).unwrap();
             min_data_node.borrow_mut().parent = target_node.id;
         }
@@ -85,7 +86,6 @@ fn take_key_from_low(
 }
 
 fn take_key_from_high(
-    storage: &mut dyn NodeStorage,
     target_node: &mut Node,
     high_side_node: &mut Node,
     middle: Option<i32>,
@@ -153,6 +153,7 @@ fn move_to_lower(
             low_side_node.data[low_data_count + i] = node_ptr.clone();
 
             if !target_node.is_leaf {
+                //TODO! move to resize
                 let node = storage.get_node(node_ptr.into_id()).unwrap();
                 node.borrow_mut().parent = low_side_node.id;
             }
@@ -302,12 +303,8 @@ fn resize(
                 middle = Some(*rec.unwrap());
             }
 
-            let new_min_key = take_key_from_high(
-                storage,
-                &mut target_node_ref,
-                &mut high_side_leaf_ref,
-                middle,
-            );
+            let new_min_key =
+                take_key_from_high(&mut target_node_ref, &mut high_side_leaf_ref, middle);
             if !target_node_ref.is_leaf {
                 let taked_id = target_node_ref.data[target_node_ref.data_count - 1].into_id();
                 let taked_node = storage.get_node(taked_id).unwrap();
@@ -1169,8 +1166,8 @@ mod tests {
 
     #[test]
     fn many_inserts() {
-        for H in 3..75 {
-            let (mut storage, mut root_node, keys) = make_tree(H);
+        for hight in 3..75 {
+            let (mut storage, mut root_node, keys) = make_tree(hight);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1238,8 +1235,8 @@ mod tests {
 
     #[test]
     fn many_inserts_rev() {
-        for H in 3..75 {
-            let (mut storage, mut root_node, keys) = make_tree(H);
+        for hight in 3..75 {
+            let (mut storage, mut root_node, keys) = make_tree(hight);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1256,13 +1253,9 @@ mod tests {
                 let str_before =
                     storage.to_string(root_node.clone(), true, &String::from("before"));
 
-                if i == 2 {
-                    println!("!");
-                }
                 let remove_res = remove_key(&mut storage, &root_node, i, 3);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
-
                 let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
 
                 if root_node.borrow().is_empty() && i == 2 {
