@@ -328,6 +328,12 @@ fn resize(
         if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
             let min_key = target_ref.keys[0];
             let mut middle: Option<i32> = None;
+            // if !target_ref.is_leaf && target_ref.data_count > 1 {
+            //     let child1 = storage.get_node(target_ref.data[1].into_id()).unwrap();
+            //     let cf = child1.borrow();
+            //     middle = Some(cf.first_key());
+            // }
+
             if target_ref.parent.exists() {
                 let parent = storage.get_node(target_ref.parent).unwrap();
                 if !target_ref.is_leaf {
@@ -1343,10 +1349,10 @@ mod tests {
                 // print_state(&str_before, &str_after);
                 // break;
                 for k in (i + 1)..key {
-                    //println!("? {:?}", k);
-                    // if k == 14 {
-                    //     println!("!!");
-                    // }
+                    println!("? {:?}", k);
+                    if k == 14 {
+                        println!("!!");
+                    }
                     let find_res = find(&mut storage, &root_node, k);
                     if find_res.is_err() {
                         print_state(&str_before, &str_after);
