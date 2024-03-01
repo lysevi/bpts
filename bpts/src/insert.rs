@@ -174,7 +174,7 @@ mod tests {
             assert!(mapped_values[i - 1] > mapped_values[i]);
         }
     }
-    
+
     #[test]
     fn insert_to_tree() {
         let leaf1 = Node::new_leaf(
@@ -249,8 +249,6 @@ mod tests {
     fn many_inserts_back_7_22() {
         many_inserts_back(7, 22);
     }
-
-    
 
     #[test]
     #[ignore]

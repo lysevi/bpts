@@ -82,23 +82,23 @@ impl Node {
         return self.keys_count == 0;
     }
 
-    pub fn find_key(&self, key: i32) -> Option<&i32> {
+    pub fn find_key(&self, key: i32) -> Option<i32> {
         if self.is_leaf {
             panic!("logic error");
         }
         if key < self.keys[0] {
-            return self.keys.first();
+            return Some(*self.keys.first().unwrap());
         }
 
         if self.keys[self.keys_count - 1] <= key {
-            return Some(&self.keys[self.keys_count - 1]);
+            return Some(self.keys[self.keys_count - 1]);
         }
 
         for i in 0..self.keys_count {
             match (self.keys[i]).cmp(&key) {
                 std::cmp::Ordering::Less => continue,
-                std::cmp::Ordering::Equal => return Some(&self.keys[i]),
-                std::cmp::Ordering::Greater => return Some(&self.keys[i - 1]),
+                std::cmp::Ordering::Equal => return Some(self.keys[i]),
+                std::cmp::Ordering::Greater => return Some(self.keys[i - 1]),
             }
         }
         return None;
@@ -240,6 +240,27 @@ impl Node {
     pub fn first_key(&self) -> i32 {
         if self.keys_count > 0 {
             return self.keys[0];
+        }
+        panic!("empty node");
+    }
+
+    pub fn first_data(&self) -> Record {
+        if self.data_count > 0 {
+            return self.data[0].clone();
+        }
+        panic!("empty node");
+    }
+
+    pub fn last_key(&self) -> i32 {
+        if self.keys_count > 0 {
+            return self.keys[self.keys_count - 1];
+        }
+        panic!("empty node");
+    }
+
+    pub fn last_data(&self) -> Record {
+        if self.data_count > 0 {
+            return self.data[self.data_count - 1].clone();
         }
         panic!("empty node");
     }
