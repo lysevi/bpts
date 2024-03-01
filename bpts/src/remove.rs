@@ -1,3 +1,5 @@
+use std::str::MatchIndices;
+
 use crate::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
@@ -50,10 +52,12 @@ fn take_from_low(
 
     //let mut min_key = target.first_key();
 
-    // if !target.is_leaf {
-    //     println!("take_from_low insert middle");
-    //     utils::insert_to_array(&mut target.keys, 0, middle.unwrap());
-    // } else
+    if !target.is_leaf && middle.is_some() {
+        println!("take_from_low insert middle");
+        utils::insert_to_array(&mut target.keys, 0, middle.unwrap());
+        target.keys_count += 1;
+    }
+    //else
     {
         let max_key = low_side.last_key();
         let max_data = low_side.last_data();
@@ -64,12 +68,12 @@ fn take_from_low(
             min_data_node.borrow_mut().parent = target.id;
         }
 
-        utils::insert_to_array(&mut target.keys, 0, max_key);
+        //utils::insert_to_array(&mut target.keys, 0, max_key);
         utils::insert_to_array(&mut target.data, 0, max_data);
         low_side.keys_count -= 1;
         low_side.data_count -= 1;
 
-        target.keys_count += 1;
+        //target.keys_count += 1;
         target.data_count += 1;
     }
 }
@@ -316,9 +320,13 @@ fn resize(
         if leaf_ref.data_count > t {
             success_take = true;
             let mut middle: Option<i32> = None;
+            let min_key = leaf_ref.keys[leaf_ref.keys_count - 1];
             if !target_ref.is_leaf {
                 let link_to_parent = storage.get_node(target_ref.parent).unwrap();
-                middle = link_to_parent.borrow().find_key(target_ref.first_key());
+                //smiddle = link_to_parent.borrow().find_key(target_ref.first_key());
+
+                let low_data_node = storage.get_node(target_ref.data[0].into_id()).unwrap();
+                middle = Some(low_data_node.borrow().first_key());
             }
             take_from_low(storage, &mut target_ref, &mut leaf_ref, middle);
             if !target_ref.is_leaf {
@@ -331,7 +339,7 @@ fn resize(
                 let link_to_parent = storage.get_node(target_ref.parent).unwrap();
                 link_to_parent
                     .borrow_mut()
-                    .update_key(target_ref.id, target_ref.first_key());
+                    .update_key(target_ref.id, min_key);
             }
 
             return Ok(root.unwrap());
@@ -430,6 +438,7 @@ fn resize(
             if target_ref.right.exists() {
                 let right_side = storage.get_node(target_ref.right).unwrap();
                 right_side.borrow_mut().left = target_ref.left;
+                leaf_ref.right = target_ref.right;
             }
             leaf_ref.right = target_ref.right;
             update_parent = true;
@@ -480,6 +489,11 @@ fn resize(
                 }
             }
 
+            if target_ref.left.exists() {
+                let left_side = storage.get_node(target_ref.left).unwrap();
+                left_side.borrow_mut().right = target_ref.right;
+                leaf_ref.left = target_ref.left;
+            }
             update_parent = true;
         }
     }
@@ -758,7 +772,7 @@ mod tests {
 
         {
             let ref_node = leaf_high.borrow_mut();
-            assert_eq!(ref_node.keys, vec![4, 5, 7, 0]);
+            assert_eq!(ref_node.keys, vec![5, 7, 0, 6]);
             assert_eq!(
                 ref_node.data,
                 vec![
@@ -768,7 +782,7 @@ mod tests {
                     Record::from_u8(0),
                 ]
             );
-            assert_eq!(ref_node.keys_count, 3);
+            assert_eq!(ref_node.keys_count, 2);
             assert_eq!(ref_node.data_count, 3);
         }
 
@@ -1400,9 +1414,8 @@ mod tests {
     }
 
     fn many_inserts_middle_range(t: usize, maxnodes: usize) {
-        //for hight in 3..maxnodes
-        {
-            let hight = 6;
+        for hight in 3..maxnodes {
+            //    let hight = 21;
             let (mut storage, mut root_node, mut keys) = make_tree(hight, t);
 
             let key = *keys.last().unwrap();
@@ -1425,7 +1438,7 @@ mod tests {
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 println!(">> {} {} remove {:?} size: {}", hight, t, i, storage.size());
-                if i == 11 && storage.size() == 9 {
+                if i == 29 {
                     println!("!");
                 }
                 let str_before =
@@ -1475,7 +1488,7 @@ mod tests {
                 // break;
                 for k in &keys {
                     println!("? {:?}", k);
-                    if *k == 14 {
+                    if *k == 20 {
                         println!("!!");
                     }
                     let find_res = find(&mut storage, &root_node, *k);
@@ -1530,8 +1543,8 @@ mod tests {
         many_inserts_middle_range(3, 22);
     }
 
-    // #[test]
-    // fn many_inserts_middle_range_7_22() {
-    //     many_inserts_middle_range(7, 22);
-    // }
+    #[test]
+    fn many_inserts_middle_range_7_22() {
+        many_inserts_middle_range(7, 22);
+    }
 }
