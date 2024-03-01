@@ -8,4 +8,6 @@ edition = "2021"
 [dependencies]
 memmap2="*"
 tempfile ="*"
+
+[dev-dependencies]
 string-builder="0.2.0"

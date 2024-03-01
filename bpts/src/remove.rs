@@ -48,11 +48,11 @@ fn take_from_low(
 ) {
     println!("take_from_low target={:?} low={:?}", target.id, low_side.id);
 
-    // let mut min_key = target.first_key();
+    //let mut min_key = target.first_key();
 
     // if !target.is_leaf {
-    //     min_key = middle.unwrap();
-    //     println!(" new minKey={}", min_key);
+    //     println!("take_from_low insert middle");
+    //     utils::insert_to_array(&mut target.keys, 0, middle.unwrap());
     // } else
     {
         let max_key = low_side.last_key();
@@ -193,6 +193,24 @@ fn erase_key(
         let mut target_ref = target.borrow_mut();
         let first_key = target_ref.keys[0];
         erase_key_data(&mut target_ref, key);
+        // if target_ref.is_leaf && first_key != target_ref.first_key() {
+        //     println!("rollup tree");
+        //     let mut id_of_parent = target_ref.parent;
+        //     while id_of_parent.exists() {
+        //         let node = storage.get_node(id_of_parent).unwrap();
+        //         let mut refn = node.borrow_mut();
+
+        //         println!("update key in {:?}", refn.id);
+        //         for i in 0..refn.keys_count {
+        //             if refn.keys[i] == first_key {
+        //                 refn.keys[i] = target_ref.first_key();
+        //                 break;
+        //             }
+        //         }
+
+        //         id_of_parent = refn.parent;
+        //     }
+        // }
         if target_ref.data_count >= t {
             //update keys in parent
             if first_key != target_ref.keys[0] && target_ref.parent.exists() {
@@ -215,6 +233,7 @@ fn resize(
     t: usize,
     root: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
+    println!("resize Id={:?}", target.borrow().id.0);
     let mut target_ref = target.borrow_mut();
     if target_ref.data_count >= t {
         return Ok(root.unwrap());
@@ -1192,7 +1211,7 @@ mod tests {
         //TODO check map map_rev
     }
 
-    fn many_inserts_ref(t: usize, maxnodes: usize) {
+    fn many_inserts_rev(t: usize, maxnodes: usize) {
         for hight in 3..maxnodes {
             let (mut storage, mut root_node, keys) = make_tree(hight, t);
 
@@ -1263,6 +1282,88 @@ mod tests {
         //TODO check map map_fwd
     }
 
+    fn many_inserts_middle_range(t: usize, maxnodes: usize) {
+        for hight in 3..maxnodes {
+            // let hight = 22;
+            let (mut storage, mut root_node, keys) = make_tree(hight, t);
+
+            let key = *keys.last().unwrap();
+            for i in 2..=key {
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
+            }
+
+            let first = &keys[0..keys.len() / 2];
+            let last = &keys[keys.len() / 2..];
+            let new_key_list = [last, first].concat();
+
+            for i in new_key_list {
+                let find_res = find(&mut storage, &root_node, i);
+                assert!(find_res.is_ok());
+                assert_eq!(find_res.unwrap().into_i32(), i);
+                println!(">> remove {:?}", i);
+                if i == 11 {
+                    println!("!");
+                }
+                let str_before =
+                    storage.to_string(root_node.clone(), true, &String::from("before"));
+
+                let remove_res = remove_key(&mut storage, &root_node, i, t);
+                assert!(remove_res.is_ok());
+                root_node = remove_res.unwrap();
+
+                let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+                //print_state(&str_before, &str_after);
+                //break;
+                let mut mapped_values = Vec::new();
+                map(&mut storage, &root_node, i, key, &mut |k, v| {
+                    assert_eq!(v.into_i32(), k);
+                    mapped_values.push(k);
+                })
+                .unwrap();
+
+                for i in 1..mapped_values.len() {
+                    if mapped_values[i - 1] >= mapped_values[i] {
+                        println!("bad order");
+                        print_state(&str_before, &str_after);
+                        assert!(mapped_values[i - 1] < mapped_values[i]);
+                    }
+                }
+
+                if root_node.borrow().is_empty() {
+                    assert!(i == key);
+                    break;
+                }
+                let find_res = find(&mut storage, &root_node, i);
+                if find_res.is_err() {
+                    break;
+                }
+                assert!(!find_res.is_err());
+                // print_state(&str_before, &str_after);
+                // break;
+                for k in (i + 1)..key {
+                    //println!("? {:?}", k);
+                    // if k == 14 {
+                    //     println!("!!");
+                    // }
+                    let find_res = find(&mut storage, &root_node, k);
+                    if find_res.is_err() {
+                        print_state(&str_before, &str_after);
+                    }
+                    assert!(find_res.is_ok());
+                    let d = find_res.unwrap();
+                    if d.into_i32() != k {
+                        print_state(&str_before, &str_after);
+                    }
+                    assert_eq!(d.into_i32(), k);
+                }
+            }
+        }
+
+        //TODO check map map_rev
+    }
+
     #[test]
     fn many_inserts_3_22() {
         many_inserts(3, 22);
@@ -1280,16 +1381,26 @@ mod tests {
 
     #[test]
     fn many_inserts_rev_3_22() {
-        many_inserts_ref(3, 22);
+        many_inserts_rev(3, 22);
     }
 
     #[test]
     fn many_inserts_rev_7_22() {
-        many_inserts_ref(7, 22);
+        many_inserts_rev(7, 22);
     }
 
     #[test]
     fn many_inserts_rev_16_22() {
-        many_inserts_ref(16, 22);
+        many_inserts_rev(16, 22);
+    }
+
+    #[test]
+    fn many_inserts_middle_range_3_22() {
+        many_inserts_middle_range(3, 22);
+    }
+
+    #[test]
+    fn many_inserts_middle_range_7_22() {
+        many_inserts_middle_range(7, 22);
     }
 }

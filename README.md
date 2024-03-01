@@ -1,5 +1,6 @@
 # bpts
 
+- [ ] remove from middle range
 - [ ] record => {Id, Offset}
 - [ ] logger
 - [ ] refs by ptr (offset from start)
