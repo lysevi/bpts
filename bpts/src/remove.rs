@@ -1321,7 +1321,7 @@ mod tests {
     fn many_inserts_middle_range(t: usize, maxnodes: usize) {
         for hight in 3..maxnodes {
             // let hight = 22;
-            let (mut storage, mut root_node, keys) = make_tree(hight, t);
+            let (mut storage, mut root_node, mut keys) = make_tree(hight, t);
 
             let key = *keys.last().unwrap();
             for i in 2..=key {
@@ -1330,11 +1330,15 @@ mod tests {
                 assert_eq!(res.unwrap().into_i32(), i);
             }
 
-            let first = &keys[0..keys.len() / 2];
+            /*let first = &keys[0..keys.len() / 2];
             let last = &keys[keys.len() / 2..];
             let new_key_list = [last, first].concat();
 
-            for i in new_key_list {
+            for i in new_key_list */
+
+            while keys.len() > 0 {
+                let i = keys[keys.len() / 2];
+                keys.remove(keys.len() / 2);
                 let find_res = find(&mut storage, &root_node, i);
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
@@ -1353,10 +1357,16 @@ mod tests {
                 //print_state(&str_before, &str_after);
                 //break;
                 let mut mapped_values = Vec::new();
-                map(&mut storage, &root_node, i, key, &mut |k, v| {
-                    assert_eq!(v.into_i32(), k);
-                    mapped_values.push(k);
-                })
+                map(
+                    &mut storage,
+                    &root_node,
+                    i,
+                    *keys.last().unwrap(),
+                    &mut |k, v| {
+                        assert_eq!(v.into_i32(), k);
+                        mapped_values.push(k);
+                    },
+                )
                 .unwrap();
 
                 for i in 1..mapped_values.len() {
@@ -1378,21 +1388,21 @@ mod tests {
                 assert!(!find_res.is_err());
                 // print_state(&str_before, &str_after);
                 // break;
-                for k in (i + 1)..key {
+                for k in &keys {
                     println!("? {:?}", k);
-                    if k == 14 {
+                    if *k == 14 {
                         println!("!!");
                     }
-                    let find_res = find(&mut storage, &root_node, k);
+                    let find_res = find(&mut storage, &root_node, *k);
                     if find_res.is_err() {
                         print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_ok());
                     let d = find_res.unwrap();
-                    if d.into_i32() != k {
+                    if d.into_i32() != *k {
                         print_state(&str_before, &str_after);
                     }
-                    assert_eq!(d.into_i32(), k);
+                    assert_eq!(d.into_i32(), *k);
                 }
             }
         }
