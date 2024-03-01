@@ -388,6 +388,7 @@ fn resize(
         };
 
         let mut leaf_ref = high_side.borrow_mut();
+        let high_first_key = leaf_ref.first_key();
 
         if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
             let min_key = leaf_ref.keys[0];
@@ -404,6 +405,18 @@ fn resize(
 
             leaf_ref.left = target_ref.left;
             storage.erase_node(&target_ref.id);
+
+            if target_ref.parent.exists() {
+                if leaf_ref.parent != target_ref.parent {
+                    //TODO checks;
+                    rollup_keys(
+                        storage,
+                        leaf_ref.parent,
+                        high_first_key,
+                        leaf_ref.first_key(),
+                    );
+                }
+            }
 
             update_parent = true;
         }
