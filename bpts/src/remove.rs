@@ -52,16 +52,18 @@ fn take_key_from_low(
     storage: &mut dyn NodeStorage,
     target_node: &mut Node,
     low_side_node: &mut Node,
-) {
+    middle: Option<i32>,
+) -> i32 {
     println!(
         "take_key_from_low target={:?} low={:?}",
         target_node.id, low_side_node.id
     );
-    if target_node.id.0 == 27 {
-        println!("");
-    }
+
+    let mut min_key = target_node.first_key();
+    let result = min_key;
     if !target_node.is_leaf {
-        todo!();
+        min_key = middle.unwrap();
+        println!(" new minKey={}", min_key);
     } else {
         let max_key = low_side_node.keys[low_side_node.keys_count - 1];
         let max_data = low_side_node.data[low_side_node.data_count - 1].clone();
@@ -79,6 +81,7 @@ fn take_key_from_low(
         target_node.keys_count += 1;
         target_node.data_count += 1;
     }
+    return result;
 }
 
 fn take_key_from_high(
@@ -120,14 +123,25 @@ fn take_key_from_high(
     return result;
 }
 
-fn move_to_lower(storage: &mut dyn NodeStorage, target_node: &mut Node, low_side_node: &mut Node) {
+fn move_to_lower(
+    storage: &mut dyn NodeStorage,
+    target_node: &mut Node,
+    low_side_node: &mut Node,
+    middle: Option<i32>,
+) {
     println!(
         "move_to_lower target={:?} low={:?}",
         target_node.id, low_side_node.id
     );
     if !target_node.is_leaf {
-        todo!();
-    } else {
+        utils::insert_to_array(
+            &mut low_side_node.keys,
+            low_side_node.keys_count,
+            middle.unwrap(),
+        );
+        low_side_node.keys_count += target_node.keys_count;
+    }
+    {
         let low_keys_count = low_side_node.keys_count;
         for i in 0..target_node.keys_count {
             low_side_node.keys[low_keys_count + i] = target_node.keys[i];
@@ -243,8 +257,24 @@ fn resize(
         let mut low_side_leaf_ref = low_side_leaf.borrow_mut();
 
         if low_side_leaf_ref.data_count > t {
-            take_key_from_low(storage, &mut target_node_ref, &mut low_side_leaf_ref);
-
+            let mut middle: Option<i32> = None;
+            if !target_node_ref.is_leaf {
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                let ref_to_parent = link_to_parent.borrow();
+                let rec = ref_to_parent.find_key(target_node_ref.first_key());
+                middle = Some(*rec.unwrap());
+            }
+            take_key_from_low(
+                storage,
+                &mut target_node_ref,
+                &mut low_side_leaf_ref,
+                middle,
+            );
+            if !target_node_ref.is_leaf {
+                let taked_id = target_node_ref.data[0].into_id();
+                let taked_node = storage.get_node(taked_id).unwrap();
+                taked_node.borrow_mut().parent = target_node_ref.id;
+            }
             if target_node_ref.parent.exists() {
                 //TODO! check result
                 let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
@@ -255,8 +285,7 @@ fn resize(
 
             return Ok(toproot.unwrap());
         }
-    }
-    if target_node_ref.right.exists() {
+    } else if target_node_ref.right.exists() {
         // from high side
         //TODO! check result;
         let high_side_leaf = storage.get_node(target_node_ref.right).unwrap();
@@ -309,7 +338,24 @@ fn resize(
 
         let size_of_low = low_side_leaf_ref.keys_count;
         if (size_of_low + target_node_ref.keys_count) < 2 * t {
-            move_to_lower(storage, &mut target_node_ref, &mut low_side_leaf_ref);
+            let min_key = target_node_ref.keys[0];
+            let mut middle: Option<i32> = None;
+            if target_node_ref.parent.exists() {
+                let link_to_parent = storage.get_node(target_node_ref.parent).unwrap();
+                if !target_node_ref.is_leaf {
+                    let ref_to_parent = link_to_parent.borrow();
+                    let rec = ref_to_parent.find_key(min_key);
+                    middle = Some(*rec.unwrap());
+                }
+                link_to_parent.borrow_mut().erase_link(target_node_ref.id);
+            }
+
+            move_to_lower(
+                storage,
+                &mut target_node_ref,
+                &mut low_side_leaf_ref,
+                middle,
+            );
 
             storage.erase_node(&target_node_ref.id);
 
@@ -321,9 +367,7 @@ fn resize(
             low_side_leaf_ref.right = target_node_ref.right;
             update_parent = true;
         }
-    }
-
-    if target_node_ref.right.exists() {
+    } else if target_node_ref.right.exists() {
         let high_side_leaf = if link_to_high_side_leaf.is_some() {
             link_to_high_side_leaf.unwrap()
         } else {
@@ -338,8 +382,8 @@ fn resize(
             if target_node_ref.parent.exists() {
                 let link_to_parent = storage.get_node(high_side_leaf_ref.parent).unwrap();
                 if !target_node_ref.is_leaf {
-                    let ref_to_praent = link_to_parent.borrow();
-                    let rec = ref_to_praent.find_key(min_key);
+                    let ref_to_parent = link_to_parent.borrow();
+                    let rec = ref_to_parent.find_key(min_key);
                     middle = Some(*rec.unwrap());
                 }
                 link_to_parent.borrow_mut().erase_link(target_node_ref.id);
@@ -1175,6 +1219,82 @@ mod tests {
                 assert!(!find_res.is_err());
 
                 for k in (i + 1)..key {
+                    // println!("? {:?}", k);
+                    // if k == 14 {
+                    //     println!("!!");
+                    // }
+                    let find_res = find(&mut storage, &root_node, k);
+                    if find_res.is_err() {
+                        print_state(&str_before, &str_after);
+                    }
+                    assert!(find_res.is_ok());
+                    assert_eq!(find_res.unwrap().into_i32(), k);
+                }
+            }
+        }
+
+        //TODO check map map_rev
+    }
+
+    #[test]
+    fn many_inserts_rev() {
+        for H in 3..75 {
+            let (mut storage, mut root_node, keys) = make_tree(H);
+
+            let key = *keys.last().unwrap();
+            for i in 2..=key {
+                let res = find(&mut storage, &root_node, i);
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), i);
+            }
+
+            for i in (2..=key).rev() {
+                let find_res = find(&mut storage, &root_node, i);
+                assert!(find_res.is_ok());
+                assert_eq!(find_res.unwrap().into_i32(), i);
+                //println!("remove {:?}", i);
+                let str_before =
+                    storage.to_string(root_node.clone(), true, &String::from("before"));
+
+                if i == 2 {
+                    println!("!");
+                }
+                let remove_res = remove_key(&mut storage, &root_node, i, 3);
+                assert!(remove_res.is_ok());
+                root_node = remove_res.unwrap();
+
+                let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+
+                if root_node.borrow().is_empty() && i == 2 {
+                    break;
+                }
+                let mut mapped_values = Vec::new();
+                map_rev(&mut storage, &root_node, i, key, &mut |k, v| {
+                    assert_eq!(v.into_i32(), k);
+                    mapped_values.push(k);
+                })
+                .unwrap();
+
+                for i in 1..mapped_values.len() {
+                    if mapped_values[i - 1] <= mapped_values[i] {
+                        println!("bad order");
+                        print_state(&str_before, &str_after);
+                        assert!(mapped_values[i - 1] < mapped_values[i]);
+                    }
+                }
+
+                if root_node.borrow().is_empty() {
+                    assert!(i == key);
+                    break;
+                }
+                // let find_res = find(&mut storage, &root_node, i);
+                // if find_res.is_err() {
+                //     assert!(find_res.is_ok());
+                //     break;
+                // }
+                // assert!(!find_res.is_err());
+
+                for k in 2..i {
                     // println!("? {:?}", k);
                     // if k == 14 {
                     //     println!("!!");

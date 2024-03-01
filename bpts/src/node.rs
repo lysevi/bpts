@@ -74,7 +74,7 @@ impl Node {
 
     pub fn find_key(&self, key: i32) -> Option<&i32> {
         if self.is_leaf {
-            panic!();
+            panic!("logic error");
         }
         if key < self.keys[0] {
             return self.keys.first();
