@@ -439,6 +439,13 @@ mod tests {
     use crate::read::{find, map, map_rev};
     use crate::rec::Record;
 
+    fn print_state(str_before: &String, str_after: &String) {
+        print!("digraph G {{");
+        print!("{}", str_before);
+        print!("{}", str_after);
+        println!("}}");
+    }
+
     fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
         let mut keys = Vec::with_capacity(t * 2);
         let mut recs = Vec::with_capacity(t * 2);
@@ -1158,10 +1165,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn many_inserts() {
-        let t = 3;
-        for hight in 3..75 {
+    fn many_inserts(t: usize, maxnodes: usize) {
+        for hight in 3..maxnodes {
             // let hight = 22;
             let (mut storage, mut root_node, keys) = make_tree(hight, t);
 
@@ -1235,10 +1240,8 @@ mod tests {
         //TODO check map map_rev
     }
 
-    #[test]
-    fn many_inserts_rev() {
-        let t = 3;
-        for hight in 3..75 {
+    fn many_inserts_ref(t: usize, maxnodes: usize) {
+        for hight in 3..maxnodes {
             let (mut storage, mut root_node, keys) = make_tree(hight, t);
 
             let key = *keys.last().unwrap();
@@ -1305,13 +1308,36 @@ mod tests {
             }
         }
 
-        //TODO check map map_rev
+        //TODO check map map_fwd
     }
 
-    fn print_state(str_before: &String, str_after: &String) {
-        print!("digraph G {{");
-        print!("{}", str_before);
-        print!("{}", str_after);
-        println!("}}");
+    #[test]
+    fn many_inserts_3_22() {
+        many_inserts(3, 22);
+    }
+
+    #[test]
+    fn many_inserts_7_22() {
+        many_inserts(7, 22);
+    }
+
+    #[test]
+    fn many_inserts_16_10() {
+        many_inserts(16, 22);
+    }
+
+    #[test]
+    fn many_inserts_rev_3_22() {
+        many_inserts_ref(3, 22);
+    }
+
+    #[test]
+    fn many_inserts_rev_7_22() {
+        many_inserts_ref(7, 22);
+    }
+
+    #[test]
+    fn many_inserts_rev_16_22() {
+        many_inserts_ref(16, 22);
     }
 }
