@@ -1438,9 +1438,9 @@ mod tests {
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 println!(">> {} {} remove {:?} size: {}", hight, t, i, storage.size());
-                if i == 29 {
-                    println!("!");
-                }
+                // if i == 29 {
+                //     println!("!");
+                // }
                 let str_before =
                     storage.to_string(root_node.clone(), true, &String::from("before"));
 
@@ -1487,10 +1487,10 @@ mod tests {
                 // print_state(&str_before, &str_after);
                 // break;
                 for k in &keys {
-                    println!("? {:?}", k);
-                    if *k == 20 {
-                        println!("!!");
-                    }
+                    // println!("? {:?}", k);
+                    // if *k == 20 {
+                    //     println!("!!");
+                    // }
                     let find_res = find(&mut storage, &root_node, *k);
                     if find_res.is_err() {
                         print_state(&str_before, &str_after);
