@@ -64,6 +64,16 @@ impl Node {
         Node::new(id, true, keys, data, keys_count, data_count)
     }
 
+    pub fn new_leaf_with_size(id: Id, t: usize) -> RcNode {
+        let mut keys = Vec::with_capacity(t * 2);
+        let mut recs = Vec::with_capacity(t * 2);
+        for _i in 0..(t * 2) {
+            recs.push(Record::from_i32(0));
+            keys.push(0i32);
+        }
+        Node::new(id, true, keys, recs, 0, 0)
+    }
+
     pub fn can_insert(&self, t: usize) -> bool {
         return self.data_count < (2 * t - 1);
     }

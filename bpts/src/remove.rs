@@ -447,13 +447,7 @@ mod tests {
     }
 
     fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
-        let mut keys = Vec::with_capacity(t * 2);
-        let mut recs = Vec::with_capacity(t * 2);
-        for _i in 0..(t * 2) {
-            recs.push(Record::from_i32(0));
-            keys.push(0i32);
-        }
-        let mut root_node = Node::new_leaf(types::Id(1), keys, recs, 0, 0);
+        let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
