@@ -118,7 +118,8 @@ fn move_to_lower(
         "move_to_lower target={:?} low={:?}",
         target_node.id, low_side_node.id
     );
-    if !target_node.is_leaf {
+    //if !target_node.is_leaf
+    if middle.is_some() {
         utils::insert_to_array(
             &mut low_side_node.keys,
             low_side_node.keys_count,
@@ -182,6 +183,25 @@ fn move_to_higher(
     high_side.data_count += target.data_count;
 }
 
+fn rollup_keys(storage: &mut dyn NodeStorage, id: types::Id, key: i32, newkey: i32) {
+    println!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
+    let mut id_of_parent = id;
+    while id_of_parent.exists() {
+        let node = storage.get_node(id_of_parent).unwrap();
+        let mut refn = node.borrow_mut();
+
+        for i in 0..refn.keys_count {
+            if refn.keys[i] == key {
+                println!("update key in {:?}", refn.id);
+                refn.keys[i] = newkey;
+                break;
+            }
+        }
+
+        id_of_parent = refn.parent;
+    }
+}
+
 fn erase_key(
     storage: &mut dyn NodeStorage,
     target: &RcNode,
@@ -193,24 +213,14 @@ fn erase_key(
         let mut target_ref = target.borrow_mut();
         let first_key = target_ref.keys[0];
         erase_key_data(&mut target_ref, key);
-        // if target_ref.is_leaf && first_key != target_ref.first_key() {
-        //     println!("rollup tree");
-        //     let mut id_of_parent = target_ref.parent;
-        //     while id_of_parent.exists() {
-        //         let node = storage.get_node(id_of_parent).unwrap();
-        //         let mut refn = node.borrow_mut();
-
-        //         println!("update key in {:?}", refn.id);
-        //         for i in 0..refn.keys_count {
-        //             if refn.keys[i] == first_key {
-        //                 refn.keys[i] = target_ref.first_key();
-        //                 break;
-        //             }
-        //         }
-
-        //         id_of_parent = refn.parent;
-        //     }
-        // }
+        if target_ref.keys_count > 0 && target_ref.is_leaf && first_key != target_ref.first_key() {
+            rollup_keys(
+                storage,
+                target_ref.parent,
+                first_key,
+                target_ref.first_key(),
+            );
+        }
         if target_ref.data_count >= t {
             //update keys in parent
             if first_key != target_ref.keys[0] && target_ref.parent.exists() {
@@ -328,11 +338,6 @@ fn resize(
         if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
             let min_key = target_ref.keys[0];
             let mut middle: Option<i32> = None;
-            // if !target_ref.is_leaf && target_ref.data_count > 1 {
-            //     let child1 = storage.get_node(target_ref.data[1].into_id()).unwrap();
-            //     let cf = child1.borrow();
-            //     middle = Some(cf.first_key());
-            // }
 
             if target_ref.parent.exists() {
                 let parent = storage.get_node(target_ref.parent).unwrap();
@@ -341,10 +346,31 @@ fn resize(
                 }
                 parent.borrow_mut().erase_link(target_ref.id);
             }
-
+            // if !target_ref.is_leaf && target_ref.data_count > 1 {
+            //     let child1 = storage.get_node(target_ref.data[0].into_id()).unwrap();
+            //     let cf = child1.borrow();
+            //     middle = Some(cf.first_key());
+            // }
+            let first_key = target_ref.first_key();
             move_to_lower(storage, &mut target_ref, &mut leaf_ref, middle);
-
             storage.erase_node(&target_ref.id);
+
+            if target_ref.parent.exists() {
+                if leaf_ref.parent != target_ref.parent {
+                    let parent = storage.get_node(target_ref.parent).unwrap();
+                    if parent.borrow().data_count > 0 {
+                        let first_data = parent.borrow().first_data();
+
+                        let first_child = storage.get_node(first_data.into_id()).unwrap();
+                        rollup_keys(
+                            storage,
+                            target_ref.parent,
+                            first_key,
+                            first_child.borrow().first_key(),
+                        );
+                    }
+                }
+            }
 
             //TODO! check result;
             if target_ref.right.exists() {
@@ -1232,7 +1258,7 @@ mod tests {
                 let find_res = find(&mut storage, &root_node, i);
                 assert!(find_res.is_ok());
                 assert_eq!(find_res.unwrap().into_i32(), i);
-                //println!("remove {:?}", i);
+                println!(">> remove {:?}", i);
                 let str_before =
                     storage.to_string(root_node.clone(), true, &String::from("before"));
 
@@ -1280,7 +1306,11 @@ mod tests {
                         print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_ok());
-                    assert_eq!(find_res.unwrap().into_i32(), k);
+                    let d = find_res.unwrap();
+                    if d.into_i32() != k {
+                        print_state(&str_before, &str_after);
+                    }
+                    assert_eq!(d.into_i32(), k);
                 }
             }
         }
