@@ -46,6 +46,8 @@ pub fn insert(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
     use crate::{
         mocks::MockNodeStorage,
@@ -250,6 +252,77 @@ mod tests {
         many_inserts_back(7, 22);
     }
 
+    #[test]
+    fn inserts_to_middle_1_100_3() {
+        inserts_to_middle(1, 100, 3);
+    }
+
+    #[test]
+    fn inserts_to_middle_1_1000_6() {
+        inserts_to_middle(1, 1000, 6);
+    }
+
+    fn inserts_to_middle(key_from: i32, key_to: i32, t: usize) {
+        let mut ranges = Vec::new();
+        ranges.push((key_from, key_to));
+
+        let mut keys = Vec::new();
+        while !ranges.is_empty() {
+            let r = *ranges.first().unwrap();
+            ranges.remove(0);
+
+            let middle = (r.0 + (r.1 - r.0) / 2) as i32 + 1;
+
+            let i1 = (r.0, middle);
+            let i2 = (middle, r.1);
+            println!("{:?} {:?}", i1, i2);
+            if !keys.contains(&r.0) {
+                keys.push(r.0);
+            }
+            if !keys.contains(&r.1) {
+                keys.push(r.1);
+            }
+            if !keys.contains(&middle) {
+                keys.push(middle);
+            }
+            if i1.1 - i1.0 > 2 {
+                ranges.push(i1);
+            }
+            if i2.1 - i2.0 > 2 {
+                ranges.push(i2);
+            }
+        }
+
+        let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&root_node);
+
+        for i in 0..keys.len() {
+            //println!("insert {}", keys[i]);
+            let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+            let res = insert(
+                &mut storage,
+                &root_node,
+                keys[i],
+                &Record::from_i32(keys[i]),
+                t,
+            );
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+
+            let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+
+            for j in 0..i {
+                let res = find(&mut storage, &root_node, keys[j]);
+                if res.is_err() {
+                    println!("> not found {}", keys[j]);
+                    MockNodeStorage::print_state(&str_before, &str_after)
+                }
+                assert!(res.is_ok());
+                assert_eq!(res.unwrap().into_i32(), keys[j]);
+            }
+        }
+    }
     #[test]
     #[ignore]
     fn insert_duplicate() {

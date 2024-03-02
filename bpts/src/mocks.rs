@@ -37,6 +37,13 @@ impl MockNodeStorage {
         self.nodes.values().all(f)
     }
 
+    pub fn print_state(str_before: &String, str_after: &String) {
+        print!("digraph G {{");
+        print!("{}", str_before);
+        print!("{}", str_after);
+        println!("}}");
+    }
+
     pub fn to_string(&self, root: RcNode, graphviz: bool, graph_name: &String) -> String {
         let mut bldr = Builder::new(1024);
         let mut to_print = Vec::new();

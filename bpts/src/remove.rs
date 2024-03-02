@@ -563,13 +563,6 @@ mod tests {
     use crate::read::{find, map, map_rev};
     use crate::rec::Record;
 
-    fn print_state(str_before: &String, str_after: &String) {
-        print!("digraph G {{");
-        print!("{}", str_before);
-        print!("{}", str_after);
-        println!("}}");
-    }
-
     fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
         let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
 
@@ -1321,7 +1314,7 @@ mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] >= mapped_values[i] {
                         println!("bad order");
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -1344,12 +1337,12 @@ mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, k);
                     if find_res.is_err() {
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_ok());
                     let d = find_res.unwrap();
                     if d.into_i32() != k {
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), k);
                 }
@@ -1396,7 +1389,7 @@ mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] <= mapped_values[i] {
                         println!("bad order");
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -1419,12 +1412,12 @@ mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, k);
                     if find_res.is_err() {
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_ok());
                     let d = find_res.unwrap();
                     if d.into_i32() != k {
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), k);
                 }
@@ -1492,7 +1485,7 @@ mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] >= mapped_values[i] {
                         println!("bad order");
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -1514,12 +1507,12 @@ mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, *k);
                     if find_res.is_err() {
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_ok());
                     let d = find_res.unwrap();
                     if d.into_i32() != *k {
-                        print_state(&str_before, &str_after);
+                        MockNodeStorage::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), *k);
                 }
@@ -1594,7 +1587,7 @@ mod tests {
             }
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                print_state(&str_before, &str_after);
+                MockNodeStorage::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().into_i32(), i);
