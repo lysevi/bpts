@@ -105,11 +105,12 @@ impl Node {
     }
 
     pub fn find(&self, key: i32) -> Option<&Record> {
-        if key < self.keys[0] {
-            return self.data.first();
-        }
-
         if !self.is_leaf {
+            if key < self.keys[0] {
+                return self.data.first();
+            }
+
+            
             if self.keys[self.keys_count - 1] <= key {
                 return Some(&self.data[self.data_count - 1]);
             }

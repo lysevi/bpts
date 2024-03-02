@@ -1,5 +1,3 @@
-use std::str::MatchIndices;
-
 use crate::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
@@ -10,7 +8,8 @@ fn erase_key_data(target: &mut Node, key: i32) {
     let is_leaf = target.is_leaf;
 
     if !is_leaf {
-        println!("erase_key_data node from={:?} key={}", target.id, key);
+        todo!("dead code");
+        /*println!("erase_key_data node from={:?} key={}", target.id, key);
         if key < target.keys[0] {
             utils::remove_with_shift(&mut target.data, 0);
             utils::remove_with_shift(&mut target.keys, 0);
@@ -22,7 +21,7 @@ fn erase_key_data(target: &mut Node, key: i32) {
             utils::remove_with_shift(&mut target.keys, target.keys_count - 1);
             target.keys_count -= 1;
             target.data_count -= 1;
-        }
+        }*/
     } else {
         println!("erase_key_data leaf from={:?} key={}", target.id, key);
     }
@@ -66,6 +65,9 @@ fn take_from_low(
             //TODO! move to resize
             let min_data_node = storage.get_node(max_data.into_id()).unwrap();
             min_data_node.borrow_mut().parent = target.id;
+        } else {
+            utils::insert_to_array(&mut target.keys, 0, max_key);
+            target.keys_count += 1;
         }
 
         //utils::insert_to_array(&mut target.keys, 0, max_key);
@@ -287,7 +289,6 @@ fn resize(
 
     let mut link_to_low: Option<RcNode> = None;
     let mut link_to_high: Option<RcNode> = None;
-    let mut success_take = false;
 
     let left_exists = target_ref.left.exists();
     let mut parent_of_left = None;
@@ -312,17 +313,16 @@ fn resize(
                 && (parent_of_left == Some(target_ref.parent) || parent_of_right.is_none())))
     {
         // from low side
-        //TODO! check result;
+        //TODO! already loaded in link_to_low;
         let low_side_leaf = storage.get_node(target_ref.left).unwrap();
         link_to_low = Some(low_side_leaf.clone());
         let mut leaf_ref = low_side_leaf.borrow_mut();
 
         if leaf_ref.data_count > t {
-            success_take = true;
             let mut middle: Option<i32> = None;
             let min_key = leaf_ref.keys[leaf_ref.keys_count - 1];
             if !target_ref.is_leaf {
-                let link_to_parent = storage.get_node(target_ref.parent).unwrap();
+                //let link_to_parent = storage.get_node(target_ref.parent).unwrap();
                 //smiddle = link_to_parent.borrow().find_key(target_ref.first_key());
 
                 let low_data_node = storage.get_node(target_ref.data[0].into_id()).unwrap();
@@ -346,14 +346,13 @@ fn resize(
         }
     }
 
-    if !success_take
-        && (right_exists
-            && ((parent_of_left == parent_of_right)
-                || (parent_of_left != parent_of_right
-                    && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none()))))
+    if right_exists
+        && ((parent_of_left == parent_of_right)
+            || (parent_of_left != parent_of_right
+                && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none())))
     {
         // from high side
-        //TODO! check result;
+        //TODO! already loaded in link_to_high;
         let high_side_leaf = storage.get_node(target_ref.right).unwrap();
         link_to_high = Some(high_side_leaf.clone());
         let mut leaf_ref = high_side_leaf.borrow_mut();
@@ -390,6 +389,7 @@ fn resize(
             || (parent_of_left != parent_of_right
                 && (parent_of_left == Some(target_ref.parent) || parent_of_right.is_none())))
     {
+        //TODO! already loaded in link_to_low;
         let low_side = if link_to_low.is_some() {
             link_to_low.unwrap()
         } else {
@@ -452,6 +452,7 @@ fn resize(
                 || (parent_of_left != parent_of_right
                     && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none()))))
     {
+        //TODO! already loaded in link_to_high;
         let high_side = if link_to_high.is_some() {
             link_to_high.unwrap()
         } else {
@@ -772,7 +773,7 @@ mod tests {
 
         {
             let ref_node = leaf_high.borrow_mut();
-            assert_eq!(ref_node.keys, vec![5, 7, 0, 6]);
+            assert_eq!(ref_node.keys, vec![4, 5, 7, 0]);
             assert_eq!(
                 ref_node.data,
                 vec![
@@ -782,7 +783,7 @@ mod tests {
                     Record::from_u8(0),
                 ]
             );
-            assert_eq!(ref_node.keys_count, 2);
+            assert_eq!(ref_node.keys_count, 3);
             assert_eq!(ref_node.data_count, 3);
         }
 
@@ -1016,6 +1017,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
     fn remove_from_node_first() {
         let node = Node::new_root(
             types::Id(1),
@@ -1449,9 +1451,9 @@ mod tests {
                 root_node = remove_res.unwrap();
 
                 let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
-                if i == 11 {
-                    print_state(&str_before, &str_after);
-                }
+                // if i == 11 {
+                //     print_state(&str_before, &str_after);
+                // }
                 //                break;
                 let mut mapped_values = Vec::new();
                 if keys.len() > 2 {
@@ -1546,5 +1548,37 @@ mod tests {
     #[test]
     fn many_inserts_middle_range_7_22() {
         many_inserts_middle_range(7, 22);
+    }
+
+    #[test]
+    fn move_to_right() {
+        let (mut storage, mut root_node, mut keys) = make_tree(7, 3);
+
+        let res = insert(&mut storage, &root_node, 0, &Record::from_i32(0), 3);
+        root_node = res.unwrap();
+
+        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+
+        let remove_res = remove_key(&mut storage, &root_node, 5, 3);
+        assert!(remove_res.is_ok());
+        root_node = remove_res.unwrap();
+
+        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+
+        // {
+        //     print_state(&str_before, &str_after);
+        // }
+
+        for i in 0..19 {
+            if i == 5 || i == 1 {
+                continue;
+            }
+            let find_res = find(&mut storage, &root_node, i);
+            if find_res.is_err() {
+                print_state(&str_before, &str_after);
+            }
+            assert!(find_res.is_ok());
+            assert_eq!(find_res.unwrap().into_i32(), i);
+        }
     }
 }

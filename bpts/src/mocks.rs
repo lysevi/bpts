@@ -1,10 +1,11 @@
-use std::{collections::HashMap, rc::Rc};
-
+#[cfg(test)]
 use crate::{
     node::{self, RcNode},
     nodestorage::NodeStorage,
     types::{self, Id},
 };
+#[cfg(test)]
+use std::{collections::HashMap, rc::Rc};
 
 #[cfg(test)]
 use string_builder::Builder;
