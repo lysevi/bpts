@@ -1,5 +1,6 @@
 # bpts
 
+- [ ] test: take from high node
 - [ ] test: take from high leaf
 - [ ] record => {Id, Offset}
 - [ ] logger
