@@ -1551,10 +1551,10 @@ mod tests {
     }
 
     #[test]
-    fn move_to_right() {
-        let (mut storage, mut root_node, mut keys) = make_tree(7, 3);
+    fn remove_from_middle_leaf() {
+        let (mut storage, mut root_node, _keys) = make_tree(7, 3);
 
-        let res = insert(&mut storage, &root_node, 0, &Record::from_i32(0), 3);
+        let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1), 3);
         root_node = res.unwrap();
 
         let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
@@ -1569,8 +1569,8 @@ mod tests {
         //     print_state(&str_before, &str_after);
         // }
 
-        for i in 0..19 {
-            if i == 5 || i == 1 {
+        for i in 1..19 {
+            if i == 5 {
                 continue;
             }
             let find_res = find(&mut storage, &root_node, i);
