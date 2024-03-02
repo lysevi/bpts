@@ -1,6 +1,6 @@
 # bpts
 
-- [ ] remove from middle range
+- [ ] test: take from high leaf
 - [ ] record => {Id, Offset}
 - [ ] logger
 - [ ] refs by ptr (offset from start)
@@ -14,6 +14,7 @@
 
 - [ ] const EMPTY_PTR
 - [x] remove
+- [x] remove from middle range
 - [x] range query
 - [x] const EMPTY_ID
 - [x] mock node storage
