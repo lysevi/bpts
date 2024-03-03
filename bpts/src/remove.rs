@@ -385,14 +385,15 @@ fn resize(
         link_to_high = Some(high_side_leaf.clone());
         let mut leaf_ref = high_side_leaf.borrow_mut();
 
-        let mut first_key = leaf_ref.keys[0];
-        if !leaf_ref.is_leaf {
-            let first_child = storage
-                .get_node(leaf_ref.first_data().clone().into_id())
-                .unwrap();
-            first_key = first_child.borrow().first_key();
-        }
         if leaf_ref.data_count > t {
+            let mut first_key = leaf_ref.keys[0];
+            if !leaf_ref.is_leaf {
+                let first_child = storage
+                    .get_node(leaf_ref.first_data().clone().into_id())
+                    .unwrap();
+                first_key = first_child.borrow().first_key();
+            }
+
             let min_key = leaf_ref.keys[0];
             let mut middle: Option<i32> = None;
             if !target_ref.is_leaf {
@@ -456,19 +457,16 @@ fn resize(
             let min_key = target_ref.keys[0];
             let mut middle: Option<i32> = None;
 
+            let mut new_min_of_parent: Option<i32> = None;
             if target_ref.parent.exists() {
                 let parent = storage.get_node(target_ref.parent).unwrap();
                 if !target_ref.is_leaf {
                     middle = parent.borrow().find_key(min_key);
                 }
+                new_min_of_parent = Some(parent.borrow().first_key());
                 parent.borrow_mut().erase_link(target_ref.id);
             }
-            // if !target_ref.is_leaf && target_ref.data_count > 1 {
-            //     let child1 = storage.get_node(target_ref.data[0].into_id()).unwrap();
-            //     let cf = child1.borrow();
-            //     middle = Some(cf.first_key());
-            // }
-            let first_key = leaf_ref.first_key();
+            let first_key = target_ref.first_key();
             move_to_lower(storage, &mut target_ref, &mut leaf_ref, middle);
             storage.erase_node(&target_ref.id);
 
@@ -476,15 +474,12 @@ fn resize(
                 if leaf_ref.parent != target_ref.parent {
                     let parent = storage.get_node(target_ref.parent).unwrap();
                     if parent.borrow().data_count > 0 {
-                        let mut min_key = leaf_ref.keys[0];
-                        if !leaf_ref.is_leaf {
-                            //TODO check. if leaf_ref is leaf?
-                            let first_data = leaf_ref.first_data();
-
-                            let first_child = storage.get_node(first_data.into_id()).unwrap();
-                            min_key = first_child.borrow().first_key();
-                        }
-                        rollup_keys(storage, target_ref.parent, first_key, min_key);
+                        rollup_keys(
+                            storage,
+                            target_ref.parent,
+                            first_key,
+                            new_min_of_parent.unwrap(),
+                        );
                     }
                 }
             }
@@ -515,7 +510,6 @@ fn resize(
         };
 
         let mut leaf_ref = high_side.borrow_mut();
-        let mut high_first_key = leaf_ref.first_key();
 
         if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
             let min_key = leaf_ref.keys[0];
@@ -528,6 +522,7 @@ fn resize(
                 parent.borrow_mut().erase_link(target_ref.id);
             }
 
+            let old_min_key = leaf_ref.first_key();
             move_to_higher(storage, &mut target_ref, &mut leaf_ref, middle);
 
             leaf_ref.left = target_ref.left;
@@ -535,19 +530,15 @@ fn resize(
 
             if target_ref.parent.exists() {
                 if leaf_ref.parent != target_ref.parent {
-                    if !leaf_ref.is_leaf {
-                        let first_data = leaf_ref.first_data();
+                    let mut new_min_key = target_ref.first_key();
+                    if !target_ref.is_leaf {
+                        let first_data = target_ref.first_data();
 
                         let first_child = storage.get_node(first_data.into_id()).unwrap();
-                        high_first_key = first_child.borrow().first_key();
+                        new_min_key = first_child.borrow().first_key();
                     }
                     //TODO checks;
-                    rollup_keys(
-                        storage,
-                        leaf_ref.parent,
-                        high_first_key,
-                        leaf_ref.first_key(),
-                    );
+                    rollup_keys(storage, leaf_ref.parent, old_min_key, new_min_key);
                 }
             }
 
