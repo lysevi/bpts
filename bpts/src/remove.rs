@@ -328,8 +328,12 @@ fn resize(
             let mut first_key = target_ref.first_key();
             let mut min_key = leaf_ref.keys[leaf_ref.keys_count - 1];
             if !target_ref.is_leaf {
+                // if leaf_ref.parent == target_ref.parent {
                 let low_data_node = storage.get_node(target_ref.data[0].into_id()).unwrap();
                 middle = Some(low_data_node.borrow().first_key());
+                // } else {
+                //     todo!();
+                // }
             }
             take_from_low(storage, &mut target_ref, &mut leaf_ref, middle);
             if !target_ref.is_leaf {
@@ -381,13 +385,25 @@ fn resize(
         link_to_high = Some(high_side_leaf.clone());
         let mut leaf_ref = high_side_leaf.borrow_mut();
 
-        let first_key = leaf_ref.keys[0];
+        let mut first_key = leaf_ref.keys[0];
+        if !leaf_ref.is_leaf {
+            let first_child = storage
+                .get_node(leaf_ref.first_data().clone().into_id())
+                .unwrap();
+            first_key = first_child.borrow().first_key();
+        }
         if leaf_ref.data_count > t {
             let min_key = leaf_ref.keys[0];
             let mut middle: Option<i32> = None;
             if !target_ref.is_leaf {
-                let parent = storage.get_node(leaf_ref.parent).unwrap();
-                middle = parent.borrow().find_key(min_key);
+                if leaf_ref.parent == target_ref.parent {
+                    let parent = storage.get_node(leaf_ref.parent).unwrap();
+                    middle = parent.borrow().find_key(min_key);
+                } else {
+                    let first_high_child =
+                        storage.get_node(leaf_ref.first_data().into_id()).unwrap();
+                    middle = Some(first_high_child.borrow().first_key());
+                }
             }
 
             let new_min_key = take_from_high(&mut target_ref, &mut leaf_ref, middle);
@@ -403,7 +419,7 @@ fn resize(
                 parent.borrow_mut().update_key(leaf_ref.id, new_min_key);
 
                 if leaf_ref.parent != target_ref.parent {
-                    let parent = storage.get_node(target_ref.parent).unwrap();
+                    let parent = storage.get_node(leaf_ref.parent).unwrap();
                     if parent.borrow().data_count > 0 {
                         let mut min_key = leaf_ref.keys[0];
                         if !leaf_ref.is_leaf {
@@ -1750,6 +1766,44 @@ mod tests {
         }
 
         for i in [2, 157, 58, 59, 60, 61, 62, 63, 64, 65] {
+            let find_res = find(&mut storage, &root_node, i);
+            if find_res.is_err() {
+                MockNodeStorage::print_state(&str_before, &str_after);
+            }
+            assert!(find_res.is_ok());
+            assert_eq!(find_res.unwrap().into_i32(), i);
+        }
+    }
+
+    #[test]
+    fn remove_with_take_high_node_diff_parent() {
+        let (mut storage, mut root_node, _keys) = make_tree(50, 4);
+
+        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+
+        {
+            let node = storage.get_node(types::Id(16)).unwrap();
+            let mut nr = node.borrow_mut();
+            nr.keys_count -= 1;
+            nr.data_count -= 1;
+        }
+
+        {
+            let node = storage.get_node(types::Id(21)).unwrap();
+            let mut nr = node.borrow_mut();
+            nr.keys_count -= 2;
+            nr.data_count -= 2;
+        }
+        let node = storage.get_node(types::Id(21)).unwrap();
+        let res = resize(&mut storage, &node, 3, Some(root_node.clone()));
+        root_node = res.unwrap();
+        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+
+        {
+            MockNodeStorage::print_state(&str_before, &str_after);
+        }
+
+        for i in [2, 66, 67, 68, 69, 70, 71, 157] {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
                 MockNodeStorage::print_state(&str_before, &str_after);
