@@ -1,9 +1,13 @@
 # bpts
 
+- [*] test: take from high leaf with different parrents
+- [*] test: take from low leaf with different parrents
 - [ ] test: take from high node with different parrents
-- [ ] test: take from high leaf with different parrents
+- [ ] test: take from low node with different parrents
 - [ ] test: move high node with different parrents
 - [ ] test: move high leaf with different parrents
+- [ ] test: move high low with different parrents
+- [ ] test: move high low with different parrents
 - [ ] record => {Id, Offset}
 - [ ] logger
 - [ ] refs by ptr (offset from start)

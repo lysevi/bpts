@@ -46,8 +46,6 @@ pub fn insert(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::*;
     use crate::{
         mocks::MockNodeStorage,
