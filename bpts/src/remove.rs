@@ -496,24 +496,6 @@ fn resize(
                 leaf_ref.left = target_ref.left;
             }
 
-            //TODO needed?
-            if target_ref.parent.exists() {
-                if leaf_ref.parent != target_ref.parent {
-                    todo!();
-                    // let parent = storage.get_node(target_ref.parent).unwrap();
-                    // if parent.borrow().data_count > 0 {
-                    //     let first_data = parent.borrow().first_data();
-
-                    //     let first_child = storage.get_node(first_data.into_id()).unwrap();
-                    //     rollup_keys(
-                    //         storage,
-                    //         target_ref.parent,
-                    //         first_key,
-                    //         first_child.borrow().first_key(),
-                    //     );
-                    // }
-                }
-            }
             update_parent = true;
         }
     }
