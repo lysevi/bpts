@@ -6,6 +6,7 @@ pub mod nodestorage;
 pub mod read;
 pub mod rec;
 pub mod remove;
+mod rm;
 pub mod split;
 pub mod types;
 pub mod utils;
