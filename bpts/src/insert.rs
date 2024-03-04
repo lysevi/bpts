@@ -14,7 +14,7 @@ pub fn insert(
         } else {
             let scan_result = read::scan(storage, &root, key);
             if scan_result.is_err() {
-                return Err(scan_result.err().unwrap());
+                return scan_result;
             }
 
             target_node = scan_result.unwrap();
@@ -54,7 +54,7 @@ mod tests {
         rec::Record,
     };
 
-    fn many_inserts(t: usize, maxnodecount: usize) {
+    fn many_inserts(t: usize, maxnodecount: usize) -> Result<(), types::Error> {
         let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
@@ -76,20 +76,21 @@ mod tests {
                 if key == 22 && i == 20 {
                     println!("!");
                 }
-                let res = find(&mut storage, &root_node, i);
-                assert!(res.is_ok());
+                let res = find(&mut storage, &root_node, i)?;
+                assert!(res.is_some());
                 assert_eq!(res.unwrap().into_i32(), i);
             }
         }
 
         for i in 2..key {
-            let res = find(&mut storage, &root_node, i);
-            assert!(res.is_ok());
+            let res = find(&mut storage, &root_node, i)?;
+            assert!(res.is_some());
             assert_eq!(res.unwrap().into_i32(), i);
         }
 
-        let res = find(&mut storage, &root_node, key - 1);
-        println!(">> {:?}", res);
+        let res = find(&mut storage, &root_node, key - 1)?;
+        assert!(res.is_some());
+        //println!(">> {:?}", res);
         let mut mapped_values = Vec::new();
         map(&mut storage, &root_node, 2, key - 1, &mut |k, v| {
             println!("mapped {:?}", k);
@@ -115,9 +116,10 @@ mod tests {
         for i in 1..mapped_values.len() {
             assert!(mapped_values[i - 1] > mapped_values[i]);
         }
+        Ok(())
     }
 
-    fn many_inserts_back(t: usize, maxnodecount: usize) {
+    fn many_inserts_back(t: usize, maxnodecount: usize) -> Result<(), types::Error> {
         let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
@@ -134,15 +136,15 @@ mod tests {
 
             for i in (key..99).rev() {
                 // println!(">> {}", i);
-                let res = find(&mut storage, &root_node, i);
-                assert!(res.is_ok());
+                let res = find(&mut storage, &root_node, i)?;
+                assert!(res.is_some());
                 assert_eq!(res.unwrap().into_i32(), i);
             }
         }
 
         for i in (key..99).rev() {
-            let res = find(&mut storage, &root_node, i);
-            assert!(res.is_ok());
+            let res = find(&mut storage, &root_node, i)?;
+            assert!(res.is_some());
             assert_eq!(res.unwrap().into_i32(), i);
         }
 
@@ -173,94 +175,10 @@ mod tests {
         for i in 1..mapped_values.len() {
             assert!(mapped_values[i - 1] > mapped_values[i]);
         }
+        Ok(())
     }
 
-    #[test]
-    fn insert_to_tree() {
-        let leaf1 = Node::new_leaf(
-            types::Id(1),
-            vec![2, 3, 0, 0, 0, 0],
-            vec![
-                Record::from_u8(2),
-                Record::from_u8(3),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
-            ],
-            2,
-            2,
-        );
-
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
-        storage.add_node(&leaf1);
-
-        let new_value = Record::from_u8(1);
-        let mut result = insert(&mut storage, &leaf1, 1, &new_value, 3);
-        assert!(result.is_ok());
-        let mut new_root = result.unwrap();
-        assert_eq!(new_root.borrow().keys_count, 3);
-
-        result = insert(&mut storage, &leaf1, 5, &new_value, 3);
-        assert!(result.is_ok());
-        new_root = result.unwrap();
-        assert_eq!(new_root.borrow().keys_count, 4);
-
-        result = insert(&mut storage, &leaf1, 4, &new_value, 3);
-        assert!(result.is_ok());
-        new_root = result.unwrap();
-        assert_eq!(new_root.borrow().keys_count, 5);
-
-        {
-            let r = new_root.borrow();
-            for i in 0..r.keys_count {
-                assert_eq!(r.keys[i], (i + 1) as i32)
-            }
-        }
-
-        let new_data = Record::from_u8(6);
-        result = insert(&mut storage, &leaf1, 6, &new_data, 3);
-        assert!(result.is_ok());
-        new_root = result.unwrap();
-        assert!(!new_root.borrow().is_leaf);
-        let search_result = read::find(&mut storage, &new_root, 6);
-        assert!(search_result.is_ok());
-
-        let unpacked = search_result.expect("!");
-        assert_eq!(unpacked.into_u8(), 6u8);
-    }
-
-    #[test]
-    fn many_inserts_3_10() {
-        many_inserts(3, 10);
-    }
-
-    #[test]
-    fn many_inserts_7_22() {
-        many_inserts(7, 22);
-    }
-
-    #[test]
-    fn many_inserts_back_3_10() {
-        many_inserts_back(3, 10);
-    }
-
-    #[test]
-    fn many_inserts_back_7_22() {
-        many_inserts_back(7, 22);
-    }
-
-    #[test]
-    fn inserts_to_middle_1_100_3() {
-        inserts_to_middle(1, 100, 3);
-    }
-
-    #[test]
-    fn inserts_to_middle_1_1000_6() {
-        inserts_to_middle(1, 1000, 6);
-    }
-
-    fn inserts_to_middle(key_from: i32, key_to: i32, t: usize) {
+    fn inserts_to_middle(key_from: i32, key_to: i32, t: usize) -> Result<(), types::Error> {
         let mut ranges = Vec::new();
         ranges.push((key_from, key_to));
 
@@ -317,10 +235,98 @@ mod tests {
                     MockNodeStorage::print_state(&str_before, &str_after)
                 }
                 assert!(res.is_ok());
-                assert_eq!(res.unwrap().into_i32(), keys[j]);
+                assert_eq!(res.unwrap().unwrap().into_i32(), keys[j]);
             }
         }
+        return Ok(());
     }
+
+    #[test]
+    fn insert_to_tree() -> Result<(), types::Error> {
+        let leaf1 = Node::new_leaf(
+            types::Id(1),
+            vec![2, 3, 0, 0, 0, 0],
+            vec![
+                Record::from_u8(2),
+                Record::from_u8(3),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+                Record::from_u8(0),
+            ],
+            2,
+            2,
+        );
+
+        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        storage.add_node(&leaf1);
+
+        let new_value = Record::from_u8(1);
+        let mut result = insert(&mut storage, &leaf1, 1, &new_value, 3);
+        assert!(result.is_ok());
+        let mut new_root = result.unwrap();
+        assert_eq!(new_root.borrow().keys_count, 3);
+
+        result = insert(&mut storage, &leaf1, 5, &new_value, 3);
+        assert!(result.is_ok());
+        new_root = result.unwrap();
+        assert_eq!(new_root.borrow().keys_count, 4);
+
+        result = insert(&mut storage, &leaf1, 4, &new_value, 3);
+        assert!(result.is_ok());
+        new_root = result.unwrap();
+        assert_eq!(new_root.borrow().keys_count, 5);
+
+        {
+            let r = new_root.borrow();
+            for i in 0..r.keys_count {
+                assert_eq!(r.keys[i], (i + 1) as i32)
+            }
+        }
+
+        let new_data = Record::from_u8(6);
+        result = insert(&mut storage, &leaf1, 6, &new_data, 3);
+        assert!(result.is_ok());
+        new_root = result.unwrap();
+        assert!(!new_root.borrow().is_leaf);
+        let search_result = read::find(&mut storage, &new_root, 6)?;
+        assert!(search_result.is_some());
+
+        let unpacked = search_result.expect("!");
+        assert_eq!(unpacked.into_u8(), 6u8);
+        Ok(())
+    }
+
+    #[test]
+    fn many_inserts_3_10() -> Result<(), types::Error> {
+        many_inserts(3, 10)
+    }
+
+    #[test]
+    fn many_inserts_7_22() -> Result<(), types::Error> {
+        many_inserts(7, 22)
+    }
+
+    #[test]
+    fn many_inserts_back_3_10() -> Result<(), types::Error> {
+        many_inserts_back(3, 10)
+    }
+
+    #[test]
+    fn many_inserts_back_7_22() -> Result<(), types::Error> {
+        many_inserts_back(7, 22)
+    }
+
+    #[test]
+    fn inserts_to_middle_1_100_3() -> Result<(), types::Error> {
+        inserts_to_middle(1, 100, 3)
+    }
+
+    #[test]
+    fn inserts_to_middle_1_500_6() -> Result<(), types::Error> {
+        inserts_to_middle(1, 500, 6)
+    }
+
     #[test]
     #[ignore]
     fn insert_duplicate() {

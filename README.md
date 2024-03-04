@@ -1,8 +1,8 @@
 # bpts
 
 - [ ] record => {Id, Offset}
-- [ ] logger
 - [ ] refs by ptr (offset from start)
+- [ ] logger
 - [ ] remove ref. to parent.
 - [ ] trait Action - add, scan, remove
 - [ ] index

@@ -104,22 +104,21 @@ impl Node {
         return None;
     }
 
-    pub fn find(&self, key: i32) -> Option<&Record> {
+    pub fn find(&self, key: i32) -> Option<Record> {
         if !self.is_leaf {
             if key < self.keys[0] {
-                return self.data.first();
+                return Some(self.data.first().unwrap().clone());
             }
 
-            
             if self.keys[self.keys_count - 1] <= key {
-                return Some(&self.data[self.data_count - 1]);
+                return Some(self.data[self.data_count - 1].clone());
             }
 
             for i in 0..self.keys_count {
                 match (self.keys[i]).cmp(&key) {
                     std::cmp::Ordering::Less => continue,
-                    std::cmp::Ordering::Equal => return Some(&self.data[i + 1]),
-                    std::cmp::Ordering::Greater => return Some(&self.data[i]),
+                    std::cmp::Ordering::Equal => return Some(self.data[i + 1].clone()),
+                    std::cmp::Ordering::Greater => return Some(self.data[i].clone()),
                 }
             }
             return None;
@@ -128,8 +127,8 @@ impl Node {
         for i in 0..self.keys_count {
             match (self.keys[i]).cmp(&key) {
                 std::cmp::Ordering::Less => continue,
-                std::cmp::Ordering::Equal => return Some(&self.data[i]),
-                std::cmp::Ordering::Greater => return Some(&self.data[i]),
+                std::cmp::Ordering::Equal => return Some(self.data[i].clone()),
+                std::cmp::Ordering::Greater => continue, //return Some(self.data[i].clone()),
             }
         }
         return None;

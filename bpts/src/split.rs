@@ -37,11 +37,7 @@ pub fn split_node(
         // println!("split exists root {:?}", target_node.borrow().parent);
 
         is_new_root = false;
-        let subres = storage.get_node(target_node.borrow().parent);
-        if subres.is_err() {
-            return subres;
-        }
-        parent_node = subres.unwrap();
+        parent_node = storage.get_node(target_node.borrow().parent)?;
     }
 
     let mut new_keys = vec![0i32; target_node.borrow().keys.capacity()];
@@ -88,12 +84,8 @@ pub fn split_node(
         for i in 0..brother_data_count {
             let child_num = new_data[i].into_id();
             if child_num != target_id {
-                let child = storage.get_node(child_num);
-
-                if child.is_err() {
-                    return child;
-                }
-                child.unwrap().borrow_mut().parent = new_id;
+                let child = storage.get_node(child_num)?;
+                child.borrow_mut().parent = new_id;
             }
         }
 
@@ -115,7 +107,7 @@ pub fn split_node(
         ref_to_brother.right = target_node.borrow().right;
         if ref_to_brother.right.exists() {
             //TODO! check result
-            let right_brother = storage.get_node(ref_to_brother.right).unwrap();
+            let right_brother = storage.get_node(ref_to_brother.right)?;
             right_brother.borrow_mut().left = new_id;
         }
         target_node.borrow_mut().right = ref_to_brother.id;
@@ -182,7 +174,7 @@ mod tests {
         assert!(all_links_exists);
     }
     #[test]
-    fn split_leaf() {
+    fn split_leaf() -> Result<(), types::Error> {
         let leaf1 = Node::new_leaf(
             types::Id(1),
             vec![1, 2, 3, 4, 5, 6],
@@ -200,8 +192,7 @@ mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf1);
 
-        let result = split_node(&mut storage, &leaf1, 3, None);
-        let root = result.unwrap();
+        let root = split_node(&mut storage, &leaf1, 3, None)?;
 
         assert_eq!(root.borrow().is_leaf, false);
         assert_eq!(root.borrow().keys_count, 1);
@@ -236,8 +227,8 @@ mod tests {
             );
         }
 
-        let res = read::find(&mut storage, &root, 1);
-        assert!(res.is_ok());
+        let res = read::find(&mut storage, &root, 1)?;
+        assert!(res.is_some());
         assert_eq!(res.unwrap(), Record::from_u8(1));
 
         check_link_to_brother(&storage);
@@ -246,6 +237,7 @@ mod tests {
             let r = find(&mut storage, &root, i);
             assert!(r.is_ok());
         }
+        return Ok(());
     }
 
     #[test]

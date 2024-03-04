@@ -42,19 +42,10 @@ pub fn find<'a>(
     storage: &mut dyn NodeStorage,
     root: &RcNode,
     key: i32,
-) -> Result<Record, types::Error> {
-    let node = scan(storage, root, key);
-    match node {
-        Ok(n) => {
-            let b = n.borrow();
-            let r = b.find(key);
-            if r.is_none() {
-                return Err(types::Error("not found".to_owned()));
-            }
-            return Ok(r.unwrap().clone());
-        }
-        Err(e) => Err(e),
-    }
+) -> Result<Option<Record>, types::Error> {
+    let node = scan(storage, root, key)?;
+    let r = node.borrow();
+    return Ok(r.find(key));
 }
 
 pub fn map<'a, F>(
@@ -168,7 +159,7 @@ mod tests {
     use crate::{mocks::MockNodeStorage, node::Node};
 
     #[test]
-    fn find_in_tree() {
+    fn find_in_tree() -> Result<(), types::Error> {
         let leaf1 = Node::new_leaf(
             types::Id(0),
             vec![2, 3],
@@ -179,8 +170,8 @@ mod tests {
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf1);
-        let res = find(&mut storage, &leaf1, 2);
-        assert!(res.is_ok());
+        let res = find(&mut storage, &leaf1, 2)?;
+        assert!(res.is_some());
         assert_eq!(res.unwrap().into_u8(), 2u8);
 
         let leaf2 = Node::new_leaf(types::Id(1), vec![1], vec![Record::from_u8(1)], 1, 1);
@@ -195,12 +186,13 @@ mod tests {
         );
 
         storage.add_node(&node1);
-        let res_1 = find(&mut storage, &node1, 1);
-        assert!(res_1.is_ok());
+        let res_1 = find(&mut storage, &node1, 1)?;
+        assert!(res_1.is_some());
         assert_eq!(res_1.unwrap().into_u8(), 1u8);
 
-        let res_2 = find(&mut storage, &node1, 2);
-        assert!(res_2.is_ok());
+        let res_2 = find(&mut storage, &node1, 2)?;
+        assert!(res_2.is_some());
         assert_eq!(res_2.unwrap().into_u8(), 2u8);
+        return Ok(());
     }
 }
