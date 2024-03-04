@@ -325,8 +325,7 @@ fn resize(
                 && (parent_of_left == Some(target_ref.parent) || parent_of_right.is_none())))
     {
         // from low side
-        //TODO! already loaded in link_to_low;
-        let low_side_leaf = storage.get_node(target_ref.left)?;
+        let low_side_leaf = link_to_low.unwrap();
         link_to_low = Some(low_side_leaf.clone());
         let mut leaf_ref = low_side_leaf.borrow_mut();
 
@@ -387,8 +386,7 @@ fn resize(
                 && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none())))
     {
         // from high side
-        //TODO! already loaded in link_to_high;
-        let high_side_leaf = storage.get_node(target_ref.right)?;
+        let high_side_leaf = link_to_high.unwrap();
         link_to_high = Some(high_side_leaf.clone());
         let mut leaf_ref = high_side_leaf.borrow_mut();
 
