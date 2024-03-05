@@ -30,7 +30,7 @@ pub fn insert(
                 break;
             }
 
-            if mut_ref.keys[i] == 0 {
+            if mut_ref.keys[i] == key {
                 index = i;
                 break;
             }
