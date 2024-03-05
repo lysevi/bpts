@@ -8,12 +8,12 @@ fn main() {
     let count = 1000;
     let mut rng = rand::thread_rng();
 
-    let mut nums: Vec<i32> = (0..count).collect();
+    let mut nums: Vec<i32> = (1..=count).collect();
     nums.shuffle(&mut rng);
     println!("nums: {:?}", nums.len());
     // let t = 5;
     // nums = vec![9, 1, 7, 3, 4, 5, 2, 0, 8, 6];
-    for t in 4..500 {
+    for t in 4..100 {
         print!("t:{}", t);
         std::io::stdout().flush().unwrap();
         let start = Instant::now();
