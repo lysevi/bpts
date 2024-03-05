@@ -10,6 +10,7 @@
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
 - [ ] COW (storage.commit(), storage.rollback())
+   - [ ] Meta-page store all tree. link to prev. meta-page
 - [ ] tables
    - [ ] indexes
 
