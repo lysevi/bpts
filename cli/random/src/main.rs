@@ -5,7 +5,7 @@ use rand::prelude::*;
 use std::time::Instant;
 
 fn main() {
-    let count = 10;
+    let count = 1000;
     let mut rng = rand::thread_rng();
 
     let mut nums: Vec<i32> = (0..count).collect();
