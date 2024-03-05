@@ -93,7 +93,6 @@ pub(in super::super) fn rebalancing(
             || (parent_of_left != parent_of_right
                 && (parent_of_left == Some(target_ref.parent) || parent_of_right.is_none())))
     {
-        //TODO! already loaded in link_to_low;
         let low_side = link_to_low.clone().unwrap();
         let mut leaf_ref = low_side.borrow_mut();
         update_parent = try_move_to_low(storage, &mut target_ref, &mut leaf_ref, t)?;
@@ -106,14 +105,12 @@ pub(in super::super) fn rebalancing(
                 || (parent_of_left != parent_of_right
                     && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none()))))
     {
-        //TODO! already loaded in link_to_high;
         let high_side = link_to_high.unwrap();
         let mut leaf_ref = high_side.borrow_mut();
         update_parent = try_move_to_high(storage, &mut target_ref, &mut leaf_ref, t)?;
     }
 
     if update_parent && target_ref.parent.exists() {
-        //TODO! check result
         let link_to_parent = storage.get_node(target_ref.parent)?;
         if link_to_parent.borrow().keys_count < t {
             return rebalancing(storage, &link_to_parent, t, root);
