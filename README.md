@@ -3,13 +3,15 @@
 - [ ] record => {Offset, Value{offset}}
 - [ ] const EMPTY_PTR
 - [ ] refs by ptr (offset from start), ptr in Node
+- [ ] cursor. map over cursor.
+- [ ] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
 - [ ] logger
 - [ ] trait Action - add, scan, remove
-- [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
-- [ ] COW
-
+- [ ] COW (storage.commit(), storage.rollback())
+- [ ] tables
+   - [ ] indexes
 
 
 - [x] remove
