@@ -776,14 +776,23 @@ pub(crate) mod tests {
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 // /                println!("remove {:?}", i);
 
-                let str_before =
-                    storage.to_string(root_node.clone(), true, &String::from("before"));
+                let str_before = crate::debug::storage_to_string(
+                    &storage,
+                    root_node.clone(),
+                    true,
+                    &String::from("before"),
+                );
 
                 let remove_res = remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
-                let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+                let str_after = crate::debug::storage_to_string(
+                    &storage,
+                    root_node.clone(),
+                    true,
+                    &String::from("after"),
+                );
 
                 let mut mapped_values = Vec::new();
                 map(&mut storage, &root_node, i, key, &mut |k, v| {
@@ -795,7 +804,7 @@ pub(crate) mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] >= mapped_values[i] {
                         println!("bad order");
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -816,12 +825,12 @@ pub(crate) mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, k)?;
                     if find_res.is_none() {
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
                     if d.into_i32() != k {
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), k);
                 }
@@ -847,13 +856,22 @@ pub(crate) mod tests {
                 assert!(find_res.is_some());
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 println!(">> remove {:?}", i);
-                let str_before =
-                    storage.to_string(root_node.clone(), true, &String::from("before"));
+                let str_before = crate::debug::storage_to_string(
+                    &storage,
+                    root_node.clone(),
+                    true,
+                    &String::from("before"),
+                );
 
                 let remove_res = remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
-                let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+                let str_after = crate::debug::storage_to_string(
+                    &storage,
+                    root_node.clone(),
+                    true,
+                    &String::from("after"),
+                );
 
                 if root_node.borrow().is_empty() && i == 2 {
                     break;
@@ -868,7 +886,7 @@ pub(crate) mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] <= mapped_values[i] {
                         println!("bad order");
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -893,12 +911,12 @@ pub(crate) mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, k)?;
                     if find_res.is_none() {
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
                     if d.into_i32() != k {
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), k);
                 }
@@ -936,14 +954,23 @@ pub(crate) mod tests {
                 // if i == 29 {
                 //     println!("!");
                 // }
-                let str_before =
-                    storage.to_string(root_node.clone(), true, &String::from("before"));
+                let str_before = crate::debug::storage_to_string(
+                    &storage,
+                    root_node.clone(),
+                    true,
+                    &String::from("before"),
+                );
 
                 let remove_res = remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
-                let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+                let str_after = crate::debug::storage_to_string(
+                    &storage,
+                    root_node.clone(),
+                    true,
+                    &String::from("after"),
+                );
                 // if i == 11 {
                 //     print_state(&str_before, &str_after);
                 // }
@@ -966,7 +993,7 @@ pub(crate) mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] >= mapped_values[i] {
                         println!("bad order");
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -986,12 +1013,12 @@ pub(crate) mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, *k)?;
                     if find_res.is_none() {
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
                     if d.into_i32() != *k {
-                        MockNodeStorage::print_state(&str_before, &str_after);
+                        crate::debug::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), *k);
                 }
@@ -1048,13 +1075,23 @@ pub(crate) mod tests {
         let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1), 3);
         root_node = res.unwrap();
 
-        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+        let str_before = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("before"),
+        );
 
         let remove_res = remove_key(&mut storage, &root_node, 5, 3);
         assert!(remove_res.is_ok());
         root_node = remove_res.unwrap();
 
-        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+        let str_after = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("after"),
+        );
 
         // {
         //     print_state(&str_before, &str_after);
@@ -1066,7 +1103,7 @@ pub(crate) mod tests {
             }
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                MockNodeStorage::print_state(&str_before, &str_after);
+                crate::debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_i32(), i);

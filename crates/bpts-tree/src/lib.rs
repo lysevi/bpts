@@ -19,5 +19,6 @@ pub use nodestorage::NodeStorage;
 pub use read::find;
 pub use rec::Record;
 pub use types::Id;
+pub use utils::debug;
 
 pub type Result<T> = std::result::Result<T, types::Error>;

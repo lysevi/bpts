@@ -27,14 +27,19 @@ fn main() {
             // }
             //let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
             let res = insert(&mut storage, &root_node, *i, &Record::from_i32(*i), t);
-            //MockNodeStorage::print_state(&str_before, &String::from(""));
+            //crate::helpers::print_state(&str_before, &String::from(""));
             assert!(res.is_ok());
             root_node = res.unwrap();
         }
 
         let duration = start.elapsed();
         println!("\tstorage size:{} \telapsed:{:?}", storage.size(), duration);
-        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+        let str_before = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("before"),
+        );
         for i in &nums {
             let res = bpts::find(&mut storage, &root_node, *i);
             if res.is_err() {
@@ -44,7 +49,7 @@ fn main() {
             let v = res.unwrap();
             if !v.is_some() {
                 println!("not found {}", *i);
-                MockNodeStorage::print_state(&str_before, &String::from(""));
+                crate::debug::print_state(&str_before, &String::from(""));
                 return;
             }
             assert!(v.is_some());

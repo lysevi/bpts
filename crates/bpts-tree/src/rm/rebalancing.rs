@@ -125,7 +125,6 @@ mod tests {
 
     use super::super::super::remove::tests::make_tree;
     use super::*;
-    use crate::mocks::MockNodeStorage;
     use crate::read::find;
     use crate::types;
 
@@ -135,7 +134,12 @@ mod tests {
 
         let mut keyset: HashSet<i32> = HashSet::from_iter(_keys.iter().cloned());
 
-        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+        let str_before = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("before"),
+        );
         {
             let node = storage.get_node(types::Id(4)).unwrap();
             let mut nr = node.borrow_mut();
@@ -162,16 +166,21 @@ mod tests {
             assert_eq!(node.borrow().keys[0], 19);
         }
 
-        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+        let str_after = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("after"),
+        );
 
         {
-            MockNodeStorage::print_state(&str_before, &str_after);
+            crate::debug::print_state(&str_before, &str_after);
         }
 
         for i in keyset {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                MockNodeStorage::print_state(&str_before, &str_after);
+                crate::debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
@@ -185,7 +194,12 @@ mod tests {
 
         let mut keyset: HashSet<i32> = HashSet::from_iter(_keys.iter().cloned());
 
-        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+        let str_before = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("before"),
+        );
 
         {
             let node = storage.get_node(types::Id(7)).unwrap();
@@ -212,16 +226,21 @@ mod tests {
             let node = storage.get_node(types::Id(10)).unwrap();
             assert_eq!(node.borrow().keys[0], 17);
         }
-        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+        let str_after = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("after"),
+        );
 
         {
-            MockNodeStorage::print_state(&str_before, &str_after);
+            crate::debug::print_state(&str_before, &str_after);
         }
 
         for i in keyset {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                MockNodeStorage::print_state(&str_before, &str_after);
+                crate::debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
@@ -233,7 +252,12 @@ mod tests {
     fn remove_with_take_low_node_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(50, 4);
 
-        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+        let str_before = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("before"),
+        );
 
         {
             let node = storage.get_node(types::Id(31)).unwrap();
@@ -251,16 +275,21 @@ mod tests {
         let node = storage.get_node(types::Id(26)).unwrap();
         let res = rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
         root_node = res.unwrap();
-        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+        let str_after = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("after"),
+        );
 
         {
-            MockNodeStorage::print_state(&str_before, &str_after);
+            crate::debug::print_state(&str_before, &str_after);
         }
 
         for i in [2, 157, 58, 59, 60, 61, 62, 63, 64, 65] {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                MockNodeStorage::print_state(&str_before, &str_after);
+                crate::debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
@@ -272,7 +301,12 @@ mod tests {
     fn remove_with_take_high_node_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(50, 4);
 
-        let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+        let str_before = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("before"),
+        );
 
         {
             let node = storage.get_node(types::Id(16)).unwrap();
@@ -290,16 +324,21 @@ mod tests {
         let node = storage.get_node(types::Id(21)).unwrap();
         let res = rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
         root_node = res.unwrap();
-        let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+        let str_after = crate::debug::storage_to_string(
+            &storage,
+            root_node.clone(),
+            true,
+            &String::from("after"),
+        );
 
         {
-            MockNodeStorage::print_state(&str_before, &str_after);
+            crate::debug::print_state(&str_before, &str_after);
         }
 
         for i in [2, 66, 67, 68, 69, 70, 71, 157] {
             let find_res = find(&mut storage, &root_node, i)?;
             if find_res.is_none() {
-                MockNodeStorage::print_state(&str_before, &str_after);
+                crate::debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_some());
             assert_eq!(find_res.unwrap().into_i32(), i);

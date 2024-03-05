@@ -216,7 +216,12 @@ mod tests {
 
         for i in 0..keys.len() {
             //println!("insert {}", keys[i]);
-            let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+            let str_before = crate::debug::storage_to_string(
+                &storage,
+                root_node.clone(),
+                true,
+                &String::from("before"),
+            );
             let res = insert(
                 &mut storage,
                 &root_node,
@@ -227,13 +232,18 @@ mod tests {
             assert!(res.is_ok());
             root_node = res.unwrap();
 
-            let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
+            let str_after = crate::debug::storage_to_string(
+                &storage,
+                root_node.clone(),
+                true,
+                &String::from("after"),
+            );
 
             for j in 0..i {
                 let res = find(&mut storage, &root_node, keys[j]);
                 if res.is_err() {
                     println!("> not found {}", keys[j]);
-                    MockNodeStorage::print_state(&str_before, &str_after)
+                    crate::debug::print_state(&str_before, &str_after)
                 }
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().unwrap().into_i32(), keys[j]);
