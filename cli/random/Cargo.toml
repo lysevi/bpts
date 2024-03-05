@@ -1,14 +1,10 @@
 [package]
-name = "bpts"
+name = "random"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-memmap2="*"
-tempfile ="*"
-string-builder="0.2.0"
-
-[dev-dependencies]
-
+bpts={path="../../crates/bpts-tree"}
+rand = "0.8.5"

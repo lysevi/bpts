@@ -1,22 +1,17 @@
-#[cfg(test)]
 use crate::{
     node::{self, RcNode},
     nodestorage::NodeStorage,
     types::{self, Id},
     Result,
 };
-#[cfg(test)]
 use std::{collections::HashMap, rc::Rc};
 
-#[cfg(test)]
 use string_builder::Builder;
 
-#[cfg(test)]
 pub struct MockNodeStorage {
     nodes: HashMap<i32, RcNode>,
 }
 
-#[cfg(test)]
 impl MockNodeStorage {
     pub fn size(&self) -> usize {
         return self.nodes.len();
@@ -178,7 +173,7 @@ impl MockNodeStorage {
         }
     }
 }
-#[cfg(test)]
+
 impl NodeStorage for MockNodeStorage {
     fn get_new_id(&self) -> types::Id {
         let max = self.nodes.keys().into_iter().max_by(|x, y| x.cmp(y));
