@@ -8,7 +8,7 @@ use crate::{
     types,
 };
 
-pub(in super::super) fn resize(
+pub(in super::super) fn rebalancing(
     storage: &mut dyn NodeStorage,
     target: &RcNode,
     t: usize,
@@ -116,7 +116,7 @@ pub(in super::super) fn resize(
         //TODO! check result
         let link_to_parent = storage.get_node(target_ref.parent)?;
         if link_to_parent.borrow().keys_count < t {
-            return resize(storage, &link_to_parent, t, root);
+            return rebalancing(storage, &link_to_parent, t, root);
         }
     }
     return Ok(root.unwrap());
@@ -156,7 +156,7 @@ mod tests {
             }
             keyset.remove(&16);
             keyset.remove(&17);
-            let res = resize(&mut storage, &node, 3, Some(root_node.clone()));
+            let res = rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
             root_node = res.unwrap()
         }
         {
@@ -207,7 +207,7 @@ mod tests {
             }
             keyset.remove(&20);
             keyset.remove(&21);
-            let res = resize(&mut storage, &node, 3, Some(root_node.clone()));
+            let res = rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
             root_node = res.unwrap()
         }
         {
@@ -251,7 +251,7 @@ mod tests {
             nr.data_count -= 2;
         }
         let node = storage.get_node(types::Id(26)).unwrap();
-        let res = resize(&mut storage, &node, 3, Some(root_node.clone()));
+        let res = rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
         root_node = res.unwrap();
         let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
 
@@ -290,7 +290,7 @@ mod tests {
             nr.data_count -= 2;
         }
         let node = storage.get_node(types::Id(21)).unwrap();
-        let res = resize(&mut storage, &node, 3, Some(root_node.clone()));
+        let res = rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
         root_node = res.unwrap();
         let str_after = storage.to_string(root_node.clone(), true, &String::from("after"));
 

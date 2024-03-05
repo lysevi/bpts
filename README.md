@@ -1,9 +1,9 @@
 # bpts
 
-- [ ] record => {Id, Offset}
-- [ ] refs by ptr (offset from start)
+- [ ] record => {Offset, Value{offset}}
+- [ ] const EMPTY_PTR
+- [ ] refs by ptr (offset from start), ptr in Node
 - [ ] logger
-- [ ] remove ref. to parent.
 - [ ] trait Action - add, scan, remove
 - [ ] index
 - [ ] query language: tablename.where(x => column<3).take(10)
@@ -11,7 +11,7 @@
 - [ ] COW
 
 
-- [ ] const EMPTY_PTR
+
 - [x] remove
 - [x] remove from middle range
 - [x] range query

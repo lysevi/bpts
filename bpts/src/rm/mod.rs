@@ -7,7 +7,7 @@ use crate::{
 use self::rollup::rollup_keys;
 
 pub mod move_to;
-pub mod resize;
+pub mod rebalancing;
 pub mod rollup;
 pub mod take_from;
 
@@ -80,5 +80,5 @@ pub(super) fn erase_key(
         }
     }
 
-    return resize::resize(storage, target, t, root);
+    return rebalancing::rebalancing(storage, target, t, root);
 }
