@@ -1,11 +1,11 @@
-use crate::{node::RcNode, nodestorage::NodeStorage, read, rm::erase_key, types};
+use crate::{node::RcNode, nodestorage::NodeStorage, read, rm::erase_key, Result};
 
 pub fn remove_key(
     storage: &mut dyn NodeStorage,
     root: &RcNode,
     key: i32,
     t: usize,
-) -> Result<RcNode, types::Error> {
+) -> Result<RcNode> {
     let target_node: RcNode;
 
     let scan_result = read::scan(storage, &root, key);
@@ -33,6 +33,7 @@ pub(crate) mod tests {
     use crate::node::Node;
     use crate::read::{find, map, map_rev};
     use crate::rec::Record;
+    use crate::types;
 
     pub fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
         let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
@@ -60,7 +61,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf() -> Result<(), types::Error> {
+    fn remove_from_leaf() -> Result<()> {
         let leaf = Node::new_leaf(
             types::Id(1),
             vec![1, 2, 3, 4, 5, 6],
@@ -103,7 +104,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_update_parent() -> Result<(), types::Error> {
+    fn remove_from_leaf_update_parent() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         let leaf1 = Node::new_leaf(
             types::Id(1),
@@ -188,7 +189,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_take_from_lower() -> Result<(), types::Error> {
+    fn remove_from_leaf_take_from_lower() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
 
         let root = Node::new_root(
@@ -292,7 +293,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_take_from_high() -> Result<(), types::Error> {
+    fn remove_from_leaf_take_from_high() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         let root = Node::new_root(
             types::Id(3),
@@ -395,7 +396,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_move_to_lower() -> Result<(), types::Error> {
+    fn remove_from_leaf_move_to_lower() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
 
         let leaf_high = Node::new_leaf(
@@ -452,7 +453,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_move_to_high() -> Result<(), types::Error> {
+    fn remove_from_leaf_move_to_high() -> Result<()> {
         let leaf_low = Node::new_leaf(
             types::Id(1),
             vec![5, 6, 7, 0],
@@ -536,7 +537,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_move_to_lower_update_parent() -> Result<(), types::Error> {
+    fn remove_from_leaf_move_to_lower_update_parent() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
 
         let root = Node::new_root(
@@ -649,7 +650,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn remove_from_leaf_move_to_high_update_parent() -> Result<(), types::Error> {
+    fn remove_from_leaf_move_to_high_update_parent() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         /*
               9            15
@@ -757,7 +758,7 @@ pub(crate) mod tests {
         return Ok(());
     }
 
-    fn many_inserts(t: usize, maxnodes: usize) -> Result<(), types::Error> {
+    fn many_inserts(t: usize, maxnodes: usize) -> Result<()> {
         for hight in 3..maxnodes {
             // let hight = 22;
             let (mut storage, mut root_node, keys) = make_tree(hight, t);
@@ -830,7 +831,7 @@ pub(crate) mod tests {
         //TODO check map map_rev
     }
 
-    fn many_inserts_rev(t: usize, maxnodes: usize) -> Result<(), types::Error> {
+    fn many_inserts_rev(t: usize, maxnodes: usize) -> Result<()> {
         for hight in 3..maxnodes {
             let (mut storage, mut root_node, keys) = make_tree(hight, t);
 
@@ -907,7 +908,7 @@ pub(crate) mod tests {
         //TODO check map map_fwd
     }
 
-    fn many_inserts_middle_range(t: usize, maxnodes: usize) -> Result<(), types::Error> {
+    fn many_inserts_middle_range(t: usize, maxnodes: usize) -> Result<()> {
         for hight in 3..maxnodes {
             //    let hight = 21;
             let (mut storage, mut root_node, mut keys) = make_tree(hight, t);
@@ -1001,47 +1002,47 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn many_inserts_3_22() -> Result<(), types::Error> {
+    fn many_inserts_3_22() -> Result<()> {
         many_inserts(3, 22)
     }
 
     #[test]
-    fn many_inserts_7_22() -> Result<(), types::Error> {
+    fn many_inserts_7_22() -> Result<()> {
         many_inserts(7, 22)
     }
 
     #[test]
-    fn many_inserts_16_10() -> Result<(), types::Error> {
+    fn many_inserts_16_10() -> Result<()> {
         many_inserts(16, 22)
     }
 
     #[test]
-    fn many_inserts_rev_3_22() -> Result<(), types::Error> {
+    fn many_inserts_rev_3_22() -> Result<()> {
         many_inserts_rev(3, 22)
     }
 
     #[test]
-    fn many_inserts_rev_7_22() -> Result<(), types::Error> {
+    fn many_inserts_rev_7_22() -> Result<()> {
         many_inserts_rev(7, 22)
     }
 
     #[test]
-    fn many_inserts_rev_16_22() -> Result<(), types::Error> {
+    fn many_inserts_rev_16_22() -> Result<()> {
         many_inserts_rev(16, 22)
     }
 
     #[test]
-    fn many_inserts_middle_range_3_22() -> Result<(), types::Error> {
+    fn many_inserts_middle_range_3_22() -> Result<()> {
         many_inserts_middle_range(3, 22)
     }
 
     #[test]
-    fn many_inserts_middle_range_7_22() -> Result<(), types::Error> {
+    fn many_inserts_middle_range_7_22() -> Result<()> {
         many_inserts_middle_range(7, 22)
     }
 
     #[test]
-    fn remove_from_middle_leaf() -> Result<(), types::Error> {
+    fn remove_from_middle_leaf() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(7, 3);
 
         let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1), 3);

@@ -2,8 +2,8 @@ use crate::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
     rec::Record,
-    types::{self, Id},
-    utils,
+    types::Id,
+    utils, Result,
 };
 
 pub fn split_node(
@@ -11,7 +11,7 @@ pub fn split_node(
     target_node: &RcNode,
     t: usize,
     toproot: Option<RcNode>,
-) -> Result<RcNode, types::Error> {
+) -> Result<RcNode> {
     // println!(        "split:is_leaf:{} target:{:?}",        target_node.borrow().is_leaf,        target_node.borrow().id    );
     let parent_node: RcNode;
     let is_new_root;
@@ -163,6 +163,7 @@ mod tests {
     use super::*;
     use crate::mocks::MockNodeStorage;
     use crate::read::{self, find};
+    use crate::types;
     fn check_link_to_brother(storage: &MockNodeStorage) {
         let all_links_exists = storage.all(|n| {
             let n = n.borrow();
@@ -174,7 +175,7 @@ mod tests {
         assert!(all_links_exists);
     }
     #[test]
-    fn split_leaf() -> Result<(), types::Error> {
+    fn split_leaf() -> Result<()> {
         let leaf1 = Node::new_leaf(
             types::Id(1),
             vec![1, 2, 3, 4, 5, 6],

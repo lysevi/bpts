@@ -1,4 +1,4 @@
-use crate::{node::RcNode, nodestorage::NodeStorage, read, rec::Record, split::split_node, types};
+use crate::{node::RcNode, nodestorage::NodeStorage, read, rec::Record, split::split_node, Result};
 
 pub fn insert(
     storage: &mut dyn NodeStorage,
@@ -6,7 +6,7 @@ pub fn insert(
     key: i32,
     value: &Record,
     t: usize,
-) -> Result<RcNode, types::Error> {
+) -> Result<RcNode> {
     let target_node: RcNode;
     {
         if root.borrow().is_empty() {
@@ -52,9 +52,10 @@ mod tests {
         node::Node,
         read::{self, find, map, map_rev},
         rec::Record,
+        types,
     };
 
-    fn many_inserts(t: usize, maxnodecount: usize) -> Result<(), types::Error> {
+    fn many_inserts(t: usize, maxnodecount: usize) -> Result<()> {
         let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
@@ -119,7 +120,7 @@ mod tests {
         Ok(())
     }
 
-    fn many_inserts_back(t: usize, maxnodecount: usize) -> Result<(), types::Error> {
+    fn many_inserts_back(t: usize, maxnodecount: usize) -> Result<()> {
         let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
@@ -178,7 +179,7 @@ mod tests {
         Ok(())
     }
 
-    fn inserts_to_middle(key_from: i32, key_to: i32, t: usize) -> Result<(), types::Error> {
+    fn inserts_to_middle(key_from: i32, key_to: i32, t: usize) -> Result<()> {
         let mut ranges = Vec::new();
         ranges.push((key_from, key_to));
 
@@ -242,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_to_tree() -> Result<(), types::Error> {
+    fn insert_to_tree() -> Result<()> {
         let leaf1 = Node::new_leaf(
             types::Id(1),
             vec![2, 3, 0, 0, 0, 0],
@@ -298,32 +299,32 @@ mod tests {
     }
 
     #[test]
-    fn many_inserts_3_10() -> Result<(), types::Error> {
+    fn many_inserts_3_10() -> Result<()> {
         many_inserts(3, 10)
     }
 
     #[test]
-    fn many_inserts_7_22() -> Result<(), types::Error> {
+    fn many_inserts_7_22() -> Result<()> {
         many_inserts(7, 22)
     }
 
     #[test]
-    fn many_inserts_back_3_10() -> Result<(), types::Error> {
+    fn many_inserts_back_3_10() -> Result<()> {
         many_inserts_back(3, 10)
     }
 
     #[test]
-    fn many_inserts_back_7_22() -> Result<(), types::Error> {
+    fn many_inserts_back_7_22() -> Result<()> {
         many_inserts_back(7, 22)
     }
 
     #[test]
-    fn inserts_to_middle_1_100_3() -> Result<(), types::Error> {
+    fn inserts_to_middle_1_100_3() -> Result<()> {
         inserts_to_middle(1, 100, 3)
     }
 
     #[test]
-    fn inserts_to_middle_1_500_6() -> Result<(), types::Error> {
+    fn inserts_to_middle_1_500_6() -> Result<()> {
         inserts_to_middle(1, 500, 6)
     }
 

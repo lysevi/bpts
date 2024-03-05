@@ -4,12 +4,9 @@ use crate::node::*;
 use crate::nodestorage::NodeStorage;
 use crate::rec::Record;
 use crate::types::{self};
+use crate::Result;
 
-pub fn scan<'a>(
-    storage: &mut dyn NodeStorage,
-    root: &RcNode,
-    key: i32,
-) -> Result<RcNode, types::Error> {
+pub fn scan<'a>(storage: &mut dyn NodeStorage, root: &RcNode, key: i32) -> Result<RcNode> {
     let mut target = Rc::clone(root);
 
     loop {
@@ -38,11 +35,7 @@ pub fn scan<'a>(
     }
 }
 
-pub fn find<'a>(
-    storage: &mut dyn NodeStorage,
-    root: &RcNode,
-    key: i32,
-) -> Result<Option<Record>, types::Error> {
+pub fn find<'a>(storage: &mut dyn NodeStorage, root: &RcNode, key: i32) -> Result<Option<Record>> {
     let node = scan(storage, root, key)?;
     let r = node.borrow();
     return Ok(r.find(key));
@@ -54,7 +47,7 @@ pub fn map<'a, F>(
     from: i32,
     to: i32,
     f: &mut F,
-) -> Result<(), types::Error>
+) -> Result<()>
 where
     F: FnMut(i32, &Record),
 {
@@ -107,7 +100,7 @@ pub fn map_rev<'a, F>(
     from: i32,
     to: i32,
     f: &mut F,
-) -> Result<(), types::Error>
+) -> Result<()>
 where
     F: FnMut(i32, &Record),
 {
@@ -159,7 +152,7 @@ mod tests {
     use crate::{mocks::MockNodeStorage, node::Node};
 
     #[test]
-    fn find_in_tree() -> Result<(), types::Error> {
+    fn find_in_tree() -> Result<()> {
         let leaf1 = Node::new_leaf(
             types::Id(0),
             vec![2, 3],

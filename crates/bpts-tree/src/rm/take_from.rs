@@ -1,4 +1,4 @@
-use crate::{node::Node, nodestorage::NodeStorage, types, utils};
+use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
 
 use super::rollup::rollup_keys;
 
@@ -77,7 +77,7 @@ pub(super) fn try_take_from_low(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool, types::Error> {
+) -> Result<bool> {
     if leaf_ref.data_count > t {
         let mut middle: Option<i32> = None;
         let mut first_key = target_ref.first_key();
@@ -128,7 +128,7 @@ pub(super) fn try_take_from_high(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool, types::Error> {
+) -> Result<bool> {
     if leaf_ref.data_count > t {
         let mut first_key = leaf_ref.keys[0];
         if !leaf_ref.is_leaf {

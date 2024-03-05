@@ -1,4 +1,4 @@
-use crate::{node::Node, nodestorage::NodeStorage, types, utils};
+use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
 
 use super::rollup::rollup_keys;
 
@@ -7,7 +7,7 @@ pub(super) fn move_to_lower(
     target_node: &mut Node,
     low_side_node: &mut Node,
     middle: Option<i32>,
-) -> Result<(), types::Error> {
+) -> Result<()> {
     println!(
         "move_to_lower target={:?} low={:?}",
         target_node.id, low_side_node.id
@@ -83,7 +83,7 @@ pub(super) fn try_move_to_low(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool, types::Error> {
+) -> Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
         let min_key = target_ref.keys[0];
         let mut middle: Option<i32> = None;
@@ -133,7 +133,7 @@ pub(super) fn try_move_to_high(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool, types::Error> {
+) -> Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
         let min_key = leaf_ref.keys[0];
         let mut middle: Option<i32> = None;

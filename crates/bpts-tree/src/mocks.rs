@@ -3,6 +3,7 @@ use crate::{
     node::{self, RcNode},
     nodestorage::NodeStorage,
     types::{self, Id},
+    Result,
 };
 #[cfg(test)]
 use std::{collections::HashMap, rc::Rc};
@@ -189,7 +190,7 @@ impl NodeStorage for MockNodeStorage {
             None => types::Id(1),
         }
     }
-    fn get_node(&self, id: Id) -> Result<RcNode, types::Error> {
+    fn get_node(&self, id: Id) -> Result<RcNode> {
         let res = self.nodes.get(&id.unwrap());
         if let Some(r) = res {
             Ok(Rc::clone(r))

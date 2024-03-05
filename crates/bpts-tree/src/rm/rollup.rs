@@ -1,11 +1,11 @@
-use crate::{map_up_to_tree::map_up, nodestorage::NodeStorage, types};
+use crate::{map_up_to_tree::map_up, nodestorage::NodeStorage, types, Result};
 
 pub(super) fn rollup_keys(
     storage: &mut dyn NodeStorage,
     id: types::Id,
     key: i32,
     newkey: i32,
-) -> Result<(), types::Error> {
+) -> Result<()> {
     println!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
     let mut f = |x: i32| {
         if x == key {

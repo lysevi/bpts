@@ -5,7 +5,7 @@ use crate::{
         move_to::{try_move_to_high, try_move_to_low},
         take_from::{try_take_from_high, try_take_from_low},
     },
-    types,
+    Result,
 };
 
 pub(in super::super) fn rebalancing(
@@ -13,7 +13,7 @@ pub(in super::super) fn rebalancing(
     target: &RcNode,
     t: usize,
     root: Option<RcNode>,
-) -> Result<RcNode, types::Error> {
+) -> Result<RcNode> {
     println!("resize Id={:?}", target.borrow().id.0);
     let mut target_ref = target.borrow_mut();
     if target_ref.data_count >= t {
@@ -127,9 +127,10 @@ mod tests {
     use super::*;
     use crate::mocks::MockNodeStorage;
     use crate::read::find;
+    use crate::types;
 
     #[test]
-    fn remove_with_take_high_leaf_diff_parent() -> Result<(), types::Error> {
+    fn remove_with_take_high_leaf_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(10, 4);
 
         let mut keyset: HashSet<i32> = HashSet::from_iter(_keys.iter().cloned());
@@ -179,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_with_take_low_leaf_diff_parent() -> Result<(), types::Error> {
+    fn remove_with_take_low_leaf_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(10, 4);
 
         let mut keyset: HashSet<i32> = HashSet::from_iter(_keys.iter().cloned());
@@ -229,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_with_take_low_node_diff_parent() -> Result<(), types::Error> {
+    fn remove_with_take_low_node_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(50, 4);
 
         let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
@@ -268,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_with_take_high_node_diff_parent() -> Result<(), types::Error> {
+    fn remove_with_take_high_node_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(50, 4);
 
         let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
