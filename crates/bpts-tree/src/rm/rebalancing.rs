@@ -39,29 +39,29 @@ pub(in super::super) fn rebalancing(
     let mut low_side_size = 0;
     let mut high_side_size = 0;
     let left_exists = target_ref.left.exists();
-    let mut parent_of_left = None;
-    let mut parent_of_right = None;
+    let mut parent_of_low = None;
+    let mut parent_of_high = None;
     let right_exists = target_ref.right.exists();
 
     if left_exists {
         let low_side_leaf = storage.get_node(target_ref.left)?;
         link_to_low = Some(low_side_leaf.clone());
-        parent_of_left = Some(low_side_leaf.borrow().parent);
+        parent_of_low = Some(low_side_leaf.borrow().parent);
         low_side_size = low_side_leaf.borrow().data_count;
     }
 
     if right_exists {
         let high_side_leaf = storage.get_node(target_ref.right)?;
         link_to_high = Some(high_side_leaf.clone());
-        parent_of_right = Some(high_side_leaf.borrow().parent);
+        parent_of_high = Some(high_side_leaf.borrow().parent);
         high_side_size = high_side_leaf.borrow().data_count;
     }
 
     if left_exists
         && (high_side_size <= t
-            || (parent_of_left == parent_of_right)
-            || (parent_of_left != parent_of_right
-                && (parent_of_left == Some(target_ref.parent) || parent_of_right.is_none())))
+            || (parent_of_low == parent_of_high)
+            || (parent_of_low != parent_of_high
+                && (parent_of_low == Some(target_ref.parent) || parent_of_high.is_none())))
     {
         // from low side
         let low_side_leaf = link_to_low.clone().unwrap();
@@ -73,9 +73,9 @@ pub(in super::super) fn rebalancing(
 
     if right_exists
         && (low_side_size <= t
-            || (parent_of_left == parent_of_right)
-            || (parent_of_left != parent_of_right
-                && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none())))
+            || (parent_of_low == parent_of_high)
+            || (parent_of_low != parent_of_high
+                && (parent_of_high == Some(target_ref.parent) || parent_of_low.is_none())))
     {
         // from high side
         let high_side_leaf = link_to_high.clone().unwrap();
@@ -89,9 +89,9 @@ pub(in super::super) fn rebalancing(
     //try move to brother
     let mut update_parent = false;
     if left_exists
-        && ((parent_of_left == parent_of_right)
-            || (parent_of_left != parent_of_right
-                && (parent_of_left == Some(target_ref.parent) || parent_of_right.is_none())))
+        && ((parent_of_low == parent_of_high)
+            || (parent_of_low != parent_of_high
+                && (parent_of_low == Some(target_ref.parent) || parent_of_high.is_none())))
     {
         let low_side = link_to_low.clone().unwrap();
         let mut leaf_ref = low_side.borrow_mut();
@@ -101,9 +101,9 @@ pub(in super::super) fn rebalancing(
     if !update_parent
         && right_exists
         && (right_exists
-            && ((parent_of_left == parent_of_right)
-                || (parent_of_left != parent_of_right
-                    && (parent_of_right == Some(target_ref.parent) || parent_of_left.is_none()))))
+            && ((parent_of_low == parent_of_high)
+                || (parent_of_low != parent_of_high
+                    && (parent_of_high == Some(target_ref.parent) || parent_of_low.is_none()))))
     {
         let high_side = link_to_high.unwrap();
         let mut leaf_ref = high_side.borrow_mut();

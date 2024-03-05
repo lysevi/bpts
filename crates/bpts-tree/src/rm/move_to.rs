@@ -85,34 +85,32 @@ pub(super) fn try_move_to_low(
     t: usize,
 ) -> Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
-        let min_key = target_ref.keys[0];
+        let first_key = target_ref.first_key();
         let mut middle: Option<i32> = None;
 
         let mut new_min_of_parent: Option<i32> = None;
         if target_ref.parent.exists() {
             let parent = storage.get_node(target_ref.parent)?;
+            let mut parent_ref = parent.borrow_mut();
             if !target_ref.is_leaf {
-                middle = parent.borrow().find_key(min_key);
+                middle = parent_ref.find_key(first_key);
             }
-            new_min_of_parent = Some(parent.borrow().first_key());
-            parent.borrow_mut().erase_link(target_ref.id);
+            new_min_of_parent = Some(parent_ref.first_key());
+            parent_ref.erase_link(target_ref.id);
         }
-        let first_key = target_ref.first_key();
 
         move_to_lower(storage, target_ref, leaf_ref, middle)?;
         storage.erase_node(&target_ref.id);
 
-        if target_ref.parent.exists() {
-            if leaf_ref.parent != target_ref.parent {
-                let parent = storage.get_node(target_ref.parent)?;
-                if parent.borrow().data_count > 0 {
-                    rollup_keys(
-                        storage,
-                        target_ref.parent,
-                        first_key,
-                        new_min_of_parent.unwrap(),
-                    )?;
-                }
+        if target_ref.parent.exists() && leaf_ref.parent != target_ref.parent {
+            let parent = storage.get_node(target_ref.parent)?;
+            if parent.borrow().data_count > 0 {
+                rollup_keys(
+                    storage,
+                    target_ref.parent,
+                    first_key,
+                    new_min_of_parent.unwrap(),
+                )?;
             }
         }
 
@@ -145,24 +143,21 @@ pub(super) fn try_move_to_high(
             parent.borrow_mut().erase_link(target_ref.id);
         }
 
-        let old_min_key = leaf_ref.first_key();
         move_to_higher(storage, target_ref, leaf_ref, middle);
 
         leaf_ref.left = target_ref.left;
         storage.erase_node(&target_ref.id);
 
-        if target_ref.parent.exists() {
-            if leaf_ref.parent != target_ref.parent {
-                let mut new_min_key = target_ref.first_key();
-                if !target_ref.is_leaf {
-                    let first_data = target_ref.first_data();
+        if target_ref.parent.exists() && leaf_ref.parent != target_ref.parent {
+            let mut new_min_key = target_ref.first_key();
+            if !target_ref.is_leaf {
+                let first_data = target_ref.first_data();
 
-                    let first_child = storage.get_node(first_data.into_id())?;
-                    new_min_key = first_child.borrow().first_key();
-                }
-                //TODO checks;
-                rollup_keys(storage, leaf_ref.parent, old_min_key, new_min_key)?;
+                let first_child = storage.get_node(first_data.into_id())?;
+                new_min_key = first_child.borrow().first_key();
             }
+            //TODO checks;
+            rollup_keys(storage, leaf_ref.parent, min_key, new_min_key)?;
         }
 
         if target_ref.left.exists() {
