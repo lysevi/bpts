@@ -2,8 +2,8 @@ use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
 
 use super::rollup::rollup_keys;
 
-pub(super) fn move_to_lower(
-    storage: &mut dyn NodeStorage,
+pub(super) fn move_to_lower<Storage: NodeStorage>(
+    storage: &mut Storage,
     target_node: &mut Node,
     low_side_node: &mut Node,
     middle: Option<i32>,
@@ -78,8 +78,8 @@ pub(super) fn move_to_higher(
     high_side.data_count += target.data_count;
 }
 
-pub(super) fn try_move_to_low(
-    storage: &mut dyn NodeStorage,
+pub(super) fn try_move_to_low<Storage: NodeStorage>(
+    storage: &mut Storage,
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
@@ -126,8 +126,8 @@ pub(super) fn try_move_to_low(
     return Ok(false);
 }
 
-pub(super) fn try_move_to_high(
-    storage: &mut dyn NodeStorage,
+pub(super) fn try_move_to_high<Storage: NodeStorage>(
+    storage: &mut Storage,
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,

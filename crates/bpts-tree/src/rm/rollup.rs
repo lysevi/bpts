@@ -1,7 +1,7 @@
 use crate::{map_up_to_tree::map_up, nodestorage::NodeStorage, types, Result};
 
-pub(super) fn rollup_keys(
-    storage: &mut dyn NodeStorage,
+pub(super) fn rollup_keys<Storage: NodeStorage>(
+    storage: &mut Storage,
     id: types::Id,
     key: i32,
     newkey: i32,

@@ -48,8 +48,8 @@ fn erase_from_node(target: &mut Node, key: i32) {
     }
 }
 
-pub(super) fn erase_key(
-    storage: &mut dyn NodeStorage,
+pub(super) fn erase_key<Storage: NodeStorage>(
+    storage: &mut Storage,
     target: &RcNode,
     key: i32,
     t: usize,

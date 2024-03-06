@@ -8,8 +8,8 @@ use crate::{
     Result,
 };
 
-pub(in super::super) fn rebalancing(
-    storage: &mut dyn NodeStorage,
+pub(in super::super) fn rebalancing<Storage: NodeStorage>(
+    storage: &mut Storage,
     target: &RcNode,
     t: usize,
     root: Option<RcNode>,

@@ -1,7 +1,7 @@
 use crate::{node::RcNode, nodestorage::NodeStorage, read, rec::Record, split::split_node, Result};
 
-pub fn insert(
-    storage: &mut dyn NodeStorage,
+pub fn insert<Storage: NodeStorage>(
+    storage: &mut Storage,
     root: &RcNode,
     key: i32,
     value: &Record,

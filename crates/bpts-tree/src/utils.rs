@@ -28,8 +28,8 @@ pub mod debug {
         println!("}}");
     }
 
-    pub fn storage_to_string(
-        storage: &dyn NodeStorage,
+    pub fn storage_to_string<Storage: NodeStorage>(
+        storage: &Storage,
         root: crate::node::RcNode,
         graphviz: bool,
         graph_name: &String,

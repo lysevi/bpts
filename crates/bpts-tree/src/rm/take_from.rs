@@ -2,8 +2,8 @@ use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
 
 use super::rollup::rollup_keys;
 
-pub(super) fn take_from_low(
-    storage: &mut dyn NodeStorage,
+pub(super) fn take_from_low<Storage: NodeStorage>(
+    storage: &mut Storage,
     target: &mut Node,
     low_side: &mut Node,
     middle: Option<i32>,
@@ -72,8 +72,8 @@ pub(super) fn take_from_high(target: &mut Node, high_side: &mut Node, middle: Op
     return result;
 }
 
-pub(super) fn try_take_from_low(
-    storage: &mut dyn NodeStorage,
+pub(super) fn try_take_from_low<Storage: NodeStorage>(
+    storage: &mut Storage,
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
@@ -124,8 +124,8 @@ pub(super) fn try_take_from_low(
     return Ok(false);
 }
 
-pub(super) fn try_take_from_high(
-    storage: &mut dyn NodeStorage,
+pub(super) fn try_take_from_high<Storage: NodeStorage>(
+    storage: &mut Storage,
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,

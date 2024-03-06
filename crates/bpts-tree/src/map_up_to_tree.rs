@@ -1,6 +1,10 @@
 use crate::{nodestorage::NodeStorage, types, Result};
 
-pub fn map_up<Action>(storage: &mut dyn NodeStorage, id: types::Id, act: &mut Action) -> Result<()>
+pub fn map_up<Action, Storage: NodeStorage>(
+    storage: &mut Storage,
+    id: types::Id,
+    act: &mut Action,
+) -> Result<()>
 where
     Action: FnMut(i32) -> i32,
 {

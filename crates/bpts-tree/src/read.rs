@@ -6,7 +6,11 @@ use crate::rec::Record;
 use crate::types::{self};
 use crate::Result;
 
-pub fn scan<'a>(storage: &mut dyn NodeStorage, root: &RcNode, key: i32) -> Result<RcNode> {
+pub fn scan<Storage: NodeStorage>(
+    storage: &mut Storage,
+    root: &RcNode,
+    key: i32,
+) -> Result<RcNode> {
     let mut target = Rc::clone(root);
 
     loop {
@@ -35,14 +39,18 @@ pub fn scan<'a>(storage: &mut dyn NodeStorage, root: &RcNode, key: i32) -> Resul
     }
 }
 
-pub fn find<'a>(storage: &mut dyn NodeStorage, root: &RcNode, key: i32) -> Result<Option<Record>> {
+pub fn find<Storage: NodeStorage>(
+    storage: &mut Storage,
+    root: &RcNode,
+    key: i32,
+) -> Result<Option<Record>> {
     let node = scan(storage, root, key)?;
     let r = node.borrow();
     return Ok(r.find(key));
 }
 
-pub fn map<'a, F>(
-    storage: &mut dyn NodeStorage,
+pub fn map<F, Storage: NodeStorage>(
+    storage: &mut Storage,
     root: &RcNode,
     from: i32,
     to: i32,
@@ -94,8 +102,8 @@ where
 }
 
 //TODO! refact with map.
-pub fn map_rev<'a, F>(
-    storage: &mut dyn NodeStorage,
+pub fn map_rev<F, Storage: NodeStorage>(
+    storage: &mut Storage,
     root: &RcNode,
     from: i32,
     to: i32,

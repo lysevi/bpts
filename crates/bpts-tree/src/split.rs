@@ -6,8 +6,8 @@ use crate::{
     utils, Result,
 };
 
-pub fn split_node(
-    storage: &mut dyn NodeStorage,
+pub fn split_node<Storage: NodeStorage>(
+    storage: &mut Storage,
     target_node: &RcNode,
     t: usize,
     toproot: Option<RcNode>,

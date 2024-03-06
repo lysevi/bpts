@@ -1,7 +1,7 @@
 use crate::{node::RcNode, nodestorage::NodeStorage, read, rm::erase_key, Result};
 
-pub fn remove_key(
-    storage: &mut dyn NodeStorage,
+pub fn remove_key<Storage: NodeStorage>(
+    storage: &mut Storage,
     root: &RcNode,
     key: i32,
     t: usize,
