@@ -3,6 +3,8 @@
 - [ ] cursor. map over cursor.
 - [ ] refs by ptr (offset from start), ptr in Node
 - [ ] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
+   - [ ] key comparer
+   - [ ] key - Vec<u8>
 - [ ] logger
 - [ ] trait Action - add, scan, remove
 - [ ] query language: tablename.where(x => column<3).take(10)
