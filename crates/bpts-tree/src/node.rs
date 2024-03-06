@@ -68,7 +68,7 @@ impl Node {
         let mut keys = Vec::with_capacity(t * 2);
         let mut recs = Vec::with_capacity(t * 2);
         for _i in 0..(t * 2) {
-            recs.push(Record::from_i32(0));
+            recs.push(Record::Empty);
             keys.push(0i32);
         }
         Node::new(id, true, keys, recs, 0, 0)
@@ -276,28 +276,28 @@ mod tests {
             Id::empty(),
             vec![1, 2, 3, 4],
             vec![
-                Record::from_u8(1),
-                Record::from_u8(2),
-                Record::from_u8(3),
-                Record::from_u8(4),
+                Record::from_i32(1),
+                Record::from_i32(2),
+                Record::from_i32(3),
+                Record::from_i32(4),
             ],
             4,
             4,
         );
         let ref_leaf = leaf.borrow();
         if let Some(item) = ref_leaf.find(2) {
-            let v = item.into_u8();
-            assert_eq!(v, 2u8);
+            let v = item.into_i32();
+            assert_eq!(v, 2);
         }
 
         if let Some(item) = ref_leaf.find(1) {
-            let v = item.into_u8();
-            assert_eq!(v, 1u8);
+            let v = item.into_i32();
+            assert_eq!(v, 1);
         }
 
         if let Some(item) = ref_leaf.find(4) {
-            let v = item.into_u8();
-            assert_eq!(v, 4u8);
+            let v = item.into_i32();
+            assert_eq!(v, 4);
         }
 
         let is_none = ref_leaf.find(9);
@@ -310,39 +310,39 @@ mod tests {
             Id::empty(),
             vec![3, 5, 7],
             vec![
-                Record::from_u8(1),
-                Record::from_u8(3),
-                Record::from_u8(5),
-                Record::from_u8(7),
+                Record::from_i32(1),
+                Record::from_i32(3),
+                Record::from_i32(5),
+                Record::from_i32(7),
             ],
             3,
             4,
         );
         let ref_leaf = leaf.borrow();
         if let Some(item) = ref_leaf.find(1) {
-            let v = item.into_u8();
-            assert_eq!(v, 1u8);
+            let v = item.into_i32();
+            assert_eq!(v, 1);
         } else {
             assert!(false);
         }
 
         if let Some(item) = ref_leaf.find(3) {
-            let v = item.into_u8();
-            assert_eq!(v, 3u8);
+            let v = item.into_i32();
+            assert_eq!(v, 3);
         } else {
             assert!(false);
         }
 
         if let Some(item) = ref_leaf.find(4) {
-            let v = item.into_u8();
-            assert_eq!(v, 3u8);
+            let v = item.into_i32();
+            assert_eq!(v, 3);
         } else {
             assert!(false);
         }
 
         if let Some(item) = ref_leaf.find(9) {
-            let v = item.into_u8();
-            assert_eq!(v, 7u8);
+            let v = item.into_i32();
+            assert_eq!(v, 7);
         } else {
             assert!(false);
         }

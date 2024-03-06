@@ -126,11 +126,11 @@ pub mod debug {
         } else {
             let key_slice = &node.keys[0..node.keys_count];
             let string_data = if node.is_leaf {
-                let unpack: Vec<u8> = node
+                let unpack: Vec<i32> = node
                     .data
                     .iter()
                     .take(node.data_count)
-                    .map(|f| f.into_u8())
+                    .map(|f| f.into_i32())
                     .collect();
                 format!("{:?}", unpack)
             } else {

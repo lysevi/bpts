@@ -20,14 +20,11 @@ pub fn split_node(
     {
         // create new_root
         is_new_root = true;
-        let new_data = Record::empty_array(
-            target_node.borrow().data.len(),
-            target_node.borrow().data[0].size(),
-        );
+
         parent_node = Node::new_root(
             storage.get_new_id(),
             vec![0i32; target_node.borrow().keys.capacity()],
-            new_data,
+            Record::empty_array(target_node.borrow().data.len()),
             0,
             0,
         );
@@ -41,10 +38,7 @@ pub fn split_node(
     }
 
     let mut new_keys = vec![0i32; target_node.borrow().keys.capacity()];
-    let mut new_data = Record::empty_array(
-        target_node.borrow().data.len(),
-        target_node.borrow().data[0].size(),
-    );
+    let mut new_data = Record::empty_array(target_node.borrow().data.len());
 
     let mut brother_keys_count = t;
     let brother_data_count = t;
@@ -180,12 +174,12 @@ mod tests {
             types::Id(1),
             vec![1, 2, 3, 4, 5, 6],
             vec![
-                Record::from_u8(1),
-                Record::from_u8(2),
-                Record::from_u8(3),
-                Record::from_u8(4),
-                Record::from_u8(5),
-                Record::from_u8(6),
+                Record::from_i32(1),
+                Record::from_i32(2),
+                Record::from_i32(3),
+                Record::from_i32(4),
+                Record::from_i32(5),
+                Record::from_i32(6),
             ],
             6,
             6,
@@ -210,7 +204,11 @@ mod tests {
             assert_eq!(data_count, 3);
             assert_eq!(
                 node.borrow().data[0..data_count],
-                vec![Record::from_u8(1), Record::from_u8(2), Record::from_u8(3),]
+                vec![
+                    Record::from_i32(1),
+                    Record::from_i32(2),
+                    Record::from_i32(3),
+                ]
             );
         }
         let subtree2_res = storage.get_node(root.borrow().data[1].into_id());
@@ -224,13 +222,17 @@ mod tests {
             assert_eq!(data_count, 3);
             assert_eq!(
                 node.borrow().data[0..data_count],
-                vec![Record::from_u8(4), Record::from_u8(5), Record::from_u8(6),]
+                vec![
+                    Record::from_i32(4),
+                    Record::from_i32(5),
+                    Record::from_i32(6),
+                ]
             );
         }
 
         let res = read::find(&mut storage, &root, 1)?;
         assert!(res.is_some());
-        assert_eq!(res.unwrap(), Record::from_u8(1));
+        assert_eq!(res.unwrap(), Record::from_i32(1));
 
         check_link_to_brother(&storage);
 
@@ -255,12 +257,12 @@ mod tests {
             types::Id(777),
             vec![5, 8, 11, 14, 17, 0],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(3),
-                Record::from_i32(4),
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(7),
+                Record::from_id(Id(1)),
+                Record::from_id(Id(3)),
+                Record::from_id(Id(4)),
+                Record::from_id(Id(5)),
+                Record::from_id(Id(6)),
+                Record::from_id(Id(7)),
             ],
             5,
             6,
@@ -271,13 +273,8 @@ mod tests {
         {
             let ref_to_node = first_root_node.borrow_mut();
             for i in &ref_to_node.data {
-                let new_leaf = Node::new_leaf(
-                    types::Id(i.into_i32()),
-                    vec![0],
-                    vec![Record::from_u8(1)],
-                    1,
-                    1,
-                );
+                let new_leaf =
+                    Node::new_leaf(i.into_id(), vec![0], vec![Record::from_i32(1)], 1, 1);
                 new_leaf.borrow_mut().left = types::Id(999);
                 storage.add_node(&new_leaf);
             }
@@ -306,9 +303,9 @@ mod tests {
             assert_eq!(
                 node.borrow().data[0..data_count],
                 vec![
-                    Record::from_i32(1),
-                    Record::from_i32(3),
-                    Record::from_i32(4)
+                    Record::from_id(Id(1)),
+                    Record::from_id(Id(3)),
+                    Record::from_id(Id(4))
                 ]
             );
         }
@@ -324,9 +321,9 @@ mod tests {
             assert_eq!(
                 node.borrow().data[0..data_count],
                 vec![
-                    Record::from_i32(5),
-                    Record::from_i32(6),
-                    Record::from_i32(7),
+                    Record::from_id(Id(5)),
+                    Record::from_id(Id(6)),
+                    Record::from_id(Id(7)),
                 ]
             );
         }
@@ -374,7 +371,7 @@ mod tests {
         let root_node = Node::new_root(
             types::Id(1),
             vec![11],
-            vec![Record::from_u8(1), Record::from_u8(2)],
+            vec![Record::from_i32(1), Record::from_i32(2)],
             1,
             2,
         );
@@ -385,12 +382,12 @@ mod tests {
             types::Id(2),
             vec![1, 2, 3, 4, 5, 6],
             vec![
-                Record::from_u8(1),
-                Record::from_u8(2),
-                Record::from_u8(3),
-                Record::from_u8(4),
-                Record::from_u8(5),
-                Record::from_u8(6),
+                Record::from_i32(1),
+                Record::from_i32(2),
+                Record::from_i32(3),
+                Record::from_i32(4),
+                Record::from_i32(5),
+                Record::from_i32(6),
             ],
             6,
             7,
@@ -402,7 +399,7 @@ mod tests {
         let leaf2_node = Node::new_root(
             types::Id(3),
             vec![11],
-            vec![Record::from_u8(1), Record::from_u8(2)],
+            vec![Record::from_i32(1), Record::from_i32(2)],
             1,
             2,
         );

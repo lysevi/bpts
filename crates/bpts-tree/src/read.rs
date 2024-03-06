@@ -156,7 +156,7 @@ mod tests {
         let leaf1 = Node::new_leaf(
             types::Id(0),
             vec![2, 3],
-            vec![Record::from_u8(2), Record::from_u8(3)],
+            vec![Record::from_i32(2), Record::from_i32(3)],
             2,
             2,
         );
@@ -165,9 +165,9 @@ mod tests {
         storage.add_node(&leaf1);
         let res = find(&mut storage, &leaf1, 2)?;
         assert!(res.is_some());
-        assert_eq!(res.unwrap().into_u8(), 2u8);
+        assert_eq!(res.unwrap().into_i32(), 2);
 
-        let leaf2 = Node::new_leaf(types::Id(1), vec![1], vec![Record::from_u8(1)], 1, 1);
+        let leaf2 = Node::new_leaf(types::Id(1), vec![1], vec![Record::from_i32(1)], 1, 1);
         storage.add_node(&leaf2);
 
         let node1 = Node::new_root(
@@ -181,11 +181,11 @@ mod tests {
         storage.add_node(&node1);
         let res_1 = find(&mut storage, &node1, 1)?;
         assert!(res_1.is_some());
-        assert_eq!(res_1.unwrap().into_u8(), 1u8);
+        assert_eq!(res_1.unwrap().into_i32(), 1);
 
         let res_2 = find(&mut storage, &node1, 2)?;
         assert!(res_2.is_some());
-        assert_eq!(res_2.unwrap().into_u8(), 2u8);
+        assert_eq!(res_2.unwrap().into_i32(), 2);
         return Ok(());
     }
 }

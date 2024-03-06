@@ -258,12 +258,12 @@ mod tests {
             types::Id(1),
             vec![2, 3, 0, 0, 0, 0],
             vec![
-                Record::from_u8(2),
-                Record::from_u8(3),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
-                Record::from_u8(0),
+                Record::from_i32(2),
+                Record::from_i32(3),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
+                Record::from_i32(0),
             ],
             2,
             2,
@@ -272,7 +272,7 @@ mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf1);
 
-        let new_value = Record::from_u8(1);
+        let new_value = Record::from_i32(1);
         let mut result = insert(&mut storage, &leaf1, 1, &new_value, 3);
         assert!(result.is_ok());
         let mut new_root = result.unwrap();
@@ -295,7 +295,7 @@ mod tests {
             }
         }
 
-        let new_data = Record::from_u8(6);
+        let new_data = Record::from_i32(6);
         result = insert(&mut storage, &leaf1, 6, &new_data, 3);
         assert!(result.is_ok());
         new_root = result.unwrap();
@@ -304,7 +304,7 @@ mod tests {
         assert!(search_result.is_some());
 
         let unpacked = search_result.expect("!");
-        assert_eq!(unpacked.into_u8(), 6u8);
+        assert_eq!(unpacked.into_i32(), 6);
         Ok(())
     }
 
