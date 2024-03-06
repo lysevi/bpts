@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use bpts::*;
+use bpts::prelude::*;
 use rand::prelude::*;
 use std::time::Instant;
 
@@ -41,7 +41,7 @@ fn main() {
             &String::from("before"),
         );
         for i in &nums {
-            let res = bpts::find(&mut storage, &root_node, *i);
+            let res = find(&mut storage, &root_node, *i);
             if res.is_err() {
                 println!("> not found {}", i);
             }

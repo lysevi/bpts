@@ -17,8 +17,7 @@ pub fn remove_with_shift<T>(target: &mut Vec<T>, pos: usize) {
     }
 }
 pub mod debug {
-    use crate::types;
-    use crate::NodeStorage;
+    use crate::prelude::*;
     use string_builder::Builder;
 
     pub fn print_state(str_before: &String, str_after: &String) {
@@ -134,7 +133,7 @@ pub mod debug {
                     .collect();
                 format!("{:?}", unpack)
             } else {
-                let unpack: Vec<types::Id> = node
+                let unpack: Vec<Id> = node
                     .data
                     .iter()
                     .take(node.data_count)

@@ -47,16 +47,10 @@ pub fn insert<Storage: NodeStorage>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        mocks::MockNodeStorage,
-        node::Node,
-        read::{self, find, map, map_rev},
-        rec::Record,
-        types,
-    };
+    use crate::prelude::*;
 
     fn many_inserts(t: usize, maxnodecount: usize) -> Result<()> {
-        let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
+        let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
@@ -121,7 +115,7 @@ mod tests {
     }
 
     fn many_inserts_back(t: usize, maxnodecount: usize) -> Result<()> {
-        let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
+        let mut root_node = Node::new_leaf_with_size(Id(1), t);
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
 
@@ -210,13 +204,13 @@ mod tests {
             }
         }
 
-        let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
+        let mut root_node = Node::new_leaf_with_size(Id(1), t);
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
 
         for i in 0..keys.len() {
             //println!("insert {}", keys[i]);
-            let str_before = crate::debug::storage_to_string(
+            let str_before = crate::prelude::debug::storage_to_string(
                 &storage,
                 root_node.clone(),
                 true,
@@ -232,18 +226,14 @@ mod tests {
             assert!(res.is_ok());
             root_node = res.unwrap();
 
-            let str_after = crate::debug::storage_to_string(
-                &storage,
-                root_node.clone(),
-                true,
-                &String::from("after"),
-            );
+            let str_after =
+                debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
 
             for j in 0..i {
                 let res = find(&mut storage, &root_node, keys[j]);
                 if res.is_err() {
                     println!("> not found {}", keys[j]);
-                    crate::debug::print_state(&str_before, &str_after)
+                    debug::print_state(&str_before, &str_after)
                 }
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().unwrap().into_i32(), keys[j]);
@@ -255,7 +245,7 @@ mod tests {
     #[test]
     fn insert_to_tree() -> Result<()> {
         let leaf1 = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![2, 3, 0, 0, 0, 0],
             vec![
                 Record::from_i32(2),

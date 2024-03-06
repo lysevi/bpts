@@ -27,16 +27,10 @@ pub fn remove_key<Storage: NodeStorage>(
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
-    use crate::insert::insert;
-    use crate::mocks::MockNodeStorage;
-    use crate::node::Node;
-    use crate::read::{find, map, map_rev};
-    use crate::rec::Record;
-    use crate::types;
+    use crate::prelude::*;
 
     pub fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
-        let mut root_node = Node::new_leaf_with_size(types::Id(1), t);
+        let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&root_node);
@@ -63,7 +57,7 @@ pub(crate) mod tests {
     #[test]
     fn remove_from_leaf() -> Result<()> {
         let leaf = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![1, 2, 3, 4, 5, 6],
             vec![
                 Record::from_i32(1),
@@ -79,7 +73,7 @@ pub(crate) mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf);
 
-        let result = erase_key(&mut storage, &leaf, 2, 3, Some(leaf.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf, 2, 3, Some(leaf.clone()));
         assert!(result.is_ok());
 
         {
@@ -107,7 +101,7 @@ pub(crate) mod tests {
     fn remove_from_leaf_update_parent() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         let leaf1 = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![1, 2, 3, 4],
             vec![
                 Record::from_i32(1),
@@ -121,7 +115,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf1);
 
         let leaf2 = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![5, 6, 7, 8],
             vec![
                 Record::from_i32(5),
@@ -135,13 +129,13 @@ pub(crate) mod tests {
         storage.add_node(&leaf2);
 
         let root = Node::new_root(
-            types::Id(3),
+            Id(3),
             vec![5, 0, 0, 0],
             vec![
-                Record::from_id(types::Id(1)),
-                Record::from_id(types::Id(2)),
-                Record::from_id(types::Id::empty()),
-                Record::from_id(types::Id::empty()),
+                Record::from_id(Id(1)),
+                Record::from_id(Id(2)),
+                Record::from_id(Id::empty()),
+                Record::from_id(Id::empty()),
             ],
             1,
             2,
@@ -150,7 +144,7 @@ pub(crate) mod tests {
         leaf1.borrow_mut().parent = root.borrow().id;
         leaf2.borrow_mut().parent = root.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf2, 5, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf2, 5, 3, Some(root.clone()));
         assert!(result.is_ok());
         {
             let newroot = result.unwrap();
@@ -160,10 +154,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_root.data,
                 vec![
-                    Record::from_id(types::Id(1)),
-                    Record::from_id(types::Id(2)),
-                    Record::from_id(types::Id::empty()),
-                    Record::from_id(types::Id::empty()),
+                    Record::from_id(Id(1)),
+                    Record::from_id(Id(2)),
+                    Record::from_id(Id::empty()),
+                    Record::from_id(Id::empty()),
                 ]
             );
             assert_eq!(ref_root.keys_count, 1);
@@ -193,13 +187,13 @@ pub(crate) mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
 
         let root = Node::new_root(
-            types::Id(3),
+            Id(3),
             vec![5, 0, 0, 0],
             vec![
-                Record::from_id(types::Id(1)),
-                Record::from_id(types::Id(2)),
-                Record::from_id(types::Id::empty()),
-                Record::from_id(types::Id::empty()),
+                Record::from_id(Id(1)),
+                Record::from_id(Id(2)),
+                Record::from_id(Id::empty()),
+                Record::from_id(Id::empty()),
             ],
             1,
             2,
@@ -207,7 +201,7 @@ pub(crate) mod tests {
         storage.add_node(&root);
 
         let leaf_high = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![5, 6, 7, 0],
             vec![
                 Record::from_i32(5),
@@ -222,7 +216,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_high);
 
         let leaf_low = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![1, 2, 3, 4],
             vec![
                 Record::from_i32(1),
@@ -239,7 +233,7 @@ pub(crate) mod tests {
         leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_high.borrow_mut().left = leaf_low.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
         assert!(result.is_ok());
 
         {
@@ -248,10 +242,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_id(types::Id(1)),
-                    Record::from_id(types::Id(2)),
-                    Record::from_id(types::Id::empty()),
-                    Record::from_id(types::Id::empty()),
+                    Record::from_id(Id(1)),
+                    Record::from_id(Id(2)),
+                    Record::from_id(Id::empty()),
+                    Record::from_id(Id::empty()),
                 ]
             );
             assert_eq!(ref_node.keys_count, 1);
@@ -296,13 +290,13 @@ pub(crate) mod tests {
     fn remove_from_leaf_take_from_high() -> Result<()> {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         let root = Node::new_root(
-            types::Id(3),
+            Id(3),
             vec![9, 0, 0, 0],
             vec![
-                Record::from_id(types::Id(1)),
-                Record::from_id(types::Id(2)),
-                Record::from_id(types::Id::empty()),
-                Record::from_id(types::Id::empty()),
+                Record::from_id(Id(1)),
+                Record::from_id(Id(2)),
+                Record::from_id(Id::empty()),
+                Record::from_id(Id::empty()),
             ],
             1,
             2,
@@ -310,7 +304,7 @@ pub(crate) mod tests {
         storage.add_node(&root);
 
         let leaf_low = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![5, 6, 7, 0],
             vec![
                 Record::from_i32(5),
@@ -324,7 +318,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_low);
 
         let leaf_high = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![9, 10, 11, 12],
             vec![
                 Record::from_i32(9),
@@ -340,7 +334,7 @@ pub(crate) mod tests {
         leaf_high.borrow_mut().parent = root.borrow().id;
         leaf_low.borrow_mut().parent = root.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf_low, 6, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, 3, Some(root.clone()));
         assert!(result.is_ok());
 
         {
@@ -351,10 +345,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_root.data,
                 vec![
-                    Record::from_id(types::Id(1)),
-                    Record::from_id(types::Id(2)),
-                    Record::from_id(types::Id::empty()),
-                    Record::from_id(types::Id::empty()),
+                    Record::from_id(Id(1)),
+                    Record::from_id(Id(2)),
+                    Record::from_id(Id::empty()),
+                    Record::from_id(Id::empty()),
                 ]
             );
             assert_eq!(ref_root.keys_count, 1);
@@ -400,7 +394,7 @@ pub(crate) mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
 
         let leaf_high = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![5, 6, 0, 0],
             vec![
                 Record::from_i32(5),
@@ -415,7 +409,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_high);
 
         let leaf_low = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![1, 2, 0, 0],
             vec![
                 Record::from_i32(1),
@@ -430,7 +424,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_low);
         leaf_high.borrow_mut().left = leaf_low.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf_high, 6, 3, Some(leaf_high.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, 3, Some(leaf_high.clone()));
         assert!(result.is_ok());
 
         assert!(!storage.is_exists(leaf_high.borrow().id));
@@ -455,7 +449,7 @@ pub(crate) mod tests {
     #[test]
     fn remove_from_leaf_move_to_high() -> Result<()> {
         let leaf_low = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![5, 6, 7, 0],
             vec![
                 Record::from_i32(5),
@@ -470,7 +464,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_low);
 
         let leaf_high = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![9, 10, 0, 0],
             vec![
                 Record::from_i32(9),
@@ -485,7 +479,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_high);
         leaf_low.borrow_mut().right = leaf_high.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf_low, 6, 3, Some(leaf_low.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, 3, Some(leaf_low.clone()));
         assert!(result.is_ok());
 
         assert!(!storage.is_exists(leaf_low.borrow().id));
@@ -511,7 +505,7 @@ pub(crate) mod tests {
     #[should_panic]
     fn remove_from_node_first() {
         let node = Node::new_root(
-            types::Id(1),
+            Id(1),
             vec![5, 8, 0],
             vec![
                 Record::from_i32(1),
@@ -524,7 +518,7 @@ pub(crate) mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&node);
 
-        let result = erase_key(&mut storage, &node, 5, 3, Some(node.clone()));
+        let result = crate::rm::erase_key(&mut storage, &node, 5, 3, Some(node.clone()));
         assert!(result.is_ok());
 
         {
@@ -549,13 +543,13 @@ pub(crate) mod tests {
         let mut storage: MockNodeStorage = MockNodeStorage::new();
 
         let root = Node::new_root(
-            types::Id(4),
+            Id(4),
             vec![5, 12, 0, 0],
             vec![
-                Record::from_id(types::Id(2)),
-                Record::from_id(types::Id(1)),
-                Record::from_id(types::Id(3)),
-                Record::from_id(types::Id::empty()),
+                Record::from_id(Id(2)),
+                Record::from_id(Id(1)),
+                Record::from_id(Id(3)),
+                Record::from_id(Id::empty()),
             ],
             2,
             3,
@@ -563,7 +557,7 @@ pub(crate) mod tests {
         storage.add_node(&root);
 
         let leaf_extra = Node::new_leaf(
-            types::Id(3),
+            Id(3),
             vec![12, 15, 0, 0],
             vec![
                 Record::from_i32(12),
@@ -577,7 +571,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_extra);
 
         let leaf_high = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![5, 6, 0, 0],
             vec![
                 Record::from_i32(5),
@@ -592,7 +586,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_high);
 
         let leaf_low = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![1, 2, 0, 0],
             vec![
                 Record::from_i32(1),
@@ -614,7 +608,7 @@ pub(crate) mod tests {
         leaf_high.borrow_mut().parent = root.borrow().id;
         leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_extra.borrow_mut().parent = root.borrow().id;
-        let result = erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
         assert!(result.is_ok());
         let new_root = result.unwrap();
         assert_eq!(new_root.borrow().id, root.borrow().id);
@@ -645,10 +639,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_id(types::Id(2)),
-                    Record::from_id(types::Id(3)),
-                    Record::from_id(types::Id::empty()),
-                    Record::from_id(types::Id(1)),
+                    Record::from_id(Id(2)),
+                    Record::from_id(Id(3)),
+                    Record::from_id(Id::empty()),
+                    Record::from_id(Id(1)),
                 ]
             );
             assert_eq!(ref_node.keys_count, 1);
@@ -665,13 +659,13 @@ pub(crate) mod tests {
          5 6    9 10, 0, 0   15 16
         */
         let root = Node::new_root(
-            types::Id(3),
+            Id(3),
             vec![9, 15, 0, 0],
             vec![
-                Record::from_id(types::Id(1)),
-                Record::from_id(types::Id(2)),
-                Record::from_id(types::Id(4)),
-                Record::from_id(types::Id::empty()),
+                Record::from_id(Id(1)),
+                Record::from_id(Id(2)),
+                Record::from_id(Id(4)),
+                Record::from_id(Id::empty()),
             ],
             2,
             3,
@@ -679,7 +673,7 @@ pub(crate) mod tests {
         storage.add_node(&root);
 
         let leaf_extra = Node::new_leaf(
-            types::Id(4),
+            Id(4),
             vec![15, 16, 0, 0],
             vec![
                 Record::from_i32(15),
@@ -693,7 +687,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_extra);
 
         let leaf_low = Node::new_leaf(
-            types::Id(1),
+            Id(1),
             vec![5, 6, 0, 0],
             vec![
                 Record::from_i32(5),
@@ -707,7 +701,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_low);
 
         let leaf_high = Node::new_leaf(
-            types::Id(2),
+            Id(2),
             vec![9, 10, 0, 0],
             vec![
                 Record::from_i32(9),
@@ -725,7 +719,7 @@ pub(crate) mod tests {
         leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_extra.borrow_mut().parent = root.borrow().id;
 
-        let result = erase_key(&mut storage, &leaf_low, 6, 2, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, 2, Some(root.clone()));
         assert!(result.is_ok());
 
         let low_id = leaf_low.borrow().id;
@@ -738,10 +732,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_root.data,
                 vec![
-                    Record::from_id(types::Id(2)),
-                    Record::from_id(types::Id(4)),
-                    Record::from_id(types::Id::empty()),
-                    Record::from_id(types::Id(1)),
+                    Record::from_id(Id(2)),
+                    Record::from_id(Id(4)),
+                    Record::from_id(Id::empty()),
+                    Record::from_id(Id(1)),
                 ]
             );
             assert_eq!(ref_root.keys_count, 1);
@@ -784,18 +778,18 @@ pub(crate) mod tests {
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 // /                println!("remove {:?}", i);
 
-                let str_before = crate::debug::storage_to_string(
+                let str_before = debug::storage_to_string(
                     &storage,
                     root_node.clone(),
                     true,
                     &String::from("before"),
                 );
 
-                let remove_res = remove_key(&mut storage, &root_node, i, t);
+                let remove_res = crate::remove::remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
-                let str_after = crate::debug::storage_to_string(
+                let str_after = debug::storage_to_string(
                     &storage,
                     root_node.clone(),
                     true,
@@ -812,7 +806,7 @@ pub(crate) mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] >= mapped_values[i] {
                         println!("bad order");
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -833,12 +827,12 @@ pub(crate) mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, k)?;
                     if find_res.is_none() {
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
                     if d.into_i32() != k {
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), k);
                 }
@@ -864,7 +858,7 @@ pub(crate) mod tests {
                 assert!(find_res.is_some());
                 assert_eq!(find_res.unwrap().into_i32(), i);
                 println!(">> remove {:?}", i);
-                let str_before = crate::debug::storage_to_string(
+                let str_before = debug::storage_to_string(
                     &storage,
                     root_node.clone(),
                     true,
@@ -874,7 +868,7 @@ pub(crate) mod tests {
                 let remove_res = remove_key(&mut storage, &root_node, i, t);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
-                let str_after = crate::debug::storage_to_string(
+                let str_after = debug::storage_to_string(
                     &storage,
                     root_node.clone(),
                     true,
@@ -894,7 +888,7 @@ pub(crate) mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] <= mapped_values[i] {
                         println!("bad order");
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -919,12 +913,12 @@ pub(crate) mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, k)?;
                     if find_res.is_none() {
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
                     if d.into_i32() != k {
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), k);
                 }
@@ -962,7 +956,7 @@ pub(crate) mod tests {
                 // if i == 29 {
                 //     println!("!");
                 // }
-                let str_before = crate::debug::storage_to_string(
+                let str_before = debug::storage_to_string(
                     &storage,
                     root_node.clone(),
                     true,
@@ -973,7 +967,7 @@ pub(crate) mod tests {
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
-                let str_after = crate::debug::storage_to_string(
+                let str_after = debug::storage_to_string(
                     &storage,
                     root_node.clone(),
                     true,
@@ -1001,7 +995,7 @@ pub(crate) mod tests {
                 for i in 1..mapped_values.len() {
                     if mapped_values[i - 1] >= mapped_values[i] {
                         println!("bad order");
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                         assert!(mapped_values[i - 1] < mapped_values[i]);
                     }
                 }
@@ -1021,12 +1015,12 @@ pub(crate) mod tests {
                     // }
                     let find_res = find(&mut storage, &root_node, *k)?;
                     if find_res.is_none() {
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
                     if d.into_i32() != *k {
-                        crate::debug::print_state(&str_before, &str_after);
+                        debug::print_state(&str_before, &str_after);
                     }
                     assert_eq!(d.into_i32(), *k);
                 }
@@ -1083,7 +1077,7 @@ pub(crate) mod tests {
         let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1), 3);
         root_node = res.unwrap();
 
-        let str_before = crate::debug::storage_to_string(
+        let str_before = crate::prelude::debug::storage_to_string(
             &storage,
             root_node.clone(),
             true,
@@ -1094,12 +1088,8 @@ pub(crate) mod tests {
         assert!(remove_res.is_ok());
         root_node = remove_res.unwrap();
 
-        let str_after = crate::debug::storage_to_string(
-            &storage,
-            root_node.clone(),
-            true,
-            &String::from("after"),
-        );
+        let str_after =
+            debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
 
         // {
         //     print_state(&str_before, &str_after);
@@ -1111,7 +1101,7 @@ pub(crate) mod tests {
             }
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                crate::debug::print_state(&str_before, &str_after);
+                debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
