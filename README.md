@@ -1,9 +1,7 @@
 # bpts
 
-- [ ] record => {Offset, Value{offset}}
-- [ ] const EMPTY_PTR
-- [ ] refs by ptr (offset from start), ptr in Node
 - [ ] cursor. map over cursor.
+- [ ] refs by ptr (offset from start), ptr in Node
 - [ ] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
 - [ ] logger
 - [ ] trait Action - add, scan, remove
