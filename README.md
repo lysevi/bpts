@@ -1,6 +1,5 @@
 # bpts
 
-- [ ] cursor. map over cursor.
 - [ ] refs by ptr (offset from start), ptr in Node
 - [ ] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
    - [ ] key comparer
@@ -15,6 +14,7 @@
    - [ ] indexes
 
 
+- [x] cursor. map over cursor.
 - [x] remove
 - [x] remove from middle range
 - [x] range query

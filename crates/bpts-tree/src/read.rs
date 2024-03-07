@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::cursor;
 use crate::node::*;
 use crate::nodestorage::NodeStorage;
 use crate::rec::Record;
@@ -72,32 +73,17 @@ where
         Ok(_) => {}
         Err(e) => return Err(e),
     }
-    let from_unwr = node_from.unwrap();
-    let to_unwr = node_to.unwrap();
+    let mut crs = cursor::Cursor::new(
+        storage,
+        node_from.unwrap(),
+        node_to.unwrap(),
+        cursor::CursorDirection::Forward,
+        from,
+        to,
+    );
 
-    let mut cur_node: RcNode = from_unwr.clone();
+    while !crs.next(f)?.is_end() {}
 
-    loop {
-        {
-            let ref_to = cur_node.borrow();
-            ref_to.map(from, to, f);
-            if ref_to.id == to_unwr.borrow().id {
-                break;
-            }
-        }
-        // println!(
-        //     "map: {:?} {:?}",
-        //     cur_node.borrow().id,
-        //     cur_node.borrow().right
-        // );
-        if cur_node.borrow().right.exists() {
-            let next = storage.get_node(cur_node.borrow().right);
-
-            cur_node = next.unwrap();
-        } else {
-            break;
-        }
-    }
     Ok(())
 }
 
@@ -125,32 +111,17 @@ where
         Ok(_) => {}
         Err(e) => return Err(e),
     }
-    let from_unwr = node_from.unwrap();
-    let to_unwr = node_to.unwrap();
+    let mut crs = cursor::Cursor::new(
+        storage,
+        node_from.unwrap(),
+        node_to.unwrap(),
+        cursor::CursorDirection::Backward,
+        from,
+        to,
+    );
 
-    let mut cur_node: RcNode = to_unwr.clone();
+    while !crs.next(f)?.is_end() {}
 
-    loop {
-        {
-            let ref_to = cur_node.borrow();
-            ref_to.map_rev(from, to, f);
-            if ref_to.id == from_unwr.borrow().id {
-                break;
-            }
-        }
-        println!(
-            "map_rev: {:?} {:?}",
-            cur_node.borrow().id,
-            cur_node.borrow().left
-        );
-        if cur_node.borrow().left.exists() {
-            let next = storage.get_node(cur_node.borrow().left);
-
-            cur_node = next.unwrap();
-        } else {
-            break;
-        }
-    }
     Ok(())
 }
 

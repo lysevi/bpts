@@ -11,7 +11,7 @@ pub type RcNode = Rc<RefCell<Node>>;
 
 #[derive(Clone)]
 pub struct Node {
-    pub id: Id, //TODO remove
+    pub id: Id, 
     pub is_leaf: bool,
     pub parent: Id,
     pub left: Id,

@@ -1,3 +1,4 @@
+mod cursor;
 pub mod insert;
 pub mod map_up_to_tree;
 pub mod mfile;
