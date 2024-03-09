@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub struct TreeParams {
     pub t: usize,
     pub min_size_root: usize,
@@ -27,6 +28,21 @@ impl TreeParams {
     pub fn with_t(mut self, t: usize) -> TreeParams {
         self.t = t;
         return self;
+    }
+
+    pub fn with_min_size_leaf(mut self, v: usize) -> Self {
+        self.min_size_leaf = v;
+        self
+    }
+
+    pub fn with_min_size_root(mut self, v: usize) -> Self {
+        self.min_size_root = v;
+        self
+    }
+
+    pub fn with_min_size_node(mut self, v: usize) -> Self {
+        self.min_size_node = v;
+        self
     }
 
     pub fn get_min_size_leaf(&self) -> usize {

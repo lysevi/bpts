@@ -18,7 +18,8 @@ fn main() {
         std::io::stdout().flush().unwrap();
         let start = Instant::now();
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
-        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(t));
+        let params = TreeParams::default_with_t(t).with_min_size_root(2);
+        let mut storage: MockNodeStorage = MockNodeStorage::new(params);
         storage.add_node(&root_node);
 
         for i in &nums {
