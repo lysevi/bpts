@@ -140,7 +140,8 @@ mod tests {
             2,
         );
 
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
         let res = find(&mut storage, &leaf1, 2)?;
         assert!(res.is_some());

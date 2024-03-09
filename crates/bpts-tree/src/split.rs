@@ -9,7 +9,6 @@ use crate::{
 pub fn split_node<Storage: NodeStorage>(
     storage: &mut Storage,
     target_node: &RcNode,
-    t: usize,
     toproot: Option<RcNode>,
 ) -> Result<RcNode> {
     // println!(        "split:is_leaf:{} target:{:?}",        target_node.borrow().is_leaf,        target_node.borrow().id    );
@@ -39,6 +38,8 @@ pub fn split_node<Storage: NodeStorage>(
 
     let mut new_keys = vec![0i32; target_node.borrow().keys.capacity()];
     let mut new_data = Record::empty_array(target_node.borrow().data.len());
+
+    let t = storage.get_params().get_t();
 
     let mut brother_keys_count = t;
     let brother_data_count = t;
@@ -134,7 +135,7 @@ pub fn split_node<Storage: NodeStorage>(
         if can_insert {
             return Ok(toproot.unwrap().clone());
         } else {
-            return split_node(storage, &parent_node, t, toproot);
+            return split_node(storage, &parent_node, toproot);
         }
     }
 }
@@ -184,10 +185,11 @@ mod tests {
             6,
             6,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
 
-        let root = split_node(&mut storage, &leaf1, 3, None)?;
+        let root = split_node(&mut storage, &leaf1, None)?;
 
         assert_eq!(root.borrow().is_leaf, false);
         assert_eq!(root.borrow().keys_count, 1);
@@ -267,7 +269,8 @@ mod tests {
             5,
             6,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&first_root_node);
 
         {
@@ -279,7 +282,7 @@ mod tests {
                 storage.add_node(&new_leaf);
             }
         }
-        let result = split_node(&mut storage, &first_root_node, 3, None);
+        let result = split_node(&mut storage, &first_root_node, None);
         let root = result.unwrap();
 
         assert_ne!(root.borrow().id, types::Id(1));
@@ -375,7 +378,8 @@ mod tests {
             1,
             2,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&root_node);
 
         let leaf1_node = Node::new_leaf(
@@ -407,7 +411,7 @@ mod tests {
         leaf1_node.borrow_mut().left = types::Id(2);
         storage.add_node(&leaf2_node);
 
-        let result = split_node(&mut storage, &leaf1_node, 3, Some(root_node.clone()));
+        let result = split_node(&mut storage, &leaf1_node, Some(root_node.clone()));
         assert!(result.is_ok());
         assert_eq!(result.unwrap().borrow().id, root_node.borrow().id);
         assert_eq!(storage.size(), 4);

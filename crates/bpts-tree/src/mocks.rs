@@ -1,6 +1,7 @@
 use crate::{
     node::RcNode,
     nodestorage::NodeStorage,
+    params::TreeParams,
     types::{self, Id},
     Result,
 };
@@ -8,15 +9,17 @@ use std::{collections::HashMap, rc::Rc};
 
 pub struct MockNodeStorage {
     nodes: HashMap<i32, RcNode>,
+    params: TreeParams,
 }
 
 impl MockNodeStorage {
     pub fn size(&self) -> usize {
         return self.nodes.len();
     }
-    pub fn new() -> MockNodeStorage {
+    pub fn new(params: TreeParams) -> MockNodeStorage {
         MockNodeStorage {
             nodes: HashMap::new(),
+            params,
         }
     }
 
@@ -29,6 +32,13 @@ impl MockNodeStorage {
         F: FnMut(&RcNode) -> bool,
     {
         self.nodes.values().all(f)
+    }
+
+    pub fn change_t(&mut self, t: usize) {
+        self.params.t = t;
+        self.params.min_size_leaf = t;
+        self.params.min_size_node = t;
+        self.params.min_size_root = t;
     }
 }
 
@@ -60,5 +70,9 @@ impl NodeStorage for MockNodeStorage {
     fn erase_node(&mut self, id: &Id) {
         println!("erase node: Id={}", id.0);
         self.nodes.remove(&id.0);
+    }
+
+    fn get_params(&self) -> &TreeParams {
+        &self.params
     }
 }

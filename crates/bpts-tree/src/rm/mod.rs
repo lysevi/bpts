@@ -52,7 +52,6 @@ pub(super) fn erase_key<Storage: NodeStorage>(
     storage: &mut Storage,
     target: &RcNode,
     key: i32,
-    t: usize,
     root: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
     {
@@ -67,7 +66,7 @@ pub(super) fn erase_key<Storage: NodeStorage>(
                 target_ref.first_key(),
             )?;
         }
-        if target_ref.data_count >= t {
+        if target_ref.data_count >= storage.get_params().get_min_size_leaf() {
             //update keys in parent
             if first_key != target_ref.keys[0] && target_ref.parent.exists() {
                 let parent = storage.get_node(target_ref.parent)?;
@@ -80,5 +79,5 @@ pub(super) fn erase_key<Storage: NodeStorage>(
         }
     }
 
-    return rebalancing::rebalancing(storage, target, t, root);
+    return rebalancing::rebalancing(storage, target, root);
 }

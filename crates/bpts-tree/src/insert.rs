@@ -5,7 +5,6 @@ pub fn insert<Storage: NodeStorage>(
     root: &RcNode,
     key: i32,
     value: &Record,
-    t: usize,
 ) -> Result<RcNode> {
     let target_node: RcNode;
     {
@@ -21,7 +20,7 @@ pub fn insert<Storage: NodeStorage>(
         }
         // println!("insert into {:?}", target_node.borrow().id);
         let mut mut_ref = target_node.borrow_mut();
-        let can_insert = mut_ref.can_insert(t);
+        let can_insert = mut_ref.can_insert(storage.get_params().get_t());
 
         let mut index = mut_ref.keys_count;
         for i in 0..mut_ref.keys_count {
@@ -41,7 +40,7 @@ pub fn insert<Storage: NodeStorage>(
             return Ok(root.clone());
         }
     }
-    return split_node(storage, &target_node, t, Some(root.clone()));
+    return split_node(storage, &target_node, Some(root.clone()));
 }
 
 #[cfg(test)]
@@ -52,7 +51,8 @@ mod tests {
     fn many_inserts(t: usize, maxnodecount: usize) -> Result<()> {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut key: i32 = 1;
@@ -62,7 +62,7 @@ mod tests {
             if key == 22 {
                 println!("kv 22");
             }
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), t);
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
             assert!(res.is_ok());
             root_node = res.unwrap();
 
@@ -116,7 +116,8 @@ mod tests {
 
     fn many_inserts_back(t: usize, maxnodecount: usize) -> Result<()> {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut key: i32 = 100;
@@ -125,7 +126,7 @@ mod tests {
             total_count += 1;
             key -= 1;
             println!("insert {}", key);
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), t);
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
             assert!(res.is_ok());
             root_node = res.unwrap();
 
@@ -205,7 +206,8 @@ mod tests {
         }
 
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         for i in 0..keys.len() {
@@ -221,7 +223,6 @@ mod tests {
                 &root_node,
                 keys[i],
                 &Record::from_i32(keys[i]),
-                t,
             );
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -259,21 +260,22 @@ mod tests {
             2,
         );
 
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
 
         let new_value = Record::from_i32(1);
-        let mut result = insert(&mut storage, &leaf1, 1, &new_value, 3);
+        let mut result = insert(&mut storage, &leaf1, 1, &new_value);
         assert!(result.is_ok());
         let mut new_root = result.unwrap();
         assert_eq!(new_root.borrow().keys_count, 3);
 
-        result = insert(&mut storage, &leaf1, 5, &new_value, 3);
+        result = insert(&mut storage, &leaf1, 5, &new_value);
         assert!(result.is_ok());
         new_root = result.unwrap();
         assert_eq!(new_root.borrow().keys_count, 4);
 
-        result = insert(&mut storage, &leaf1, 4, &new_value, 3);
+        result = insert(&mut storage, &leaf1, 4, &new_value);
         assert!(result.is_ok());
         new_root = result.unwrap();
         assert_eq!(new_root.borrow().keys_count, 5);
@@ -286,7 +288,7 @@ mod tests {
         }
 
         let new_data = Record::from_i32(6);
-        result = insert(&mut storage, &leaf1, 6, &new_data, 3);
+        result = insert(&mut storage, &leaf1, 6, &new_data);
         assert!(result.is_ok());
         new_root = result.unwrap();
         assert!(!new_root.borrow().is_leaf);

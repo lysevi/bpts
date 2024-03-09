@@ -18,7 +18,7 @@ fn main() {
         std::io::stdout().flush().unwrap();
         let start = Instant::now();
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         for i in &nums {
@@ -26,7 +26,7 @@ fn main() {
             //     println!("")
             // }
             //let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
-            let res = insert(&mut storage, &root_node, *i, &Record::from_i32(*i), t);
+            let res = insert(&mut storage, &root_node, *i, &Record::from_i32(*i));
             //crate::helpers::print_state(&str_before, &String::from(""));
             assert!(res.is_ok());
             root_node = res.unwrap();

@@ -1,5 +1,6 @@
 use crate::{
     node::RcNode,
+    params::TreeParams,
     types::{self, Id},
     Result,
 };
@@ -12,4 +13,6 @@ pub trait NodeStorage {
     fn add_node(&mut self, node: &RcNode);
 
     fn erase_node(&mut self, id: &Id);
+
+    fn get_params(&self) -> &TreeParams;
 }

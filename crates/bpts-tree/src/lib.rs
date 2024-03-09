@@ -13,5 +13,6 @@ pub mod rm;
 pub mod split;
 pub mod types;
 pub mod utils;
+pub mod params;
 
 pub type Result<T> = std::result::Result<T, types::Error>;

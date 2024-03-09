@@ -3,6 +3,7 @@ pub use crate::mocks::MockNodeStorage;
 pub use crate::node::Node;
 pub use crate::node::RcNode;
 pub use crate::nodestorage::NodeStorage;
+pub use crate::params::*;
 pub use crate::read::find;
 pub use crate::read::map;
 pub use crate::read::map_rev;

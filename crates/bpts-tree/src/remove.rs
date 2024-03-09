@@ -4,7 +4,6 @@ pub fn remove_key<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
     key: i32,
-    t: usize,
 ) -> Result<RcNode> {
     let target_node: RcNode;
 
@@ -22,7 +21,7 @@ pub fn remove_key<Storage: NodeStorage>(
             r.id, r.left.0, r.right.0, r.parent.0
         );
     }
-    return erase_key(storage, &target_node, key, t, Some(root.clone()));
+    return erase_key(storage, &target_node, key, Some(root.clone()));
 }
 
 #[cfg(test)]
@@ -32,14 +31,15 @@ pub(crate) mod tests {
     pub fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut key: i32 = 1;
         let mut keys = Vec::new();
         while storage.size() <= nodes_count {
             key += 1;
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key), t);
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
             keys.push(key);
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -70,10 +70,11 @@ pub(crate) mod tests {
             6,
             6,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&leaf);
 
-        let result = crate::rm::erase_key(&mut storage, &leaf, 2, 3, Some(leaf.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf, 2, Some(leaf.clone()));
         assert!(result.is_ok());
 
         {
@@ -99,7 +100,8 @@ pub(crate) mod tests {
 
     #[test]
     fn remove_from_leaf_update_parent() -> Result<()> {
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         let leaf1 = Node::new_leaf(
             Id(1),
             vec![1, 2, 3, 4],
@@ -144,7 +146,7 @@ pub(crate) mod tests {
         leaf1.borrow_mut().parent = root.borrow().id;
         leaf2.borrow_mut().parent = root.borrow().id;
 
-        let result = crate::rm::erase_key(&mut storage, &leaf2, 5, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf2, 5, Some(root.clone()));
         assert!(result.is_ok());
         {
             let newroot = result.unwrap();
@@ -184,7 +186,8 @@ pub(crate) mod tests {
 
     #[test]
     fn remove_from_leaf_take_from_lower() -> Result<()> {
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
 
         let root = Node::new_root(
             Id(3),
@@ -233,7 +236,7 @@ pub(crate) mod tests {
         leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_high.borrow_mut().left = leaf_low.borrow().id;
 
-        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, Some(root.clone()));
         assert!(result.is_ok());
 
         {
@@ -288,7 +291,8 @@ pub(crate) mod tests {
 
     #[test]
     fn remove_from_leaf_take_from_high() -> Result<()> {
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         let root = Node::new_root(
             Id(3),
             vec![9, 0, 0, 0],
@@ -334,7 +338,7 @@ pub(crate) mod tests {
         leaf_high.borrow_mut().parent = root.borrow().id;
         leaf_low.borrow_mut().parent = root.borrow().id;
 
-        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, Some(root.clone()));
         assert!(result.is_ok());
 
         {
@@ -391,7 +395,8 @@ pub(crate) mod tests {
 
     #[test]
     fn remove_from_leaf_move_to_lower() -> Result<()> {
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
 
         let leaf_high = Node::new_leaf(
             Id(1),
@@ -424,7 +429,7 @@ pub(crate) mod tests {
         storage.add_node(&leaf_low);
         leaf_high.borrow_mut().left = leaf_low.borrow().id;
 
-        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, 3, Some(leaf_high.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, Some(leaf_high.clone()));
         assert!(result.is_ok());
 
         assert!(!storage.is_exists(leaf_high.borrow().id));
@@ -460,7 +465,8 @@ pub(crate) mod tests {
             3,
             3,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&leaf_low);
 
         let leaf_high = Node::new_leaf(
@@ -475,11 +481,10 @@ pub(crate) mod tests {
             2,
             2,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
         storage.add_node(&leaf_high);
         leaf_low.borrow_mut().right = leaf_high.borrow().id;
 
-        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, 3, Some(leaf_low.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, Some(leaf_low.clone()));
         assert!(result.is_ok());
 
         assert!(!storage.is_exists(leaf_low.borrow().id));
@@ -515,10 +520,11 @@ pub(crate) mod tests {
             2,
             3,
         );
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&node);
 
-        let result = crate::rm::erase_key(&mut storage, &node, 5, 3, Some(node.clone()));
+        let result = crate::rm::erase_key(&mut storage, &node, 5, Some(node.clone()));
         assert!(result.is_ok());
 
         {
@@ -540,7 +546,8 @@ pub(crate) mod tests {
 
     #[test]
     fn remove_from_leaf_move_to_lower_update_parent() -> Result<()> {
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
 
         let root = Node::new_root(
             Id(4),
@@ -608,7 +615,7 @@ pub(crate) mod tests {
         leaf_high.borrow_mut().parent = root.borrow().id;
         leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_extra.borrow_mut().parent = root.borrow().id;
-        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, 3, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_high, 6, Some(root.clone()));
         assert!(result.is_ok());
         let new_root = result.unwrap();
         assert_eq!(new_root.borrow().id, root.borrow().id);
@@ -653,7 +660,8 @@ pub(crate) mod tests {
 
     #[test]
     fn remove_from_leaf_move_to_high_update_parent() -> Result<()> {
-        let mut storage: MockNodeStorage = MockNodeStorage::new();
+        let mut storage: MockNodeStorage =
+            MockNodeStorage::new(crate::params::TreeParams::default_with_t(2));
         /*
               9            15
          5 6    9 10, 0, 0   15 16
@@ -719,7 +727,7 @@ pub(crate) mod tests {
         leaf_low.borrow_mut().parent = root.borrow().id;
         leaf_extra.borrow_mut().parent = root.borrow().id;
 
-        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, 2, Some(root.clone()));
+        let result = crate::rm::erase_key(&mut storage, &leaf_low, 6, Some(root.clone()));
         assert!(result.is_ok());
 
         let low_id = leaf_low.borrow().id;
@@ -785,7 +793,7 @@ pub(crate) mod tests {
                     &String::from("before"),
                 );
 
-                let remove_res = crate::remove::remove_key(&mut storage, &root_node, i, t);
+                let remove_res = crate::remove::remove_key(&mut storage, &root_node, i);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
@@ -865,7 +873,7 @@ pub(crate) mod tests {
                     &String::from("before"),
                 );
 
-                let remove_res = remove_key(&mut storage, &root_node, i, t);
+                let remove_res = remove_key(&mut storage, &root_node, i);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
                 let str_after = debug::storage_to_string(
@@ -963,7 +971,7 @@ pub(crate) mod tests {
                     &String::from("before"),
                 );
 
-                let remove_res = remove_key(&mut storage, &root_node, i, t);
+                let remove_res = remove_key(&mut storage, &root_node, i);
                 assert!(remove_res.is_ok());
                 root_node = remove_res.unwrap();
 
@@ -1074,7 +1082,7 @@ pub(crate) mod tests {
     fn remove_from_middle_leaf() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(7, 3);
 
-        let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1), 3);
+        let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1));
         root_node = res.unwrap();
 
         let str_before = crate::prelude::debug::storage_to_string(
@@ -1084,7 +1092,7 @@ pub(crate) mod tests {
             &String::from("before"),
         );
 
-        let remove_res = remove_key(&mut storage, &root_node, 5, 3);
+        let remove_res = remove_key(&mut storage, &root_node, 5);
         assert!(remove_res.is_ok());
         root_node = remove_res.unwrap();
 

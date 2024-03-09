@@ -11,11 +11,18 @@ use crate::{
 pub(in super::super) fn rebalancing<Storage: NodeStorage>(
     storage: &mut Storage,
     target: &RcNode,
-    t: usize,
     root: Option<RcNode>,
 ) -> Result<RcNode> {
     println!("resize Id={:?}", target.borrow().id.0);
     let mut target_ref = target.borrow_mut();
+    let mut t = storage.get_params().get_min_size_leaf();
+    if !target_ref.is_leaf {
+        t = if target_ref.parent.is_empty() {
+            storage.get_params().get_min_size_root()
+        } else {
+            storage.get_params().get_min_size_node()
+        }
+    }
     if target_ref.data_count >= t {
         return Ok(root.unwrap());
     }
@@ -113,7 +120,7 @@ pub(in super::super) fn rebalancing<Storage: NodeStorage>(
     if update_parent && target_ref.parent.exists() {
         let link_to_parent = storage.get_node(target_ref.parent)?;
         if link_to_parent.borrow().keys_count < t {
-            return rebalancing(storage, &link_to_parent, t, root);
+            return rebalancing(storage, &link_to_parent, root);
         }
     }
     return Ok(root.unwrap());
@@ -152,7 +159,8 @@ mod tests {
             }
             keyset.remove(&16);
             keyset.remove(&17);
-            let res = super::rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
+            storage.change_t(3);
+            let res = super::rebalancing(&mut storage, &node, Some(root_node.clone()));
             root_node = res.unwrap()
         }
         {
@@ -205,7 +213,8 @@ mod tests {
             }
             keyset.remove(&20);
             keyset.remove(&21);
-            let res = super::rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
+            storage.change_t(3);
+            let res = super::rebalancing(&mut storage, &node, Some(root_node.clone()));
             root_node = res.unwrap()
         }
         {
@@ -251,7 +260,8 @@ mod tests {
             nr.data_count -= 2;
         }
         let node = storage.get_node(Id(26)).unwrap();
-        let res = super::rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
+        storage.change_t(3);
+        let res = super::rebalancing(&mut storage, &node, Some(root_node.clone()));
         root_node = res.unwrap();
         let str_after =
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
@@ -292,7 +302,8 @@ mod tests {
             nr.data_count -= 2;
         }
         let node = storage.get_node(Id(21)).unwrap();
-        let res = super::rebalancing(&mut storage, &node, 3, Some(root_node.clone()));
+        storage.change_t(3);
+        let res = super::rebalancing(&mut storage, &node, Some(root_node.clone()));
         root_node = res.unwrap();
         let str_after =
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
