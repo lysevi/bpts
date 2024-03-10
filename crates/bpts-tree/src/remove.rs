@@ -847,7 +847,6 @@ pub(crate) mod tests {
             }
         }
         return Ok(());
-        //TODO check map map_rev
     }
 
     fn many_inserts_rev(t: usize, maxnodes: usize) -> Result<()> {
@@ -933,7 +932,6 @@ pub(crate) mod tests {
             }
         }
         return Ok(());
-        //TODO check map map_fwd
     }
 
     fn many_inserts_middle_range(t: usize, maxnodes: usize) -> Result<()> {
@@ -1035,7 +1033,6 @@ pub(crate) mod tests {
             }
         }
         return Ok(());
-        //TODO check map map_rev
     }
 
     #[test]

@@ -11,7 +11,7 @@ pub type RcNode = Rc<RefCell<Node>>;
 
 #[derive(Clone)]
 pub struct Node {
-    pub id: Id, 
+    pub id: Id,
     pub is_leaf: bool,
     pub parent: Id,
     pub left: Id,
@@ -263,6 +263,14 @@ impl Node {
             return self.data[self.data_count - 1].clone();
         }
         panic!("empty node");
+    }
+
+    pub fn data_iter(&self) -> std::iter::Take<std::slice::Iter<'_, Record>> {
+        self.data.iter().take(self.data_count)
+    }
+
+    pub fn key_iter(&self) -> std::iter::Take<std::slice::Iter<'_, i32>> {
+        self.keys.iter().take(self.keys_count)
     }
 }
 

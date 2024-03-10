@@ -2,8 +2,7 @@ use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
 
 use super::rollup::rollup_keys;
 
-pub(super) fn move_to_lower<Storage: NodeStorage>(
-    storage: &mut Storage,
+pub(super) fn move_to_lower(
     target_node: &mut Node,
     low_side_node: &mut Node,
     middle: Option<i32>,
@@ -23,20 +22,13 @@ pub(super) fn move_to_lower<Storage: NodeStorage>(
     }
 
     let low_keys_count = low_side_node.keys_count;
-    for i in 0..target_node.keys_count {
-        low_side_node.keys[low_keys_count + i] = target_node.keys[i];
+    for (i, key) in target_node.key_iter().enumerate() {
+        low_side_node.keys[low_keys_count + i] = *key;
     }
 
     let low_data_count = low_side_node.data_count;
-    for i in 0..target_node.data_count {
-        let node_ptr = target_node.data[i].clone();
-        low_side_node.data[low_data_count + i] = node_ptr.clone();
-
-        if !target_node.is_leaf {
-            //TODO! move to resize
-            let node = storage.get_node(node_ptr.into_id())?;
-            node.borrow_mut().parent = low_side_node.id;
-        }
+    for (num, data) in target_node.data_iter().enumerate() {
+        low_side_node.data[low_data_count + num] = data.clone();
     }
 
     low_side_node.keys_count += target_node.keys_count;
@@ -61,15 +53,15 @@ pub(super) fn move_to_higher(
         utils::insert_to_array(&mut high_side.keys, 0, middle.unwrap());
         high_side.keys_count += 1;
     }
-    for i in 0..target.keys_count {
-        utils::insert_to_array(&mut high_side.keys, i, target.keys[i]);
+    for (i, key) in target.key_iter().enumerate() {
+        utils::insert_to_array(&mut high_side.keys, i, *key);
     }
 
-    for i in 0..target.data_count {
-        utils::insert_to_array(&mut high_side.data, i, target.data[i].clone());
+    for (i, data) in target.data_iter().enumerate() {
+        utils::insert_to_array(&mut high_side.data, i, data.clone());
 
         if !target.is_leaf {
-            let node = storage.get_node(target.data[i].into_id()).unwrap();
+            let node = storage.get_node(data.into_id()).unwrap();
             node.borrow_mut().parent = high_side.id;
         }
     }
@@ -99,7 +91,15 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
             parent_ref.erase_link(target_ref.id);
         }
 
-        move_to_lower(storage, target_ref, leaf_ref, middle)?;
+        move_to_lower(target_ref, leaf_ref, middle)?;
+
+        if !target_ref.is_leaf {
+            for i in target_ref.data_iter() {
+                let node = storage.get_node(i.into_id())?;
+                node.borrow_mut().parent = leaf_ref.id;
+            }
+        }
+
         storage.erase_node(&target_ref.id);
 
         if target_ref.parent.exists() && leaf_ref.parent != target_ref.parent {

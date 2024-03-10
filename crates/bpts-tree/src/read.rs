@@ -87,7 +87,6 @@ where
     Ok(())
 }
 
-//TODO! refact with map.
 pub fn map_rev<F, Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,

@@ -142,8 +142,8 @@ pub fn split_node<Storage: NodeStorage>(
 
 fn insert_key_to_parent(target_node: &mut Node, key: i32, id: Id) {
     let mut pos = 0usize;
-    for _i in 0..target_node.keys_count {
-        if target_node.keys[pos] >= key {
+    for item in target_node.key_iter() {
+        if *item >= key {
             break;
         }
         pos += 1;
