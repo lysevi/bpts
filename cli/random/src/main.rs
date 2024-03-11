@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use bpts::prelude::*;
+use bpts_tree::prelude::*;
 use rand::prelude::*;
 use std::time::Instant;
 
