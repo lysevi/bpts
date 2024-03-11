@@ -16,7 +16,7 @@ fn main() {
     for t in 4..100 {
         print!("t:{}", t);
         std::io::stdout().flush().unwrap();
-        let start = Instant::now();
+        let mut start = Instant::now();
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
         let params = TreeParams::default_with_t(t).with_min_size_root(2);
         let mut storage: MockNodeStorage = MockNodeStorage::new(params);
@@ -33,14 +33,16 @@ fn main() {
             root_node = res.unwrap();
         }
 
-        let duration = start.elapsed();
-        println!("\tstorage size:{} \telapsed:{:?}", storage.size(), duration);
+        let mut duration = start.elapsed();
+        print!("\tstorage size:{} \twrite:{:?}", storage.size(), duration);
+        std::io::stdout().flush().unwrap();
         let str_before = crate::debug::storage_to_string(
             &storage,
             root_node.clone(),
             true,
             &String::from("before"),
         );
+        start = Instant::now();
         for i in &nums {
             let res = find(&mut storage, &root_node, *i);
             if res.is_err() {
@@ -57,5 +59,26 @@ fn main() {
             let rec = v.unwrap();
             assert_eq!(rec.into_i32(), *i);
         }
+        duration = start.elapsed();
+        println!("\tread:{:?}", duration);
+        std::io::stdout().flush().unwrap();
+
+        /*start = Instant::now();
+        for i in &nums {
+            let res = remove_key(&mut storage, &root_node, *i);
+            if res.is_err() {
+                println!("> not found {}", i);
+            }
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+            let res = find(&mut storage, &root_node, *i);
+            if res.is_err() {
+                println!("> error {}", i);
+            }
+            assert!(res.unwrap().is_none());
+        }
+        duration = start.elapsed();
+        println!("\remove:{:?}", duration);
+        std::io::stdout().flush().unwrap();*/
     }
 }
