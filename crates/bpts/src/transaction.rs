@@ -1,3 +1,5 @@
+use bpts_tree::prelude::*;
+
 #[repr(C, packed)]
 #[derive(Debug, Clone)]
 pub struct TransactionHeader {
@@ -47,6 +49,14 @@ impl Transaction {
         return self.size();
     }
 
+    pub fn from_transaction(other: &Transaction) -> Transaction {
+        Transaction {
+            header: other.header.clone(),
+            buffer: None,
+            offset: 0,
+        }
+    }
+
     pub fn size(&self) -> u32 {
         return TRANSACTION_HEADER_SIZE;
     }
@@ -68,8 +78,44 @@ impl Transaction {
     }
 }
 
+impl NodeStorage for Transaction {
+    fn get_new_id(&self) -> Id {
+        if !self.is_readonly() {
+            panic!("logic error");
+        }
+        todo!()
+    }
+
+    fn get_node(&self, id: Id) -> Result<RcNode> {
+        todo!()
+    }
+
+    fn add_node(&mut self, node: &RcNode) {
+        if !self.is_readonly() {
+            panic!("logic error");
+        }
+        todo!()
+    }
+
+    fn erase_node(&mut self, id: &Id) {
+        if !self.is_readonly() {
+            panic!("logic error");
+        }
+        todo!()
+    }
+
+    fn get_params(&self) -> &TreeParams {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::Result;
-    use crate::transaction::*;
+
+    #[test]
+    fn transaction_storage() -> Result<()> {
+        todo!();
+        Ok(())
+    }
 }
