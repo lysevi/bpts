@@ -68,19 +68,18 @@ impl<'a> Page<'a> {
 
     pub fn save_trans(&mut self, t: Transaction) {
         unsafe {
+            let mut free_space_head = (*self.hdr).free_space_head;
             let mut target = t;
-            let offset = (*self.hdr).free_space_head;
+            let offset = free_space_head;
             let ptr = self.space.add(offset as usize);
             let writed_bytes = target.save_to(ptr, offset);
-            (*self.hdr).free_space_head += writed_bytes;
-
-            let mut exists = false;
+            free_space_head += writed_bytes;
 
             self.trans.insert(target.tree_id(), target);
 
-            (*self.hdr).trans_list_offset = (*self.hdr).free_space_head;
+            let trans_list_offset = free_space_head;
 
-            let mut ptr = self.space.add((*self.hdr).free_space_head as usize);
+            let mut ptr = self.space.add(free_space_head as usize);
 
             let count_ptr = ptr as *mut u32;
             let count = self.trans.len() as u32;
@@ -93,7 +92,10 @@ impl<'a> Page<'a> {
             }
 
             let offset = std::mem::size_of::<u32>() * (self.trans.len() + 1);
-            (*self.hdr).free_space_head += offset as u32;
+            free_space_head += offset as u32;
+
+            (*self.hdr).free_space_head = free_space_head;
+            (*self.hdr).trans_list_offset = trans_list_offset;
         }
 
         //self.trans = Some(transes);
@@ -119,6 +121,10 @@ impl<'a> Page<'a> {
 
     pub fn trees_count(&self) -> usize {
         self.trans.len()
+    }
+
+    pub fn is_full() -> bool {
+        todo!()
     }
 }
 
