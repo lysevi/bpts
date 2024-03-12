@@ -43,6 +43,7 @@ impl Transaction {
         let dest_ptr = buffer as *mut TransactionHeader;
         std::ptr::copy(src_ptr, dest_ptr, 1);
         self.offset = offset;
+        self.buffer = Some(buffer);
         return self.size();
     }
 
@@ -62,9 +63,8 @@ impl Transaction {
         self.offset
     }
 
-    pub fn set_offset(&mut self, offset: u32, buffer: *mut u8) {
-        self.offset = offset;
-        self.buffer = Some(buffer);
+    pub fn is_readonly(&self) -> bool {
+        return !self.buffer.is_none();
     }
 }
 

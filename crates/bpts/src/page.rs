@@ -72,7 +72,6 @@ impl<'a> Page<'a> {
             let offset = (*self.hdr).free_space_head;
             let ptr = self.space.add(offset as usize);
             let writed_bytes = target.save_to(ptr, offset);
-            target.set_offset(offset, ptr);
             (*self.hdr).free_space_head += writed_bytes;
 
             let mut exists = false;
@@ -155,8 +154,10 @@ mod tests {
             assert_eq!(page.trees_count(), 1);
 
             let t = Transaction::new(1, 8);
+            assert!(!t.is_readonly());
             page.save_trans(t);
             assert_eq!(page.transaction(8).unwrap().rev(), 1);
+            assert!(page.transaction(8).unwrap().is_readonly());
             assert_eq!(page.transaction(8).unwrap().tree_id(), 8);
             assert_eq!(page.trees_count(), 2);
         }
