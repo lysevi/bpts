@@ -52,8 +52,14 @@ impl Transaction {
         let src_ptr = &self.header as *const TransactionHeader;
         let dest_ptr = buffer as *mut TransactionHeader;
         std::ptr::copy(src_ptr, dest_ptr, 1);
+
+        for n in self.nodes.values() {
+            todo!()
+        }
+
         self.offset = offset;
         self.buffer = Some(buffer);
+        self.nodes.clear();
         return self.size();
     }
 
@@ -69,7 +75,11 @@ impl Transaction {
     }
 
     pub fn size(&self) -> u32 {
-        return TRANSACTION_HEADER_SIZE;
+        let mut result = TRANSACTION_HEADER_SIZE;
+        for node in self.nodes.values() {
+            todo!();
+        }
+        return result;
     }
 
     pub fn rev(&self) -> u32 {
@@ -100,7 +110,7 @@ impl NodeStorage for Transaction {
         None
     }
     fn get_new_id(&self) -> Id {
-        if !self.is_readonly() {
+        if self.is_readonly() {
             panic!("logic error");
         }
         let max = self.nodes.keys().into_iter().max_by(|x, y| x.cmp(y));
@@ -123,7 +133,7 @@ impl NodeStorage for Transaction {
     }
 
     fn add_node(&mut self, node: &RcNode) {
-        if !self.is_readonly() {
+        if self.is_readonly() {
             panic!("logic error");
         }
         let ref_node = node.borrow();
@@ -131,7 +141,7 @@ impl NodeStorage for Transaction {
     }
 
     fn erase_node(&mut self, id: &Id) {
-        if !self.is_readonly() {
+        if self.is_readonly() {
             panic!("logic error");
         }
         println!("erase node: Id={}", id.0);
@@ -145,11 +155,34 @@ impl NodeStorage for Transaction {
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::Result;
+    use bpts_tree::prelude::*;
 
+    use super::Transaction;
     #[test]
-    fn transaction_storage() -> Result<()> {
-        todo!();
+    fn transaction_save() -> Result<()> {
+        let max_node_count = 10;
+        let params = TreeParams::default();
+        let mut storage = Transaction::new(0, 1, params.clone());
+
+        let mut root_node = Node::new_leaf_with_size(Id(1), params.t);
+
+        storage.add_node(&root_node);
+
+        let mut key: i32 = 1;
+        while storage.size() < max_node_count {
+            key += 1;
+            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+        }
+
+        let size = storage.size();
+        let mut buffer = vec![0u8; size as usize];
+        let slice = buffer.as_mut_slice();
+        unsafe {
+            storage.save_to(slice.as_mut_ptr(), 0);
+        }
+
         Ok(())
     }
 }
