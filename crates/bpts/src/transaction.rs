@@ -176,13 +176,19 @@ mod tests {
             root_node = res.unwrap();
         }
 
-        let size = storage.size();
-        let mut buffer = vec![0u8; size as usize];
+        let mut size = storage.size();
+        let mut buffer = vec![0u8; size as usize + 50];
+        for i in (size as usize)..buffer.len() {
+            buffer[i] = i as u8;
+        }
         let slice = buffer.as_mut_slice();
         unsafe {
             storage.save_to(slice.as_mut_ptr(), 0);
         }
 
+        for i in (size as usize)..buffer.len() {
+            assert_eq!(buffer[i], i as u8);
+        }
         Ok(())
     }
 }
