@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use bpts_tree::prelude::*;
 
 #[repr(C, packed)]
@@ -9,15 +11,17 @@ pub struct TransactionHeader {
 }
 const TRANSACTION_HEADER_SIZE: u32 = std::mem::size_of::<TransactionHeader>() as u32;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Transaction {
     header: TransactionHeader,
     buffer: Option<*mut u8>,
     offset: u32,
+    nodes: HashMap<i32, RcNode>,
+    params: TreeParams,
 }
 
 impl Transaction {
-    pub fn new(rev: u32, tree_id: u32) -> Transaction {
+    pub fn new(rev: u32, tree_id: u32, params: TreeParams) -> Transaction {
         let hdr = TransactionHeader {
             rev,
             tree_id,
@@ -27,16 +31,20 @@ impl Transaction {
             header: hdr,
             buffer: None,
             offset: 0u32,
+            nodes: HashMap::new(),
+            params: params,
         }
     }
 
-    pub unsafe fn from_buffer(buffer: *mut u8, offset: u32) -> Transaction {
+    pub unsafe fn from_buffer(buffer: *mut u8, offset: u32, params: TreeParams) -> Transaction {
         let ptr = buffer as *const TransactionHeader;
         let hdr = std::ptr::read(ptr);
         Transaction {
             header: hdr,
             buffer: Some(buffer),
             offset: offset,
+            nodes: HashMap::new(),
+            params: params,
         }
     }
 
@@ -50,11 +58,14 @@ impl Transaction {
     }
 
     pub fn from_transaction(other: &Transaction) -> Transaction {
-        Transaction {
-            header: other.header.clone(),
-            buffer: None,
-            offset: 0,
-        }
+        todo!();
+        // Transaction {
+        //     header: other.header.clone(),
+        //     buffer: None,
+        //     offset: 0,
+        //     nodes: HashMap::new(),
+        //     params: other.params,
+        // }
     }
 
     pub fn size(&self) -> u32 {
@@ -79,33 +90,56 @@ impl Transaction {
 }
 
 impl NodeStorage for Transaction {
+    fn get_root(&self) -> Option<RcNode> {
+        for i in &self.nodes {
+            let node = i.1;
+            if !node.borrow().is_leaf && node.borrow().parent.is_empty() {
+                return Some(node.clone());
+            }
+        }
+        None
+    }
     fn get_new_id(&self) -> Id {
         if !self.is_readonly() {
             panic!("logic error");
         }
-        todo!()
+        let max = self.nodes.keys().into_iter().max_by(|x, y| x.cmp(y));
+        match max {
+            Some(x) => {
+                let n = x + 1;
+                Id(n)
+            }
+            None => Id(1),
+        }
     }
 
     fn get_node(&self, id: Id) -> Result<RcNode> {
-        todo!()
+        let res = self.nodes.get(&id.unwrap());
+        if let Some(r) = res {
+            Ok(r.clone())
+        } else {
+            Err(bpts_tree::types::Error(format!("not found Id={}", id.0)))
+        }
     }
 
     fn add_node(&mut self, node: &RcNode) {
         if !self.is_readonly() {
             panic!("logic error");
         }
-        todo!()
+        let ref_node = node.borrow();
+        self.nodes.insert(ref_node.id.unwrap(), node.clone());
     }
 
     fn erase_node(&mut self, id: &Id) {
         if !self.is_readonly() {
             panic!("logic error");
         }
-        todo!()
+        println!("erase node: Id={}", id.0);
+        self.nodes.remove(&id.0);
     }
 
     fn get_params(&self) -> &TreeParams {
-        todo!()
+        &self.params
     }
 }
 

@@ -43,6 +43,15 @@ impl MockNodeStorage {
 }
 
 impl NodeStorage for MockNodeStorage {
+    fn get_root(&self) -> Option<RcNode> {
+        for i in &self.nodes {
+            let node = i.1;
+            if !node.borrow().is_leaf && node.borrow().parent.is_empty() {
+                return Some(node.clone());
+            }
+        }
+        None
+    }
     fn get_new_id(&self) -> types::Id {
         let max = self.nodes.keys().into_iter().max_by(|x, y| x.cmp(y));
         match max {
