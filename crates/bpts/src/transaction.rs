@@ -182,10 +182,9 @@ mod tests {
             buffer[i] = i as u8;
         }
         let slice = buffer.as_mut_slice();
-        unsafe {
-            storage.save_to(slice.as_mut_ptr(), 0);
-        }
+        let writed_bytes = unsafe { storage.save_to(slice.as_mut_ptr(), 0) };
 
+        assert_eq!(size, writed_bytes);
         for i in (size as usize)..buffer.len() {
             assert_eq!(buffer[i], i as u8);
         }
