@@ -10,9 +10,9 @@
   - [ ] test: many trees, many transactions: insert+read+remove+read
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
-  - [*] unload after saving
-  - [*] save to buffer.
-  - [*] test - fill, save, load, remove, save.... 
+  - [x] unload after saving
+  - [x] save to buffer.
+  - [x] test - fill, save, load, remove, save.... 
 
 - [x] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
    - [ ] key comparer
@@ -35,7 +35,7 @@
 - [x] insertion
 - [x] link to parent
 - [x] link to brother (left, right)
-- [*] test: take from high leaf with different parrents
-- [*] test: take from low leaf with different parrents
-- [*] test: take from low node with different parrents
-- [*] test: take from high node with different parrents
+- [x] test: take from high leaf with different parrents
+- [x] test: take from low leaf with different parrents
+- [x] test: take from low node with different parrents
+- [x] test: take from high node with different parrents
