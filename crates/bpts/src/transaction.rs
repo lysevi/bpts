@@ -78,21 +78,21 @@ impl Transaction {
             let mut data = Vec::with_capacity(node_data_count as usize);
             data.resize(params.get_keys_count(), Record::Empty);
 
-            for _ in 0..node_keys_count {
+            for i in 0..node_keys_count {
                 let k = (buffer.add(ptr_offset) as *const i32).read();
                 ptr_offset += std::mem::size_of::<i32>();
-                keys.push(k);
+                keys[i as usize] = k;
             }
-            for _ in 0..node_data_count {
+            for i in 0..node_data_count {
                 let value = (buffer.add(ptr_offset) as *const i32).read();
                 ptr_offset += std::mem::size_of::<i32>();
 
-                let rec = if node_is_leaf {
+                let rec = if !node_is_leaf {
                     Record::Ptr(Id(value))
                 } else {
                     Record::Value(value)
                 };
-                data.push(rec);
+                data[i as usize] = rec;
             }
             let node = Node::new(
                 Id(node_id),
@@ -127,14 +127,18 @@ impl Transaction {
     }
 
     pub fn from_transaction(other: &Transaction) -> Transaction {
-        todo!();
-        // Transaction {
-        //     header: other.header.clone(),
-        //     buffer: None,
-        //     offset: 0,
-        //     nodes: HashMap::new(),
-        //     params: other.params,
-        // }
+        let mut new_nodes = HashMap::new();
+        for i in other.nodes.values() {
+            let cp = Node::copy(&i.borrow());
+            new_nodes.insert(i.borrow().id.0, cp);
+        }
+        Transaction {
+            header: other.header.clone(),
+            buffer: None,
+            offset: 0,
+            nodes: new_nodes,
+            params: other.params,
+        }
     }
 
     fn send_to_writer<Writer: crate::utils::BuferWriter>(&self, writer: &mut Writer) {
@@ -302,10 +306,22 @@ mod tests {
             let slice = buffer.as_mut_slice();
             let loaded_trans = unsafe { Transaction::from_buffer(slice.as_mut_ptr(), 0, params) };
 
+            assert!(loaded_trans.is_readonly());
             assert_eq!(loaded_trans.nodes_count(), storage.nodes_count());
 
             for k in allkeys.keys() {
-                let result = find(&mut storage, &root_node, *k)?;
+                let root = storage.get_root().unwrap();
+                let result = find(&mut storage, &root, *k)?;
+                assert!(result.is_some());
+                assert_eq!(result.unwrap(), Record::from_i32(*k));
+            }
+
+            let copy = Transaction::from_transaction(&loaded_trans);
+            assert!(!copy.is_readonly());
+
+            for k in allkeys.keys() {
+                let root = copy.get_root().unwrap();
+                let result = find(&mut storage, &root, *k)?;
                 assert!(result.is_some());
                 assert_eq!(result.unwrap(), Record::from_i32(*k));
             }

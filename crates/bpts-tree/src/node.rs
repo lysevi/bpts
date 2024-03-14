@@ -44,6 +44,20 @@ impl Node {
         }))
     }
 
+    pub fn copy(other: &Node) -> RcNode {
+        Rc::new(RefCell::new(Node {
+            id: other.id,
+            is_leaf: other.is_leaf,
+            keys: Vec::clone(&other.keys),
+            data: Vec::clone(&other.data),
+            keys_count: other.keys_count,
+            data_count: other.data_count,
+            left: other.left,
+            parent: other.parent,
+            right: other.right,
+        }))
+    }
+
     pub fn new_root(
         id: Id,
         keys: Vec<i32>,

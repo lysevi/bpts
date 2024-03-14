@@ -12,11 +12,10 @@
   - [*] save to buffer.
   - [ ] test - fill, save, load, remove, save.... 
 
-- [ ] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
-   - [x] key comparer
+- [x] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
+   - [ ] key comparer
    - [ ] key - Vec<u8>. 
 - [ ] logger
-- [ ] trait Action - add, scan, remove
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
 - [ ] COW (storage.commit(), storage.rollback())
