@@ -1,10 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::rec;
+use crate::record;
 use crate::types;
 use crate::utils;
 
-use rec::Record;
+use record::Record;
 use types::Id;
 
 pub type RcNode = Rc<RefCell<Node>>;
@@ -108,6 +108,7 @@ impl Node {
             return Some(self.keys[self.keys_count - 1]);
         }
 
+        //TODO bin.search
         for i in 0..self.keys_count {
             match (self.keys[i]).cmp(&key) {
                 std::cmp::Ordering::Less => continue,
@@ -128,6 +129,7 @@ impl Node {
                 return Some(self.data[self.data_count - 1].clone());
             }
 
+            //TODO bin.search
             for i in 0..self.keys_count {
                 match (self.keys[i]).cmp(&key) {
                     std::cmp::Ordering::Less => continue,
@@ -138,6 +140,7 @@ impl Node {
             return None;
         }
 
+        //TODO bin.search
         for i in 0..self.keys_count {
             match (self.keys[i]).cmp(&key) {
                 std::cmp::Ordering::Less => continue,
@@ -179,7 +182,7 @@ impl Node {
         }
     }
 
-    pub fn insert_data(&mut self, index: usize, key: i32, value: rec::Record) {
+    pub fn insert_data(&mut self, index: usize, key: i32, value: record::Record) {
         utils::insert_to_array(&mut self.keys, index, key);
         utils::insert_to_array(&mut self.data, index, value);
         self.keys_count += 1;

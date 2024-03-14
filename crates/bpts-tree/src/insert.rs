@@ -1,4 +1,4 @@
-use crate::{node::RcNode, nodestorage::NodeStorage, read, rec::Record, split::split_node, Result};
+use crate::{node::RcNode, nodestorage::NodeStorage, read, record::Record, split::split_node, Result};
 
 pub fn insert<Storage: NodeStorage>(
     storage: &mut Storage,

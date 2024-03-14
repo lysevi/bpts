@@ -1,7 +1,7 @@
 use crate::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
-    rec::Record,
+    record::Record,
     types::Id,
     utils, Result,
 };

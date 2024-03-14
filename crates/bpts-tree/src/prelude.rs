@@ -7,7 +7,7 @@ pub use crate::params::*;
 pub use crate::read::find;
 pub use crate::read::map;
 pub use crate::read::map_rev;
-pub use crate::rec::Record;
+pub use crate::record::Record;
 pub use crate::remove::remove_key;
 pub use crate::types::Id;
 pub use crate::utils::debug;

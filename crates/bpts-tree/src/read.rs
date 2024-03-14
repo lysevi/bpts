@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::cursor;
 use crate::node::*;
 use crate::nodestorage::NodeStorage;
-use crate::rec::Record;
+use crate::record::Record;
 use crate::types::{self};
 use crate::Result;
 

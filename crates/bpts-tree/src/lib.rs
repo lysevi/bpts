@@ -7,7 +7,7 @@ pub mod nodestorage;
 pub mod params;
 pub mod prelude;
 pub mod read;
-pub mod rec;
+pub mod record;
 pub mod remove;
 pub mod rm;
 pub mod split;
