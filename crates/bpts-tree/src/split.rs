@@ -1,6 +1,7 @@
 use crate::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
+    params,
     rec::Record,
     types::Id,
     utils, Result,
@@ -36,8 +37,9 @@ pub fn split_node<Storage: NodeStorage>(
         parent_node = storage.get_node(target_node.borrow().parent)?;
     }
 
-    let mut new_keys = vec![0i32; target_node.borrow().keys.len()];
-    let mut new_data = Record::empty_array(target_node.borrow().data.len());
+    let params = storage.get_params();
+    let mut new_keys = vec![0i32; params.get_keys_count()];
+    let mut new_data = Record::empty_array(params.get_keys_count());
 
     let t = storage.get_params().get_t();
 
