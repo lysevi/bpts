@@ -70,7 +70,7 @@ impl BuferWriter for UnsafeWriter {
     }
 
     fn write_id(&mut self, v: bpts_tree::types::Id) {
-        self.write_i32(v.0);
+        self.write_u32(v.0);
     }
 
     fn write_u32(&mut self, v: u32) {

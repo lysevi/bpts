@@ -11,14 +11,13 @@ pub struct TransactionHeader {
     tree_id: u32,
     size: u32,
 }
-const TRANSACTION_HEADER_SIZE: u32 = std::mem::size_of::<TransactionHeader>() as u32;
 
 #[derive(Clone)]
 pub struct Transaction {
     header: TransactionHeader,
     buffer: Option<*mut u8>,
     offset: u32,
-    nodes: HashMap<i32, RcNode>,
+    nodes: HashMap<u32, RcNode>,
     params: TreeParams,
 }
 
@@ -51,19 +50,19 @@ impl Transaction {
         let mut nodes = HashMap::with_capacity(nodes_len as usize);
 
         for _ in 0..nodes_len {
-            let node_id = (buffer.add(ptr_offset) as *const i32).read();
+            let node_id = (buffer.add(ptr_offset) as *const u32).read();
             ptr_offset += std::mem::size_of::<i32>();
 
             let node_is_leaf = (buffer.add(ptr_offset) as *const bool).read();
             ptr_offset += std::mem::size_of::<bool>();
 
-            let node_parent = (buffer.add(ptr_offset) as *const i32).read();
+            let node_parent = (buffer.add(ptr_offset) as *const u32).read();
             ptr_offset += std::mem::size_of::<i32>();
 
-            let node_left = (buffer.add(ptr_offset) as *const i32).read();
+            let node_left = (buffer.add(ptr_offset) as *const u32).read();
             ptr_offset += std::mem::size_of::<i32>();
 
-            let node_right = (buffer.add(ptr_offset) as *const i32).read();
+            let node_right = (buffer.add(ptr_offset) as *const u32).read();
             ptr_offset += std::mem::size_of::<i32>();
 
             let node_keys_count = (buffer.add(ptr_offset) as *const u32).read();
@@ -73,18 +72,18 @@ impl Transaction {
             ptr_offset += std::mem::size_of::<u32>();
 
             let mut keys = Vec::with_capacity(params.t);
-            keys.resize(params.get_keys_count(), 0i32);
+            keys.resize(params.get_keys_count(), 0u32);
 
             let mut data = Vec::with_capacity(node_data_count as usize);
             data.resize(params.get_keys_count(), Record::Empty);
 
             for i in 0..node_keys_count {
-                let k = (buffer.add(ptr_offset) as *const i32).read();
+                let k = (buffer.add(ptr_offset) as *const u32).read();
                 ptr_offset += std::mem::size_of::<i32>();
                 keys[i as usize] = k;
             }
             for i in 0..node_data_count {
-                let value = (buffer.add(ptr_offset) as *const i32).read();
+                let value = (buffer.add(ptr_offset) as *const u32).read();
                 ptr_offset += std::mem::size_of::<i32>();
 
                 let rec = if !node_is_leaf {
@@ -155,11 +154,11 @@ impl Transaction {
             writer.write_u32(node_ref.keys_count as u32);
             writer.write_u32(node_ref.data_count as u32);
             for k in node_ref.key_iter() {
-                writer.write_i32(*k);
+                writer.write_u32(*k);
             }
             for d in node_ref.data_iter() {
                 match *d {
-                    Record::Value(v) => writer.write_i32(v),
+                    Record::Value(v) => writer.write_u32(v),
                     Record::Ptr(ptr) => writer.write_id(ptr),
                     Record::Empty => todo!(),
                 }
@@ -271,10 +270,10 @@ mod tests {
 
         let mut allkeys = HashMap::new();
 
-        let mut key: i32 = 1;
+        let mut key: u32 = 1;
         while storage.nodes_count() < max_node_count {
             key += 1;
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
+            let res = insert(&mut storage, &root_node, key, &Record::from_u32(key));
             allkeys.insert(key, false);
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -283,10 +282,10 @@ mod tests {
         for k in allkeys.keys() {
             let result = find(&mut storage, &root_node, *k)?;
             assert!(result.is_some());
-            assert_eq!(result.unwrap(), Record::from_i32(*k));
+            assert_eq!(result.unwrap(), Record::from_u32(*k));
         }
 
-        let mut size = storage.size();
+        let size = storage.size();
         let mut buffer = vec![0u8; size as usize + 50];
         let buffer_len = buffer.len();
         for i in (size as usize)..buffer_len {
@@ -313,7 +312,7 @@ mod tests {
                 let root = storage.get_root().unwrap();
                 let result = find(&mut storage, &root, *k)?;
                 assert!(result.is_some());
-                assert_eq!(result.unwrap(), Record::from_i32(*k));
+                assert_eq!(result.unwrap(), Record::from_u32(*k));
             }
 
             let copy = Transaction::from_transaction(&loaded_trans);
@@ -323,7 +322,7 @@ mod tests {
                 let root = copy.get_root().unwrap();
                 let result = find(&mut storage, &root, *k)?;
                 assert!(result.is_some());
-                assert_eq!(result.unwrap(), Record::from_i32(*k));
+                assert_eq!(result.unwrap(), Record::from_u32(*k));
             }
         }
         Ok(())

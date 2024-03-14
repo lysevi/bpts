@@ -18,7 +18,7 @@ pub struct Node {
     pub right: Id,
     pub keys_count: usize,
     pub data_count: usize,
-    pub keys: Vec<i32>,
+    pub keys: Vec<u32>,
     pub data: Vec<Record>,
 }
 
@@ -26,7 +26,7 @@ impl Node {
     pub fn new(
         id: Id,
         is_leaf: bool,
-        keys: Vec<i32>,
+        keys: Vec<u32>,
         data: Vec<Record>,
         keys_count: usize,
         data_count: usize,
@@ -60,7 +60,7 @@ impl Node {
 
     pub fn new_root(
         id: Id,
-        keys: Vec<i32>,
+        keys: Vec<u32>,
         data: Vec<Record>,
         keys_count: usize,
         data_count: usize,
@@ -70,7 +70,7 @@ impl Node {
 
     pub fn new_leaf(
         id: Id,
-        keys: Vec<i32>,
+        keys: Vec<u32>,
         data: Vec<Record>,
         keys_count: usize,
         data_count: usize,
@@ -79,11 +79,11 @@ impl Node {
     }
 
     pub fn new_leaf_with_size(id: Id, t: usize) -> RcNode {
-        let mut keys = Vec::with_capacity(t * 2);
+        let mut keys: Vec<u32> = Vec::with_capacity(t * 2);
         let mut recs = Vec::with_capacity(t * 2);
         for _i in 0..(t * 2) {
             recs.push(Record::Empty);
-            keys.push(0i32);
+            keys.push(0u32);
         }
         Node::new(id, true, keys, recs, 0, 0)
     }
@@ -96,7 +96,7 @@ impl Node {
         return self.keys_count == 0;
     }
 
-    pub fn find_key(&self, key: i32) -> Option<i32> {
+    pub fn find_key(&self, key: u32) -> Option<u32> {
         if self.is_leaf {
             panic!("logic error");
         }
@@ -119,7 +119,7 @@ impl Node {
         return None;
     }
 
-    pub fn find(&self, key: i32) -> Option<Record> {
+    pub fn find(&self, key: u32) -> Option<Record> {
         if !self.is_leaf {
             if key < self.keys[0] {
                 return Some(self.data.first().unwrap().clone());
@@ -151,9 +151,9 @@ impl Node {
         return None;
     }
 
-    pub fn map<'a, F>(&self, from: i32, to: i32, f: &mut F)
+    pub fn map<'a, F>(&self, from: u32, to: u32, f: &mut F)
     where
-        F: FnMut(i32, &Record),
+        F: FnMut(u32, &Record),
     {
         if !self.is_leaf {
             panic!()
@@ -166,9 +166,9 @@ impl Node {
         }
     }
 
-    pub fn map_rev<'a, F>(&self, from: i32, to: i32, f: &mut F)
+    pub fn map_rev<'a, F>(&self, from: u32, to: u32, f: &mut F)
     where
-        F: FnMut(i32, &Record),
+        F: FnMut(u32, &Record),
     {
         if !self.is_leaf {
             panic!()
@@ -182,14 +182,14 @@ impl Node {
         }
     }
 
-    pub fn insert_data(&mut self, index: usize, key: i32, value: record::Record) {
+    pub fn insert_data(&mut self, index: usize, key: u32, value: record::Record) {
         utils::insert_to_array(&mut self.keys, index, key);
         utils::insert_to_array(&mut self.data, index, value);
         self.keys_count += 1;
         self.data_count += 1;
     }
 
-    pub fn update_key(&mut self, child: Id, new_key: i32) {
+    pub fn update_key(&mut self, child: Id, new_key: u32) {
         println!(
             "update key target={:?} child={:?} new={}",
             self.id, child, new_key
@@ -254,7 +254,7 @@ impl Node {
         }
     }
 
-    pub fn first_key(&self) -> i32 {
+    pub fn first_key(&self) -> u32 {
         if self.keys_count > 0 {
             return self.keys[0];
         }
@@ -268,7 +268,7 @@ impl Node {
         panic!("empty node");
     }
 
-    pub fn last_key(&self) -> i32 {
+    pub fn last_key(&self) -> u32 {
         if self.keys_count > 0 {
             return self.keys[self.keys_count - 1];
         }
@@ -286,7 +286,7 @@ impl Node {
         self.data.iter().take(self.data_count)
     }
 
-    pub fn key_iter(&self) -> std::iter::Take<std::slice::Iter<'_, i32>> {
+    pub fn key_iter(&self) -> std::iter::Take<std::slice::Iter<'_, u32>> {
         self.keys.iter().take(self.keys_count)
     }
 }
@@ -301,27 +301,27 @@ mod tests {
             Id::empty(),
             vec![1, 2, 3, 4],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(2),
-                Record::from_i32(3),
-                Record::from_i32(4),
+                Record::from_u32(1),
+                Record::from_u32(2),
+                Record::from_u32(3),
+                Record::from_u32(4),
             ],
             4,
             4,
         );
         let ref_leaf = leaf.borrow();
         if let Some(item) = ref_leaf.find(2) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 2);
         }
 
         if let Some(item) = ref_leaf.find(1) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 1);
         }
 
         if let Some(item) = ref_leaf.find(4) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 4);
         }
 
@@ -335,38 +335,38 @@ mod tests {
             Id::empty(),
             vec![3, 5, 7],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(3),
-                Record::from_i32(5),
-                Record::from_i32(7),
+                Record::from_u32(1),
+                Record::from_u32(3),
+                Record::from_u32(5),
+                Record::from_u32(7),
             ],
             3,
             4,
         );
         let ref_leaf = leaf.borrow();
         if let Some(item) = ref_leaf.find(1) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 1);
         } else {
             assert!(false);
         }
 
         if let Some(item) = ref_leaf.find(3) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 3);
         } else {
             assert!(false);
         }
 
         if let Some(item) = ref_leaf.find(4) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 3);
         } else {
             assert!(false);
         }
 
         if let Some(item) = ref_leaf.find(9) {
-            let v = item.into_i32();
+            let v = item.into_u32();
             assert_eq!(v, 7);
         } else {
             assert!(false);

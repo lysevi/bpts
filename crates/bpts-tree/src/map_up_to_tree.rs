@@ -6,7 +6,7 @@ pub fn map_up<Action, Storage: NodeStorage>(
     act: &mut Action,
 ) -> Result<()>
 where
-    Action: FnMut(i32) -> i32,
+    Action: FnMut(u32) -> u32,
 {
     let mut id_of_parent = id;
     while id_of_parent.exists() {

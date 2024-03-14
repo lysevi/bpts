@@ -27,8 +27,8 @@ pub struct Cursor<'a, Storage: nodestorage::NodeStorage> {
     storage: &'a mut Storage,
     begin: RcNode,
     end: RcNode,
-    from: i32,
-    to: i32,
+    from: u32,
+    to: u32,
     dir: CursorDirection,
 }
 
@@ -38,8 +38,8 @@ impl<'a, Storage: NodeStorage> Cursor<'a, Storage> {
         begin: RcNode,
         end: RcNode,
         dir: CursorDirection,
-        from: i32,
-        to: i32,
+        from: u32,
+        to: u32,
     ) -> Cursor<Storage> {
         Cursor {
             storage: s,
@@ -53,7 +53,7 @@ impl<'a, Storage: NodeStorage> Cursor<'a, Storage> {
 
     fn step_fwd<F>(&mut self, node: &Node, f: &mut F) -> crate::Result<CursorState>
     where
-        F: FnMut(i32, &Record),
+        F: FnMut(u32, &Record),
     {
         node.map(self.from, self.to, f);
         if self.begin.borrow().id == self.end.borrow().id {
@@ -71,7 +71,7 @@ impl<'a, Storage: NodeStorage> Cursor<'a, Storage> {
 
     fn step_bwd<F>(&mut self, node: &Node, f: &mut F) -> crate::Result<CursorState>
     where
-        F: FnMut(i32, &Record),
+        F: FnMut(u32, &Record),
     {
         node.map_rev(self.from, self.to, f);
 
@@ -90,7 +90,7 @@ impl<'a, Storage: NodeStorage> Cursor<'a, Storage> {
 
     pub fn next<F>(&mut self, f: &mut F) -> crate::Result<CursorState>
     where
-        F: FnMut(i32, &Record),
+        F: FnMut(u32, &Record),
     {
         match self.dir {
             CursorDirection::Forward => {

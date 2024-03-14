@@ -24,17 +24,15 @@ struct Header {
 
 const HEADER_SIZE: usize = std::mem::size_of::<Header>();
 
-#[repr(C, packed)]
-struct DataList {}
 
-struct Page<'a> {
-    buffer: &'a mut [u8],
+
+pub struct Page {
     space: *mut u8,
     hdr: *mut Header,
     trans: HashMap<u32, Transaction>,
 }
 
-impl<'a> Page<'a> {
+impl Page {
     pub fn init_buffer(buffer: &mut [u8], params: TreeParams) -> Result<Page> {
         let result: Page;
         let space = unsafe { buffer.as_mut_ptr().add(HEADER_SIZE) };
@@ -45,7 +43,6 @@ impl<'a> Page<'a> {
         }
         let t = HashMap::new();
         result = Page {
-            buffer: buffer,
             hdr: h,
             trans: t,
             space: space,
@@ -80,7 +77,6 @@ impl<'a> Page<'a> {
             }
         };
         result = Page {
-            buffer: buffer,
             hdr: h,
             trans: t,
             space: space,
@@ -159,7 +155,7 @@ impl<'a> Page<'a> {
 mod tests {
     use bpts_tree::params::TreeParams;
 
-    use crate::page::{self, Page};
+    use crate::page::Page;
     use crate::prelude::Result;
     use crate::transaction::Transaction;
 

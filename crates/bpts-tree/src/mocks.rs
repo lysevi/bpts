@@ -8,7 +8,7 @@ use crate::{
 use std::{collections::HashMap, rc::Rc};
 
 pub struct MockNodeStorage {
-    nodes: HashMap<i32, RcNode>,
+    nodes: HashMap<u32, RcNode>,
     params: TreeParams,
 }
 

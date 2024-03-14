@@ -11,7 +11,7 @@ pub mod rebalancing;
 pub mod rollup;
 pub mod take_from;
 
-fn erase_from_node(target: &mut Node, key: i32) {
+fn erase_from_node(target: &mut Node, key: u32) {
     let is_leaf = target.is_leaf;
 
     if !is_leaf {
@@ -51,7 +51,7 @@ fn erase_from_node(target: &mut Node, key: i32) {
 pub(super) fn erase_key<Storage: NodeStorage>(
     storage: &mut Storage,
     target: &RcNode,
-    key: i32,
+    key: u32,
     root: Option<RcNode>,
 ) -> Result<RcNode, types::Error> {
     {

@@ -4,7 +4,7 @@ use types::Id;
 
 #[derive(Debug, Clone, PartialOrd, PartialEq)]
 pub enum Record {
-    Value(i32),
+    Value(u32),
     Ptr(Id),
     Empty,
 }
@@ -19,10 +19,10 @@ impl Record {
         result
     }
 
-    pub fn from_i32(v: i32) -> Record {
+    pub fn from_u32(v: u32) -> Record {
         Record::Value(v)
     }
-    pub fn into_i32(&self) -> i32 {
+    pub fn into_u32(&self) -> u32 {
         match self {
             Record::Value(v) => *v,
             Record::Ptr(_) => panic!(),

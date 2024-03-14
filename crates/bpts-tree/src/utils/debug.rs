@@ -1,4 +1,3 @@
-
 use crate::prelude::*;
 use string_builder::Builder;
 
@@ -102,11 +101,11 @@ fn node_as_string(b: &mut Builder, node: &crate::node::Node, graphviz: bool, gra
     } else {
         let key_slice = &node.keys[0..node.keys_count];
         let string_data = if node.is_leaf {
-            let unpack: Vec<i32> = node
+            let unpack: Vec<u32> = node
                 .data
                 .iter()
                 .take(node.data_count)
-                .map(|f| f.into_i32())
+                .map(|f| f.into_u32())
                 .collect();
             format!("{:?}", unpack)
         } else {

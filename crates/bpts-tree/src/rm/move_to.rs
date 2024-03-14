@@ -5,7 +5,7 @@ use super::rollup::rollup_keys;
 pub(super) fn move_to_lower(
     target_node: &mut Node,
     low_side_node: &mut Node,
-    middle: Option<i32>,
+    middle: Option<u32>,
 ) -> Result<()> {
     println!(
         "move_to_lower target={:?} low={:?}",
@@ -41,7 +41,7 @@ pub(super) fn move_to_higher(
     storage: &mut dyn NodeStorage,
     target: &mut Node,
     high_side: &mut Node,
-    middle: Option<i32>,
+    middle: Option<u32>,
 ) {
     println!(
         "move_to_higher target={:?} low={:?}",
@@ -78,9 +78,9 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
 ) -> Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
         let first_key = target_ref.first_key();
-        let mut middle: Option<i32> = None;
+        let mut middle: Option<u32> = None;
 
-        let mut new_min_of_parent: Option<i32> = None;
+        let mut new_min_of_parent: Option<u32> = None;
         if target_ref.parent.exists() {
             let parent = storage.get_node(target_ref.parent)?;
             let mut parent_ref = parent.borrow_mut();
@@ -134,7 +134,7 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
 ) -> Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
         let min_key = leaf_ref.keys[0];
-        let mut middle: Option<i32> = None;
+        let mut middle: Option<u32> = None;
         if target_ref.parent.exists() {
             let parent = storage.get_node(leaf_ref.parent)?;
             if !target_ref.is_leaf {

@@ -1,9 +1,11 @@
-use crate::{node::RcNode, nodestorage::NodeStorage, read, record::Record, split::split_node, Result};
+use crate::{
+    node::RcNode, nodestorage::NodeStorage, read, record::Record, split::split_node, Result,
+};
 
 pub fn insert<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
-    key: i32,
+    key: u32,
     value: &Record,
 ) -> Result<RcNode> {
     let target_node: RcNode;
@@ -45,6 +47,8 @@ pub fn insert<Storage: NodeStorage>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
     use crate::prelude::*;
 
@@ -55,14 +59,14 @@ mod tests {
             MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
-        let mut key: i32 = 1;
+        let mut key: u32 = 1;
         while storage.size() < maxnodecount {
             key += 1;
             println!("+ {:?} root:{:?}", key, root_node.borrow().id);
             if key == 22 {
                 println!("kv 22");
             }
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
+            let res = insert(&mut storage, &root_node, key, &Record::from_u32(key));
             assert!(res.is_ok());
             root_node = res.unwrap();
 
@@ -73,14 +77,14 @@ mod tests {
                 }
                 let res = find(&mut storage, &root_node, i)?;
                 assert!(res.is_some());
-                assert_eq!(res.unwrap().into_i32(), i);
+                assert_eq!(res.unwrap().into_u32(), i);
             }
         }
 
         for i in 2..key {
             let res = find(&mut storage, &root_node, i)?;
             assert!(res.is_some());
-            assert_eq!(res.unwrap().into_i32(), i);
+            assert_eq!(res.unwrap().into_u32(), i);
         }
 
         let res = find(&mut storage, &root_node, key - 1)?;
@@ -89,7 +93,7 @@ mod tests {
         let mut mapped_values = Vec::new();
         map(&mut storage, &root_node, 2, key - 1, &mut |k, v| {
             println!("mapped {:?}", k);
-            assert_eq!(v.into_i32(), k);
+            assert_eq!(v.into_u32(), k);
             mapped_values.push(k);
         })
         .unwrap();
@@ -102,7 +106,7 @@ mod tests {
         mapped_values.clear();
         map_rev(&mut storage, &root_node, 2, key - 1, &mut |k, v| {
             println!("mapped_rev {:?}", k);
-            assert_eq!(v.into_i32(), k);
+            assert_eq!(v.into_u32(), k);
             mapped_values.push(k);
         })
         .unwrap();
@@ -120,38 +124,47 @@ mod tests {
             MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
-        let mut key: i32 = 100;
+        let mut keys = Vec::new();
+
+        let mut key: u32 = std::u32::MAX - 1;
         let mut total_count = 0;
         while storage.size() < maxnodecount {
             total_count += 1;
             key -= 1;
             println!("insert {}", key);
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
+            keys.push(key);
+            let res = insert(&mut storage, &root_node, key, &Record::from_u32(key));
             assert!(res.is_ok());
             root_node = res.unwrap();
 
-            for i in (key..99).rev() {
+            for i in keys.iter() {
                 // println!(">> {}", i);
-                let res = find(&mut storage, &root_node, i)?;
+                let res = find(&mut storage, &root_node, *i)?;
                 assert!(res.is_some());
-                assert_eq!(res.unwrap().into_i32(), i);
+                assert_eq!(res.unwrap().into_u32(), *i);
             }
         }
 
-        for i in (key..99).rev() {
-            let res = find(&mut storage, &root_node, i)?;
+        for i in keys.iter() {
+            let res = find(&mut storage, &root_node, *i)?;
             assert!(res.is_some());
-            assert_eq!(res.unwrap().into_i32(), i);
+            assert_eq!(res.unwrap().into_u32(), *i);
         }
 
         let res = find(&mut storage, &root_node, key - 1);
         println!(">> {:?}", res);
         let mut mapped_values = Vec::new();
-        map(&mut storage, &root_node, key, 99, &mut |k, v| {
-            println!("mapped {:?}", k);
-            assert_eq!(v.into_i32(), k);
-            mapped_values.push(k);
-        })
+        map(
+            &mut storage,
+            &root_node,
+            *keys.last().unwrap(),
+            keys[0],
+            &mut |k, v| {
+                println!("mapped {:?}", k);
+                assert_eq!(v.into_u32(), k);
+                mapped_values.push(k);
+            },
+        )
         .unwrap();
 
         assert_eq!(mapped_values.len(), total_count);
@@ -160,11 +173,17 @@ mod tests {
         }
 
         mapped_values.clear();
-        map_rev(&mut storage, &root_node, key, 99, &mut |k, v| {
-            println!("mapped_rev {:?}", k);
-            assert_eq!(v.into_i32(), k);
-            mapped_values.push(k);
-        })
+        map_rev(
+            &mut storage,
+            &root_node,
+            *keys.last().unwrap(),
+            keys[0],
+            &mut |k, v| {
+                println!("mapped_rev {:?}", k);
+                assert_eq!(v.into_u32(), k);
+                mapped_values.push(k);
+            },
+        )
         .unwrap();
         assert_eq!(mapped_values.len(), total_count);
 
@@ -174,7 +193,7 @@ mod tests {
         Ok(())
     }
 
-    fn inserts_to_middle(key_from: i32, key_to: i32, t: usize) -> Result<()> {
+    fn inserts_to_middle(key_from: u32, key_to: u32, t: usize) -> Result<()> {
         let mut ranges = Vec::new();
         ranges.push((key_from, key_to));
 
@@ -183,7 +202,7 @@ mod tests {
             let r = *ranges.first().unwrap();
             ranges.remove(0);
 
-            let middle = (r.0 + (r.1 - r.0) / 2) as i32 + 1;
+            let middle = (r.0 + (r.1 - r.0) / 2) as u32 + 1;
 
             let i1 = (r.0, middle);
             let i2 = (middle, r.1);
@@ -222,7 +241,7 @@ mod tests {
                 &mut storage,
                 &root_node,
                 keys[i],
-                &Record::from_i32(keys[i]),
+                &Record::from_u32(keys[i]),
             );
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -237,7 +256,7 @@ mod tests {
                     debug::print_state(&str_before, &str_after)
                 }
                 assert!(res.is_ok());
-                assert_eq!(res.unwrap().unwrap().into_i32(), keys[j]);
+                assert_eq!(res.unwrap().unwrap().into_u32(), keys[j]);
             }
         }
         return Ok(());
@@ -249,12 +268,12 @@ mod tests {
             Id(1),
             vec![2, 3, 0, 0, 0, 0],
             vec![
-                Record::from_i32(2),
-                Record::from_i32(3),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(2),
+                Record::from_u32(3),
+                Record::from_u32(0),
+                Record::from_u32(0),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -264,7 +283,7 @@ mod tests {
             MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
 
-        let new_value = Record::from_i32(1);
+        let new_value = Record::from_u32(1);
         let mut result = insert(&mut storage, &leaf1, 1, &new_value);
         assert!(result.is_ok());
         let mut new_root = result.unwrap();
@@ -283,11 +302,11 @@ mod tests {
         {
             let r = new_root.borrow();
             for i in 0..r.keys_count {
-                assert_eq!(r.keys[i], (i + 1) as i32)
+                assert_eq!(r.keys[i], (i + 1) as u32)
             }
         }
 
-        let new_data = Record::from_i32(6);
+        let new_data = Record::from_u32(6);
         result = insert(&mut storage, &leaf1, 6, &new_data);
         assert!(result.is_ok());
         new_root = result.unwrap();
@@ -296,7 +315,7 @@ mod tests {
         assert!(search_result.is_some());
 
         let unpacked = search_result.expect("!");
-        assert_eq!(unpacked.into_i32(), 6);
+        assert_eq!(unpacked.into_u32(), 6);
         Ok(())
     }
 

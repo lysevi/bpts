@@ -6,7 +6,7 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
     storage: &mut Storage,
     target: &mut Node,
     low_side: &mut Node,
-    middle: Option<i32>,
+    middle: Option<u32>,
 ) {
     println!("take_from_low target={:?} low={:?}", target.id, low_side.id);
 
@@ -38,7 +38,7 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
     target.data_count += 1;
 }
 
-pub(super) fn take_from_high(target: &mut Node, high_side: &mut Node, middle: Option<i32>) -> i32 {
+pub(super) fn take_from_high(target: &mut Node, high_side: &mut Node, middle: Option<u32>) -> u32 {
     println!(
         "take_key_from_high target={:?} high={:?} minKey={}",
         target.id, high_side.id, high_side.keys[0]
@@ -79,7 +79,7 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
     t: usize,
 ) -> Result<bool> {
     if leaf_ref.data_count > t {
-        let mut middle: Option<i32> = None;
+        let mut middle: Option<u32> = None;
         let mut first_key = target_ref.first_key();
         let taken_key = leaf_ref.keys[leaf_ref.keys_count - 1];
         if !target_ref.is_leaf {
@@ -138,7 +138,7 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
         }
 
         let min_key = leaf_ref.keys[0];
-        let mut middle: Option<i32> = None;
+        let mut middle: Option<u32> = None;
         if !target_ref.is_leaf {
             if leaf_ref.parent == target_ref.parent {
                 let parent = storage.get_node(leaf_ref.parent)?;

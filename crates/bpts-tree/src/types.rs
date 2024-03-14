@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Id(pub i32);
+pub struct Id(pub u32);
 
 pub struct Ptr(u32);
 #[derive(Debug)]
@@ -13,13 +13,13 @@ impl Display for Error {
     }
 }
 
-const EMPTY_ID: Id = Id(-1);
+const EMPTY_ID: Id = Id(std::u32::MAX);
 
 impl Id {
     pub fn empty() -> Id {
         EMPTY_ID
     }
-    pub fn unwrap(&self) -> i32 {
+    pub fn unwrap(&self) -> u32 {
         self.0
     }
 

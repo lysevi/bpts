@@ -137,7 +137,7 @@ mod tests {
     fn remove_with_take_high_leaf_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(10, 4);
 
-        let mut keyset: HashSet<i32> = HashSet::from_iter(_keys.iter().cloned());
+        let mut keyset: HashSet<u32> = HashSet::from_iter(_keys.iter().cloned());
 
         let str_before =
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("before"));
@@ -181,7 +181,7 @@ mod tests {
                 debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
-            assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
+            assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
         }
         return Ok(());
     }
@@ -190,7 +190,7 @@ mod tests {
     fn remove_with_take_low_leaf_diff_parent() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(10, 4);
 
-        let mut keyset: HashSet<i32> = HashSet::from_iter(_keys.iter().cloned());
+        let mut keyset: HashSet<u32> = HashSet::from_iter(_keys.iter().cloned());
 
         let str_before =
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("before"));
@@ -234,7 +234,7 @@ mod tests {
                 debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
-            assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
+            assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
         }
         return Ok(());
     }
@@ -276,7 +276,7 @@ mod tests {
                 debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
-            assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
+            assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
         }
         return Ok(());
     }
@@ -318,7 +318,7 @@ mod tests {
                 debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_some());
-            assert_eq!(find_res.unwrap().into_i32(), i);
+            assert_eq!(find_res.unwrap().into_u32(), i);
         }
         return Ok(());
     }

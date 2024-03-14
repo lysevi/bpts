@@ -3,7 +3,7 @@ use crate::{node::RcNode, nodestorage::NodeStorage, read, rm::erase_key, Result}
 pub fn remove_key<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
-    key: i32,
+    key: u32,
 ) -> Result<RcNode> {
     let target_node: RcNode;
 
@@ -28,18 +28,18 @@ pub fn remove_key<Storage: NodeStorage>(
 pub(crate) mod tests {
     use crate::prelude::*;
 
-    pub fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<i32>) {
+    pub fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<u32>) {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
         let mut storage: MockNodeStorage =
             MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
-        let mut key: i32 = 1;
+        let mut key: u32 = 1;
         let mut keys = Vec::new();
         while storage.size() <= nodes_count {
             key += 1;
-            let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
+            let res = insert(&mut storage, &root_node, key, &Record::from_u32(key));
             keys.push(key);
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -48,7 +48,7 @@ pub(crate) mod tests {
                 let res = find(&mut storage, &root_node, i);
                 assert!(res.is_ok());
                 let v = res.unwrap().unwrap();
-                assert_eq!(v.into_i32(), i);
+                assert_eq!(v.into_u32(), i);
             }
         }
         return (storage, root_node, keys);
@@ -60,12 +60,12 @@ pub(crate) mod tests {
             Id(1),
             vec![1, 2, 3, 4, 5, 6],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(2),
-                Record::from_i32(3),
-                Record::from_i32(4),
-                Record::from_i32(5),
-                Record::from_i32(6),
+                Record::from_u32(1),
+                Record::from_u32(2),
+                Record::from_u32(3),
+                Record::from_u32(4),
+                Record::from_u32(5),
+                Record::from_u32(6),
             ],
             6,
             6,
@@ -84,12 +84,12 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_root.data,
                 vec![
-                    Record::from_i32(1),
-                    Record::from_i32(3),
-                    Record::from_i32(4),
-                    Record::from_i32(5),
-                    Record::from_i32(6),
-                    Record::from_i32(2),
+                    Record::from_u32(1),
+                    Record::from_u32(3),
+                    Record::from_u32(4),
+                    Record::from_u32(5),
+                    Record::from_u32(6),
+                    Record::from_u32(2),
                 ]
             );
             assert_eq!(ref_root.keys_count, 5);
@@ -106,10 +106,10 @@ pub(crate) mod tests {
             Id(1),
             vec![1, 2, 3, 4],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(2),
-                Record::from_i32(3),
-                Record::from_i32(4),
+                Record::from_u32(1),
+                Record::from_u32(2),
+                Record::from_u32(3),
+                Record::from_u32(4),
             ],
             4,
             4,
@@ -120,10 +120,10 @@ pub(crate) mod tests {
             Id(2),
             vec![5, 6, 7, 8],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(7),
-                Record::from_i32(8),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(7),
+                Record::from_u32(8),
             ],
             4,
             4,
@@ -172,10 +172,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_leaf2.data,
                 vec![
-                    Record::from_i32(6),
-                    Record::from_i32(7),
-                    Record::from_i32(8),
-                    Record::from_i32(5),
+                    Record::from_u32(6),
+                    Record::from_u32(7),
+                    Record::from_u32(8),
+                    Record::from_u32(5),
                 ]
             );
             assert_eq!(ref_leaf2.keys_count, 3);
@@ -207,10 +207,10 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 6, 7, 0],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(7),
-                Record::from_i32(0),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(7),
+                Record::from_u32(0),
             ],
             3,
             3,
@@ -222,10 +222,10 @@ pub(crate) mod tests {
             Id(2),
             vec![1, 2, 3, 4],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(2),
-                Record::from_i32(3),
-                Record::from_i32(4),
+                Record::from_u32(1),
+                Record::from_u32(2),
+                Record::from_u32(3),
+                Record::from_u32(4),
             ],
             4,
             4,
@@ -261,10 +261,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(4),
-                    Record::from_i32(5),
-                    Record::from_i32(7),
-                    Record::from_i32(0),
+                    Record::from_u32(4),
+                    Record::from_u32(5),
+                    Record::from_u32(7),
+                    Record::from_u32(0),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -277,10 +277,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(1),
-                    Record::from_i32(2),
-                    Record::from_i32(3),
-                    Record::from_i32(4),
+                    Record::from_u32(1),
+                    Record::from_u32(2),
+                    Record::from_u32(3),
+                    Record::from_u32(4),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -311,10 +311,10 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 6, 7, 0],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(7),
-                Record::from_i32(0),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(7),
+                Record::from_u32(0),
             ],
             3,
             3,
@@ -325,10 +325,10 @@ pub(crate) mod tests {
             Id(2),
             vec![9, 10, 11, 12],
             vec![
-                Record::from_i32(9),
-                Record::from_i32(10),
-                Record::from_i32(11),
-                Record::from_i32(12),
+                Record::from_u32(9),
+                Record::from_u32(10),
+                Record::from_u32(11),
+                Record::from_u32(12),
             ],
             4,
             4,
@@ -365,10 +365,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(5),
-                    Record::from_i32(7),
-                    Record::from_i32(9),
-                    Record::from_i32(6),
+                    Record::from_u32(5),
+                    Record::from_u32(7),
+                    Record::from_u32(9),
+                    Record::from_u32(6),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -381,10 +381,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(10),
-                    Record::from_i32(11),
-                    Record::from_i32(12),
-                    Record::from_i32(9),
+                    Record::from_u32(10),
+                    Record::from_u32(11),
+                    Record::from_u32(12),
+                    Record::from_u32(9),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -402,10 +402,10 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 6, 0, 0],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -417,10 +417,10 @@ pub(crate) mod tests {
             Id(2),
             vec![1, 2, 0, 0],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(2),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(1),
+                Record::from_u32(2),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -439,10 +439,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(1),
-                    Record::from_i32(2),
-                    Record::from_i32(5),
-                    Record::from_i32(0),
+                    Record::from_u32(1),
+                    Record::from_u32(2),
+                    Record::from_u32(5),
+                    Record::from_u32(0),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -457,10 +457,10 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 6, 7, 0],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(7),
-                Record::from_i32(0),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(7),
+                Record::from_u32(0),
             ],
             3,
             3,
@@ -473,10 +473,10 @@ pub(crate) mod tests {
             Id(2),
             vec![9, 10, 0, 0],
             vec![
-                Record::from_i32(9),
-                Record::from_i32(10),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(9),
+                Record::from_u32(10),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -494,10 +494,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(5),
-                    Record::from_i32(7),
-                    Record::from_i32(9),
-                    Record::from_i32(10),
+                    Record::from_u32(5),
+                    Record::from_u32(7),
+                    Record::from_u32(9),
+                    Record::from_u32(10),
                 ]
             );
             assert_eq!(ref_node.keys_count, 4);
@@ -513,9 +513,9 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 8, 0],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(5),
-                Record::from_i32(10),
+                Record::from_u32(1),
+                Record::from_u32(5),
+                Record::from_u32(10),
             ],
             2,
             3,
@@ -534,9 +534,9 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_root.data,
                 vec![
-                    Record::from_i32(1),
-                    Record::from_i32(10),
-                    Record::from_i32(5),
+                    Record::from_u32(1),
+                    Record::from_u32(10),
+                    Record::from_u32(5),
                 ]
             );
             assert_eq!(ref_root.keys_count, 1);
@@ -567,10 +567,10 @@ pub(crate) mod tests {
             Id(3),
             vec![12, 15, 0, 0],
             vec![
-                Record::from_i32(12),
-                Record::from_i32(15),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(12),
+                Record::from_u32(15),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -581,10 +581,10 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 6, 0, 0],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -596,10 +596,10 @@ pub(crate) mod tests {
             Id(2),
             vec![1, 2, 0, 0],
             vec![
-                Record::from_i32(1),
-                Record::from_i32(2),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(1),
+                Record::from_u32(2),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -627,10 +627,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(1),
-                    Record::from_i32(2),
-                    Record::from_i32(5),
-                    Record::from_i32(0),
+                    Record::from_u32(1),
+                    Record::from_u32(2),
+                    Record::from_u32(5),
+                    Record::from_u32(0),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -684,10 +684,10 @@ pub(crate) mod tests {
             Id(4),
             vec![15, 16, 0, 0],
             vec![
-                Record::from_i32(15),
-                Record::from_i32(16),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(15),
+                Record::from_u32(16),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -698,10 +698,10 @@ pub(crate) mod tests {
             Id(1),
             vec![5, 6, 0, 0],
             vec![
-                Record::from_i32(5),
-                Record::from_i32(6),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(5),
+                Record::from_u32(6),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -712,10 +712,10 @@ pub(crate) mod tests {
             Id(2),
             vec![9, 10, 0, 0],
             vec![
-                Record::from_i32(9),
-                Record::from_i32(10),
-                Record::from_i32(0),
-                Record::from_i32(0),
+                Record::from_u32(9),
+                Record::from_u32(10),
+                Record::from_u32(0),
+                Record::from_u32(0),
             ],
             2,
             2,
@@ -756,10 +756,10 @@ pub(crate) mod tests {
             assert_eq!(
                 ref_node.data,
                 vec![
-                    Record::from_i32(5),
-                    Record::from_i32(9),
-                    Record::from_i32(10),
-                    Record::from_i32(0),
+                    Record::from_u32(5),
+                    Record::from_u32(9),
+                    Record::from_u32(10),
+                    Record::from_u32(0),
                 ]
             );
             assert_eq!(ref_node.keys_count, 3);
@@ -777,13 +777,13 @@ pub(crate) mod tests {
             for i in 2..=key {
                 let res = find(&mut storage, &root_node, i)?;
                 assert!(res.is_some());
-                assert_eq!(res.unwrap().into_i32(), i);
+                assert_eq!(res.unwrap().into_u32(), i);
             }
 
             for i in 2..=key {
                 let find_res = find(&mut storage, &root_node, i)?;
                 assert!(find_res.is_some());
-                assert_eq!(find_res.unwrap().into_i32(), i);
+                assert_eq!(find_res.unwrap().into_u32(), i);
                 // /                println!("remove {:?}", i);
 
                 let str_before = debug::storage_to_string(
@@ -806,7 +806,7 @@ pub(crate) mod tests {
 
                 let mut mapped_values = Vec::new();
                 map(&mut storage, &root_node, i, key, &mut |k, v| {
-                    assert_eq!(v.into_i32(), k);
+                    assert_eq!(v.into_u32(), k);
                     mapped_values.push(k);
                 })
                 .unwrap();
@@ -839,10 +839,10 @@ pub(crate) mod tests {
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
-                    if d.into_i32() != k {
+                    if d.into_u32() != k {
                         debug::print_state(&str_before, &str_after);
                     }
-                    assert_eq!(d.into_i32(), k);
+                    assert_eq!(d.into_u32(), k);
                 }
             }
         }
@@ -857,13 +857,13 @@ pub(crate) mod tests {
             for i in 2..=key {
                 let res = find(&mut storage, &root_node, i)?;
                 assert!(res.is_some());
-                assert_eq!(res.unwrap().into_i32(), i);
+                assert_eq!(res.unwrap().into_u32(), i);
             }
 
             for i in (2..=key).rev() {
                 let find_res = find(&mut storage, &root_node, i)?;
                 assert!(find_res.is_some());
-                assert_eq!(find_res.unwrap().into_i32(), i);
+                assert_eq!(find_res.unwrap().into_u32(), i);
                 println!(">> remove {:?}", i);
                 let str_before = debug::storage_to_string(
                     &storage,
@@ -887,7 +887,7 @@ pub(crate) mod tests {
                 }
                 let mut mapped_values = Vec::new();
                 map_rev(&mut storage, &root_node, i, key, &mut |k, v| {
-                    assert_eq!(v.into_i32(), k);
+                    assert_eq!(v.into_u32(), k);
                     mapped_values.push(k);
                 })
                 .unwrap();
@@ -924,10 +924,10 @@ pub(crate) mod tests {
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
-                    if d.into_i32() != k {
+                    if d.into_u32() != k {
                         debug::print_state(&str_before, &str_after);
                     }
-                    assert_eq!(d.into_i32(), k);
+                    assert_eq!(d.into_u32(), k);
                 }
             }
         }
@@ -943,7 +943,7 @@ pub(crate) mod tests {
             for i in 2..=key {
                 let res = find(&mut storage, &root_node, i)?;
                 assert!(res.is_some());
-                assert_eq!(res.unwrap().into_i32(), i);
+                assert_eq!(res.unwrap().into_u32(), i);
             }
 
             /*let first = &keys[0..keys.len() / 2];
@@ -957,7 +957,7 @@ pub(crate) mod tests {
                 keys.remove(keys.len() / 2);
                 let find_res = find(&mut storage, &root_node, i)?;
                 assert!(find_res.is_some());
-                assert_eq!(find_res.unwrap().into_i32(), i);
+                assert_eq!(find_res.unwrap().into_u32(), i);
                 println!(">> {} {} remove {:?} size: {}", hight, t, i, storage.size());
                 // if i == 29 {
                 //     println!("!");
@@ -991,7 +991,7 @@ pub(crate) mod tests {
                         i,
                         *keys.last().unwrap(),
                         &mut |k, v| {
-                            assert_eq!(v.into_i32(), k);
+                            assert_eq!(v.into_u32(), k);
                             mapped_values.push(k);
                         },
                     )
@@ -1025,10 +1025,10 @@ pub(crate) mod tests {
                     }
                     assert!(find_res.is_some());
                     let d = find_res.unwrap();
-                    if d.into_i32() != *k {
+                    if d.into_u32() != *k {
                         debug::print_state(&str_before, &str_after);
                     }
-                    assert_eq!(d.into_i32(), *k);
+                    assert_eq!(d.into_u32(), *k);
                 }
             }
         }
@@ -1079,7 +1079,7 @@ pub(crate) mod tests {
     fn remove_from_middle_leaf() -> Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(7, 3);
 
-        let res = insert(&mut storage, &root_node, 1, &Record::from_i32(1));
+        let res = insert(&mut storage, &root_node, 1, &Record::from_u32(1));
         root_node = res.unwrap();
 
         let str_before = crate::prelude::debug::storage_to_string(
@@ -1109,7 +1109,7 @@ pub(crate) mod tests {
                 debug::print_state(&str_before, &str_after);
             }
             assert!(find_res.is_ok());
-            assert_eq!(find_res.unwrap().unwrap().into_i32(), i);
+            assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
         }
         return Ok(());
     }

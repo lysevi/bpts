@@ -10,7 +10,7 @@ use crate::Result;
 pub fn scan<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
-    key: i32,
+    key: u32,
 ) -> Result<RcNode> {
     let mut target = Rc::clone(root);
 
@@ -43,7 +43,7 @@ pub fn scan<Storage: NodeStorage>(
 pub fn find<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
-    key: i32,
+    key: u32,
 ) -> Result<Option<Record>> {
     let node = scan(storage, root, key)?;
     let r = node.borrow();
@@ -53,12 +53,12 @@ pub fn find<Storage: NodeStorage>(
 pub fn map<F, Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
-    from: i32,
-    to: i32,
+    from: u32,
+    to: u32,
     f: &mut F,
 ) -> Result<()>
 where
-    F: FnMut(i32, &Record),
+    F: FnMut(u32, &Record),
 {
     assert!(from <= to);
     let node_from = scan(storage, root, from);
@@ -90,12 +90,12 @@ where
 pub fn map_rev<F, Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
-    from: i32,
-    to: i32,
+    from: u32,
+    to: u32,
     f: &mut F,
 ) -> Result<()>
 where
-    F: FnMut(i32, &Record),
+    F: FnMut(u32, &Record),
 {
     assert!(from <= to);
     let node_from = scan(storage, root, from);
@@ -134,7 +134,7 @@ mod tests {
         let leaf1 = Node::new_leaf(
             types::Id(0),
             vec![2, 3],
-            vec![Record::from_i32(2), Record::from_i32(3)],
+            vec![Record::from_u32(2), Record::from_u32(3)],
             2,
             2,
         );
@@ -144,9 +144,9 @@ mod tests {
         storage.add_node(&leaf1);
         let res = find(&mut storage, &leaf1, 2)?;
         assert!(res.is_some());
-        assert_eq!(res.unwrap().into_i32(), 2);
+        assert_eq!(res.unwrap().into_u32(), 2);
 
-        let leaf2 = Node::new_leaf(types::Id(1), vec![1], vec![Record::from_i32(1)], 1, 1);
+        let leaf2 = Node::new_leaf(types::Id(1), vec![1], vec![Record::from_u32(1)], 1, 1);
         storage.add_node(&leaf2);
 
         let node1 = Node::new_root(
@@ -160,11 +160,11 @@ mod tests {
         storage.add_node(&node1);
         let res_1 = find(&mut storage, &node1, 1)?;
         assert!(res_1.is_some());
-        assert_eq!(res_1.unwrap().into_i32(), 1);
+        assert_eq!(res_1.unwrap().into_u32(), 1);
 
         let res_2 = find(&mut storage, &node1, 2)?;
         assert!(res_2.is_some());
-        assert_eq!(res_2.unwrap().into_i32(), 2);
+        assert_eq!(res_2.unwrap().into_u32(), 2);
         return Ok(());
     }
 }

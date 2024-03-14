@@ -8,7 +8,7 @@ fn main() {
     let count = 10000;
     let mut rng = rand::thread_rng();
 
-    let mut nums: Vec<i32> = (1..=count).collect();
+    let mut nums: Vec<u32> = (1..=count).collect();
     nums.shuffle(&mut rng);
     println!("nums: {:?}", nums.len());
     // let t = 5;
@@ -27,7 +27,7 @@ fn main() {
             //     println!("")
             // }
             //let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
-            let res = insert(&mut storage, &root_node, *i, &Record::from_i32(*i));
+            let res = insert(&mut storage, &root_node, *i, &Record::from_u32(*i));
             //crate::helpers::print_state(&str_before, &String::from(""));
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -57,7 +57,7 @@ fn main() {
             }
             assert!(v.is_some());
             let rec = v.unwrap();
-            assert_eq!(rec.into_i32(), *i);
+            assert_eq!(rec.into_u32(), *i);
         }
         duration = start.elapsed();
         println!("\tread:{:?}", duration);
