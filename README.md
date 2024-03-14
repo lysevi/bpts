@@ -1,5 +1,6 @@
 # bpts
 
+- [ ] bpts/utils/[mod.rs, bufferwriter]
 - [ ] Page is full.
   - [ ] data list
   - [ ] is there enough space for recording?
@@ -8,7 +9,7 @@
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
   - [ ] unload after saving
-  - [ ] save to buffer.
+  - [*] save to buffer.
   - [ ] test - fill, save, load, remove, save.... 
 
 - [ ] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
