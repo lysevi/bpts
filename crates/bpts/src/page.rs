@@ -214,7 +214,7 @@ mod tests {
         }
 
         {
-            let mut page = Page::from_buf(&mut b)?;
+            let page = Page::from_buf(&mut b)?;
             assert_eq!(page.trees_count(), 2);
             assert_eq!(page.transaction(7).unwrap().rev(), 3);
             assert_eq!(page.transaction(7).unwrap().tree_id(), 7);
