@@ -60,4 +60,8 @@ impl TreeParams {
     pub fn get_t(&self) -> usize {
         self.t
     }
+
+    pub fn get_keys_count(&self) -> usize {
+        self.t * 2
+    }
 }

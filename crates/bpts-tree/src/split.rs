@@ -36,7 +36,7 @@ pub fn split_node<Storage: NodeStorage>(
         parent_node = storage.get_node(target_node.borrow().parent)?;
     }
 
-    let mut new_keys = vec![0i32; target_node.borrow().keys.capacity()];
+    let mut new_keys = vec![0i32; target_node.borrow().keys.len()];
     let mut new_data = Record::empty_array(target_node.borrow().data.len());
 
     let t = storage.get_params().get_t();

@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use bpts_tree::prelude::*;
 
+use crate::utils::{BuferWriter, Counter, UnsafeWriter};
+
 #[repr(C, packed)]
 #[derive(Debug, Clone)]
 pub struct TransactionHeader {
@@ -37,30 +39,91 @@ impl Transaction {
     }
 
     pub unsafe fn from_buffer(buffer: *mut u8, offset: u32, params: TreeParams) -> Transaction {
+        let mut ptr_offset = 0;
+
         let ptr = buffer as *const TransactionHeader;
         let hdr = std::ptr::read(ptr);
+        ptr_offset += std::mem::size_of::<TransactionHeader>();
+
+        let nodes_len: u32 = (buffer.add(ptr_offset) as *const u32).read();
+        ptr_offset += std::mem::size_of::<u32>();
+
+        let mut nodes = HashMap::with_capacity(nodes_len as usize);
+
+        for _ in 0..nodes_len {
+            let node_id = (buffer.add(ptr_offset) as *const i32).read();
+            ptr_offset += std::mem::size_of::<i32>();
+
+            let node_is_leaf = (buffer.add(ptr_offset) as *const bool).read();
+            ptr_offset += std::mem::size_of::<bool>();
+
+            let node_parent = (buffer.add(ptr_offset) as *const i32).read();
+            ptr_offset += std::mem::size_of::<i32>();
+
+            let node_left = (buffer.add(ptr_offset) as *const i32).read();
+            ptr_offset += std::mem::size_of::<i32>();
+
+            let node_right = (buffer.add(ptr_offset) as *const i32).read();
+            ptr_offset += std::mem::size_of::<i32>();
+
+            let node_keys_count = (buffer.add(ptr_offset) as *const u32).read();
+            ptr_offset += std::mem::size_of::<u32>();
+
+            let node_data_count = (buffer.add(ptr_offset) as *const u32).read();
+            ptr_offset += std::mem::size_of::<u32>();
+
+            let mut keys = Vec::with_capacity(params.t);
+            keys.resize(params.get_keys_count(), 0i32);
+
+            let mut data = Vec::with_capacity(node_data_count as usize);
+            data.resize(params.get_keys_count(), Record::Empty);
+
+            for _ in 0..node_keys_count {
+                let k = (buffer.add(ptr_offset) as *const i32).read();
+                ptr_offset += std::mem::size_of::<i32>();
+                keys.push(k);
+            }
+            for _ in 0..node_data_count {
+                let value = (buffer.add(ptr_offset) as *const i32).read();
+                ptr_offset += std::mem::size_of::<i32>();
+
+                let rec = if node_is_leaf {
+                    Record::Ptr(Id(value))
+                } else {
+                    Record::Value(value)
+                };
+                data.push(rec);
+            }
+            let node = Node::new(
+                Id(node_id),
+                node_is_leaf,
+                keys,
+                data,
+                node_keys_count as usize,
+                node_data_count as usize,
+            );
+            node.borrow_mut().parent = Id(node_parent);
+            node.borrow_mut().left = Id(node_left);
+            node.borrow_mut().right = Id(node_right);
+            nodes.insert(node_id, node);
+        }
+
         Transaction {
             header: hdr,
             buffer: Some(buffer),
             offset: offset,
-            nodes: HashMap::new(),
+            nodes: nodes,
             params: params,
         }
     }
 
     pub unsafe fn save_to(&mut self, buffer: *mut u8, offset: u32) -> u32 {
-        let src_ptr = &self.header as *const TransactionHeader;
-        let dest_ptr = buffer as *mut TransactionHeader;
-        std::ptr::copy(src_ptr, dest_ptr, 1);
-
-        for n in self.nodes.values() {
-            todo!()
-        }
+        let mut writer = UnsafeWriter::new(buffer);
+        self.send_to_writer(&mut writer);
 
         self.offset = offset;
         self.buffer = Some(buffer);
-        self.nodes.clear();
-        return self.size();
+        return writer.size() as u32;
     }
 
     pub fn from_transaction(other: &Transaction) -> Transaction {
@@ -74,12 +137,44 @@ impl Transaction {
         // }
     }
 
-    pub fn size(&self) -> u32 {
-        let mut result = TRANSACTION_HEADER_SIZE;
+    fn send_to_writer<Writer: crate::utils::BuferWriter>(&self, writer: &mut Writer) {
+        writer.write_sized(&self.header);
+        writer.write_u32(self.nodes.len() as u32);
+
         for node in self.nodes.values() {
-            todo!();
+            let node_ref = node.borrow();
+            writer.write_id(node_ref.id);
+            writer.write_bool(node_ref.is_leaf);
+            writer.write_id(node_ref.parent);
+            writer.write_id(node_ref.left);
+            writer.write_id(node_ref.right);
+            writer.write_u32(node_ref.keys_count as u32);
+            writer.write_u32(node_ref.data_count as u32);
+            for k in node_ref.key_iter() {
+                writer.write_i32(*k);
+            }
+            for d in node_ref.data_iter() {
+                match *d {
+                    Record::Value(v) => writer.write_i32(v),
+                    Record::Ptr(ptr) => writer.write_id(ptr),
+                    Record::Empty => todo!(),
+                }
+            }
         }
-        return result;
+    }
+
+    pub fn clear_cache(&mut self) {
+        self.nodes.clear();
+    }
+
+    pub fn nodes_count(&self) -> usize {
+        return self.nodes.len();
+    }
+
+    pub fn size(&self) -> u32 {
+        let mut c = crate::utils::Counter::new();
+        self.send_to_writer::<Counter>(&mut c);
+        return c.size() as u32;
     }
 
     pub fn rev(&self) -> u32 {
@@ -155,6 +250,8 @@ impl NodeStorage for Transaction {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use bpts_tree::prelude::*;
 
     use super::Transaction;
@@ -168,25 +265,50 @@ mod tests {
 
         storage.add_node(&root_node);
 
+        let mut allkeys = HashMap::new();
+
         let mut key: i32 = 1;
-        while storage.size() < max_node_count {
+        while storage.nodes_count() < max_node_count {
             key += 1;
             let res = insert(&mut storage, &root_node, key, &Record::from_i32(key));
+            allkeys.insert(key, false);
             assert!(res.is_ok());
             root_node = res.unwrap();
         }
 
+        for k in allkeys.keys() {
+            let result = find(&mut storage, &root_node, *k)?;
+            assert!(result.is_some());
+            assert_eq!(result.unwrap(), Record::from_i32(*k));
+        }
+
         let mut size = storage.size();
         let mut buffer = vec![0u8; size as usize + 50];
-        for i in (size as usize)..buffer.len() {
+        let buffer_len = buffer.len();
+        for i in (size as usize)..buffer_len {
             buffer[i] = i as u8;
         }
-        let slice = buffer.as_mut_slice();
-        let writed_bytes = unsafe { storage.save_to(slice.as_mut_ptr(), 0) };
+        {
+            let slice = buffer.as_mut_slice();
+            let writed_bytes = unsafe { storage.save_to(slice.as_mut_ptr(), 0) };
 
-        assert_eq!(size, writed_bytes);
-        for i in (size as usize)..buffer.len() {
+            assert_eq!(size, writed_bytes);
+        }
+        for i in (size as usize)..buffer_len {
             assert_eq!(buffer[i], i as u8);
+        }
+
+        {
+            let slice = buffer.as_mut_slice();
+            let loaded_trans = unsafe { Transaction::from_buffer(slice.as_mut_ptr(), 0, params) };
+
+            assert_eq!(loaded_trans.nodes_count(), storage.nodes_count());
+
+            for k in allkeys.keys() {
+                let result = find(&mut storage, &root_node, *k)?;
+                assert!(result.is_some());
+                assert_eq!(result.unwrap(), Record::from_i32(*k));
+            }
         }
         Ok(())
     }
