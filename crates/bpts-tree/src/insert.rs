@@ -47,8 +47,6 @@ pub fn insert<Storage: NodeStorage>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
     use crate::prelude::*;
 
