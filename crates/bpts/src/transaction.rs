@@ -4,6 +4,10 @@ use bpts_tree::prelude::*;
 
 use crate::utils::{BuferWriter, Counter, UnsafeWriter};
 
+/*
+header, node_count, node1,...,node_N
+*/
+
 #[repr(C, packed)]
 #[derive(Debug, Clone)]
 pub struct TransactionHeader {
