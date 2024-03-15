@@ -2,7 +2,7 @@
 
 - [ ] bpts/utils/[mod.rs, bufferwriter]
 - [ ] Page is full.
-  - [ ] data list
+  - [x] data list
   - [ ] is there enough space for recording?
   - [ ] transaction...key+value
   - [ ] page as storage
