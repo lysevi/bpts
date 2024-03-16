@@ -2,6 +2,8 @@
 
 - [ ] bpts/utils/[mod.rs, bufferwriter]
 - [ ] Page is full.
+  - [ ] clusters
+   - [ ] free clusters list
   - [x] data list
   - [ ] is there enough space for recording?
   - [ ] transaction...key+value
