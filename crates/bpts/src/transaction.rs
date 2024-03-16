@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bpts_tree::prelude::*;
 
-use crate::utils::{BuferWriter, Counter, UnsafeWriter};
+use crate::utils::bufferwriter::{BufferWriter, Counter, UnsafeWriter};
 
 /*
 header, node_count, node1,...,node_N
@@ -144,7 +144,7 @@ impl Transaction {
         }
     }
 
-    fn send_to_writer<Writer: crate::utils::BuferWriter>(&self, writer: &mut Writer) {
+    fn send_to_writer<Writer: BufferWriter>(&self, writer: &mut Writer) {
         writer.write_sized(&self.header);
         writer.write_u32(self.nodes.len() as u32);
 
@@ -179,7 +179,7 @@ impl Transaction {
     }
 
     pub fn size(&self) -> u32 {
-        let mut c = crate::utils::Counter::new();
+        let mut c = Counter::new();
         self.send_to_writer::<Counter>(&mut c);
         return c.size() as u32;
     }

@@ -1,8 +1,4 @@
-pub unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts((p as *const T) as *const u8, ::core::mem::size_of::<T>())
-}
-
-pub trait BuferWriter {
+pub trait BufferWriter {
     fn size(&self) -> usize;
     fn write_id(&mut self, v: bpts_tree::types::Id);
     fn write_u32(&mut self, v: u32);
@@ -24,7 +20,7 @@ impl Counter {
         self.count += std::mem::size_of::<T>();
     }
 }
-impl BuferWriter for Counter {
+impl BufferWriter for Counter {
     fn size(&self) -> usize {
         self.count
     }
@@ -64,7 +60,7 @@ impl UnsafeWriter {
     }
 }
 
-impl BuferWriter for UnsafeWriter {
+impl BufferWriter for UnsafeWriter {
     fn size(&self) -> usize {
         self.count
     }

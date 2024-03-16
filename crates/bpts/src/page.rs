@@ -7,6 +7,7 @@ use crate::transaction::Transaction;
 
 /*Page:
 0:[HEAD]
+[freelist]
 space:{
     Trans1,Trans1.1,TransList,Trans2.1,TransList
     ....
@@ -23,8 +24,6 @@ struct Header {
 }
 
 const HEADER_SIZE: usize = std::mem::size_of::<Header>();
-
-
 
 pub struct Page {
     space: *mut u8,
