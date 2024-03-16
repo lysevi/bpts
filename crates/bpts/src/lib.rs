@@ -1,4 +1,5 @@
 pub mod datalist;
+pub mod freelist;
 pub mod mfile;
 pub mod page;
 pub mod prelude;
