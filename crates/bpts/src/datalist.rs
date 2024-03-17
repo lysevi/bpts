@@ -10,7 +10,7 @@ free space ... {data,key,data_len,,key_len,id}, {data,key,data_len,,key_len,id},
 pub struct DataList {
     buffer: *mut u8,
     cap: u32,
-    offset_from_end: u32,
+    write_pos: u32,
 }
 
 impl DataList {
@@ -18,86 +18,85 @@ impl DataList {
         DataList {
             buffer,
             cap,
-            offset_from_end: offset,
+            write_pos: offset,
         }
     }
 
-    pub fn get_offset(&self) -> u32 {
-        self.offset_from_end
+    pub fn get_writepos(&self) -> u32 {
+        self.write_pos
     }
 
     unsafe fn wrte_slice(&self, offset: usize, target: &[u8]) -> usize {
-        let mut ptr = self.buffer.add(offset).sub(target.len());
+        let mut ptr = self.buffer.add(offset);
 
         for i in target.iter() {
             ptr.write(*i);
             ptr = ptr.add(std::mem::size_of::<u8>()); // :-)
         }
-        return offset - target.len();
+        return offset + target.len();
     }
 
     // return offset;
     pub unsafe fn insert(&mut self, id: Id, key: &[u8], data: &[u8]) -> Option<u32> {
-        let pack_size =
-            std::mem::size_of_val(&id.0) + std::mem::size_of::<u32>() * 2 + key.len() + data.len();
-        if pack_size > (self.cap - self.offset_from_end) as usize {
+        let mut pack_size = std::mem::size_of_val(&id.0);
+        pack_size += std::mem::size_of::<u32>() * 2;
+        pack_size += key.len() + data.len();
+
+        if pack_size > self.write_pos as usize {
             return None;
         }
-        let result = self.offset_from_end;
-        let mut write_pos =
-            (self.cap - self.offset_from_end) as usize - std::mem::size_of_val(&id.0);
+
+        let mut write_pos = self.write_pos as usize - pack_size;
+        let result = write_pos as u32;
 
         let ptr = self.buffer.add(write_pos) as *mut u32;
         ptr.write(id.0);
+        write_pos = write_pos + std::mem::size_of::<u32>();
 
-        write_pos = write_pos - std::mem::size_of::<u32>();
         let ptr = self.buffer.add(write_pos) as *mut u32;
         ptr.write(key.len() as u32);
+        write_pos = write_pos + std::mem::size_of::<u32>();
 
-        write_pos = write_pos - std::mem::size_of::<u32>();
         let ptr = self.buffer.add(write_pos) as *mut u32;
         ptr.write(data.len() as u32);
+        write_pos = write_pos + std::mem::size_of::<u32>();
 
         write_pos = self.wrte_slice(write_pos, key);
-        write_pos = self.wrte_slice(write_pos, data);
+        self.wrte_slice(write_pos, data);
 
-        self.offset_from_end = self.cap - write_pos as u32;
+        self.write_pos = result;
         Some(result)
     }
 
     pub unsafe fn load(&self, offset: u32) -> (Id, &[u8], &[u8]) {
-        let mut read_offset = (self.cap - offset) as usize;
+        let mut read_offset = offset as usize;
 
-        read_offset -= std::mem::size_of::<u32>();
         let id = (self.buffer.add(read_offset) as *const u32).read();
+        read_offset += std::mem::size_of::<u32>();
 
-        read_offset -= std::mem::size_of::<u32>();
         let key_len = (self.buffer.add(read_offset) as *const u32).read();
+        read_offset += std::mem::size_of::<u32>();
 
-        read_offset -= std::mem::size_of::<u32>();
         let data_len = (self.buffer.add(read_offset) as *const u32).read();
+        read_offset += std::mem::size_of::<u32>();
 
-        read_offset -= key_len as usize;
         let key = std::slice::from_raw_parts(self.buffer.add(read_offset), key_len as usize);
-        read_offset -= data_len as usize;
+        read_offset += key_len as usize;
         let data = std::slice::from_raw_parts(self.buffer.add(read_offset), data_len as usize);
 
         return (Id(id), key, data);
     }
 
     pub unsafe fn load_key(&self, offset: u32) -> (Id, &[u8]) {
-        let mut read_offset = (self.cap - offset) as usize;
+        let mut read_offset = offset as usize;
 
-        read_offset -= std::mem::size_of::<u32>();
         let id = (self.buffer.add(read_offset) as *const u32).read();
+        read_offset += std::mem::size_of::<u32>();
 
-        read_offset -= std::mem::size_of::<u32>();
         let key_len = (self.buffer.add(read_offset) as *const u32).read();
+        read_offset += std::mem::size_of::<u32>();
+        read_offset += std::mem::size_of::<u32>();
 
-        read_offset -= std::mem::size_of::<u32>();
-        //let data_len = (self.buffer.add(read_offset) as *const u32).read();
-
-        read_offset -= key_len as usize;
         let key = std::slice::from_raw_parts(self.buffer.add(read_offset), key_len as usize);
 
         return (Id(id), key);
@@ -119,16 +118,11 @@ mod tests {
             let pos = buffer.len() - 1 - i;
             buffer[pos] = i as u8;
         }
-        let mut dl = DataList::new(buffer.as_mut_ptr(), BUFFERSIZE as u32, 0u32);
-        let offset = dl.get_offset();
-        assert_eq!(offset, 0);
+        let mut dl = DataList::new(buffer.as_mut_ptr(), BUFFERSIZE as u32, BUFFERSIZE as u32);
+        assert_eq!(dl.get_writepos(), BUFFERSIZE as u32);
 
         let offset1 = unsafe { dl.insert(Id(1), &[1, 2, 3], &[3, 2, 1]).unwrap() };
-        assert!(offset < dl.get_offset());
-        let offset = dl.get_offset();
-
         let offset2 = unsafe { dl.insert(Id(2), &[4, 5, 6], &[7, 8, 9]).unwrap() };
-        assert!(offset < dl.get_offset());
 
         for i in 0..10 {
             let pos = buffer.len() - 1 - i;
@@ -176,9 +170,7 @@ mod tests {
         const BUFFERSIZE: usize = 1024;
         let mut buffer = vec![0u8; BUFFERSIZE];
 
-        let mut dl = DataList::new(buffer.as_mut_ptr(), BUFFERSIZE as u32, 0u32);
-        let offset = dl.get_offset();
-        assert_eq!(offset, 0);
+        let mut dl = DataList::new(buffer.as_mut_ptr(), BUFFERSIZE as u32, BUFFERSIZE as u32);
 
         let mut values = HashMap::new();
         let mut id = 1;

@@ -1,5 +1,6 @@
 use bpts_tree::prelude::Result;
 
+//TODO! bitmap
 pub struct FreeList {
     buffer: *mut u8,
     bufflen: u32,
@@ -10,22 +11,78 @@ impl FreeList {
         FreeList { buffer, bufflen }
     }
 
-    pub fn init(&mut self) {
-        todo!();
+    pub unsafe fn init(&mut self) {
+        for i in 0..self.bufflen {
+            self.buffer.add(i as usize).write(0u8);
+        }
     }
 
-    pub fn set(&mut self, i: usize, val: bool) -> Result<()> {
-        todo!();
+    pub unsafe fn set(&mut self, i: usize, val: bool) -> Result<()> {
+        if i > self.bufflen as usize {
+            return Err(bpts_tree::types::Error("out of bounds".to_owned()));
+        }
+        let f = if val { 1u8 } else { 0u8 };
+        self.buffer.add(i).write(f);
         Ok(())
     }
 
     pub fn len(&self) -> usize {
-        (self.bufflen * 8) as usize
+        (self.bufflen) as usize
     }
 
-    pub fn get(&self, i: usize) -> Result<bool> {
-        todo!();
-        Ok(false)
+    pub unsafe fn get(&self, i: usize) -> Result<bool> {
+        if i > self.bufflen as usize {
+            return Err(bpts_tree::types::Error("out of bounds".to_owned()));
+        }
+
+        let f: u8 = self.buffer.add(i).read();
+        if f == 1 {
+            return Ok(true);
+        }
+        return Ok(false);
+    }
+
+    pub unsafe fn get_region_top(&self, i: usize) -> Option<usize> {
+        for index in 0..(self.bufflen as usize) {
+            let v: u8 = self.buffer.add(index).read();
+            if v == 0 {
+                let mut all_is_free = true;
+                for j in index..(index + i) {
+                    let v: u8 = self.buffer.add(j).read();
+                    if v != 0 {
+                        all_is_free = false;
+                        break;
+                    }
+                }
+                if all_is_free {
+                    return Some(index);
+                }
+            }
+        }
+        None
+    }
+
+    pub unsafe fn get_region_bottom(&self, i: usize) -> Option<usize> {
+        for index in (i..(self.bufflen as usize)).rev() {
+            let v: u8 = self.buffer.add(index).read();
+            if v == 0 {
+                let mut all_is_free = true;
+
+                let from = index + 1;
+                let to = index - i + 1;
+                for j in (to..from).rev() {
+                    let v: u8 = self.buffer.add(j).read();
+                    if v != 0 {
+                        all_is_free = false;
+                        break;
+                    }
+                }
+                if all_is_free {
+                    return Some(index - i + 1);
+                }
+            }
+        }
+        None
     }
 }
 
@@ -43,14 +100,33 @@ mod tests {
         }
 
         let mut fl = FreeList::new(buffer.as_mut_ptr(), BUFFERSIZE as u32);
-
-        fl.init();
+        unsafe { fl.init() };
         for i in 0..BUFFERSIZE {
             assert_eq!(buffer[i], 0);
         }
 
-        assert!(fl.set(BUFFERSIZE * 2, true).is_err());
+        for i in 0..10 {
+            let pos = buffer.len() - 1 - i;
+            buffer[pos] = i as u8;
+        }
 
+        unsafe {
+            assert!(fl.set(BUFFERSIZE * 2, true).is_err());
+
+            assert!(!fl.set(1, true).is_err());
+
+            assert!(fl.get(1).unwrap());
+
+            assert!(!fl.set(2, true).is_err());
+            assert!(!fl.set(6, true).is_err());
+
+            assert_eq!(fl.get_region_top(3).unwrap(), 3);
+
+            assert!(!fl.set(99, true).is_err());
+            assert!(!fl.set(98, true).is_err());
+            assert!(!fl.set(94, true).is_err());
+            assert_eq!(fl.get_region_bottom(3).unwrap(), 95);
+        }
         for i in 0..10 {
             let pos = buffer.len() - 1 - i;
             assert_eq!(buffer[pos], i as u8);
