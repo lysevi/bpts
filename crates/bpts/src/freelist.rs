@@ -7,6 +7,14 @@ pub struct FreeList {
 }
 
 impl FreeList {
+    pub fn calc_size(buffsize: u32, cluster_size: u16) -> u32 {
+        return buffsize / cluster_size as u32;
+    }
+
+    pub fn size_for_len(len: u32) -> u32 {
+        return len;
+    }
+
     pub fn new(buffer: *mut u8, bufflen: u32) -> FreeList {
         FreeList { buffer, bufflen }
     }

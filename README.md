@@ -3,6 +3,7 @@
 - [ ] Page is full.
   - [ ] clusters
    - [x] free clusters list
+   - [ ] free mem after reccord
   - [x] data list
   - [ ] is there enough space for recording?
   - [ ] transaction...key+value
