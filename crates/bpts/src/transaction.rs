@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use bpts_tree::prelude::*;
 
@@ -16,6 +16,8 @@ pub struct TransactionHeader {
     size: u32,
 }
 
+pub type TransKeyCmp = Rc<RefCell<dyn bpts_tree::prelude::KeyCmp>>;
+
 #[derive(Clone)]
 pub struct Transaction {
     header: TransactionHeader,
@@ -23,10 +25,11 @@ pub struct Transaction {
     offset: u32,
     nodes: HashMap<u32, RcNode>,
     params: TreeParams,
+    cmp: TransKeyCmp,
 }
 
 impl Transaction {
-    pub fn new(rev: u32, tree_id: u32, params: TreeParams) -> Transaction {
+    pub fn new(rev: u32, tree_id: u32, params: TreeParams, keycmp: TransKeyCmp) -> Transaction {
         let hdr = TransactionHeader {
             rev,
             tree_id,
@@ -38,10 +41,16 @@ impl Transaction {
             offset: 0u32,
             nodes: HashMap::new(),
             params: params,
+            cmp: keycmp,
         }
     }
 
-    pub unsafe fn from_buffer(buffer: *mut u8, offset: u32, params: TreeParams) -> Transaction {
+    pub unsafe fn from_buffer(
+        buffer: *mut u8,
+        offset: u32,
+        keycmp: TransKeyCmp,
+        params: TreeParams,
+    ) -> Transaction {
         let mut ptr_offset = 0;
 
         let ptr = buffer as *const TransactionHeader;
@@ -117,6 +126,7 @@ impl Transaction {
             offset: offset,
             nodes: nodes,
             params: params,
+            cmp: keycmp,
         }
     }
 
@@ -141,6 +151,7 @@ impl Transaction {
             offset: 0,
             nodes: new_nodes,
             params: other.params,
+            cmp: other.cmp.clone(),
         }
     }
 
@@ -201,6 +212,13 @@ impl Transaction {
     }
 }
 
+impl KeyCmp for Transaction {
+    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
+        let r = self.cmp.borrow();
+        return r.compare(key1, key2);
+    }
+}
+
 impl NodeStorage for Transaction {
     fn get_root(&self) -> Option<RcNode> {
         for i in &self.nodes {
@@ -253,11 +271,15 @@ impl NodeStorage for Transaction {
     fn get_params(&self) -> &TreeParams {
         &self.params
     }
+
+    fn get_cmp(&self) -> &dyn KeyCmp {
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     use bpts_tree::prelude::*;
 
@@ -266,7 +288,8 @@ mod tests {
     fn transaction_save() -> Result<()> {
         let max_node_count = 10;
         let params = TreeParams::default();
-        let mut storage = Transaction::new(0, 1, params.clone());
+        let cmp = Rc::new(RefCell::new(bpts_tree::mocks::MockKeyCmp::new()));
+        let mut storage = Transaction::new(0, 1, params.clone(), cmp.clone());
 
         let mut root_node = Node::new_leaf_with_size(Id(1), params.t);
 
@@ -307,7 +330,8 @@ mod tests {
 
         {
             let slice = buffer.as_mut_slice();
-            let loaded_trans = unsafe { Transaction::from_buffer(slice.as_mut_ptr(), 0, params) };
+            let loaded_trans =
+                unsafe { Transaction::from_buffer(slice.as_mut_ptr(), 0, cmp.clone(), params) };
 
             assert!(loaded_trans.is_readonly());
             assert_eq!(loaded_trans.nodes_count(), storage.nodes_count());

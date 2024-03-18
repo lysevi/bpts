@@ -22,7 +22,7 @@ pub fn scan<Storage: NodeStorage>(
             if ref_target.is_leaf {
                 return Ok(Rc::clone(&target));
             }
-            let rec = ref_target.find(key);
+            let rec = ref_target.find(storage.get_cmp(), key);
             if rec.is_none() {
                 return Err(types::Error(format!("{} not found", key)));
             }
@@ -47,7 +47,7 @@ pub fn find<Storage: NodeStorage>(
 ) -> Result<Option<Record>> {
     let node = scan(storage, root, key)?;
     let r = node.borrow();
-    return Ok(r.find(key));
+    return Ok(r.find(storage.get_cmp(), key));
 }
 
 pub fn map<F, Storage: NodeStorage>(

@@ -1,5 +1,6 @@
 pub use crate::insert::insert;
 pub use crate::mocks::MockNodeStorage;
+pub use crate::node::KeyCmp;
 pub use crate::node::Node;
 pub use crate::node::RcNode;
 pub use crate::nodestorage::NodeStorage;

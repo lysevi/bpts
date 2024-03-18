@@ -1,10 +1,20 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
+use bpts_tree::node::KeyCmp;
 use bpts_tree::params::TreeParams;
 
+use crate::datalist::DataList;
 use crate::freelist::FreeList;
-use crate::transaction::Transaction;
+use crate::transaction::{TransKeyCmp, Transaction};
 use crate::{freelist, prelude::*};
+
+pub trait PageKeyCmp {
+    fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering;
+}
+
+pub type PageKeyCmpRc = Rc<RefCell<dyn PageKeyCmp>>;
 
 /*Page:
 0:[HEAD]
@@ -39,25 +49,33 @@ impl Header {
     }
 }
 
+struct PageKeyCmpRef {
+    dl: DataList,
+    cmp: PageKeyCmpRc,
+}
+
+impl KeyCmp for PageKeyCmpRef {
+    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
+        let k1 = unsafe { self.dl.load_key(key1) };
+        let k2 = unsafe { self.dl.load_key(key2) };
+        self.cmp.borrow().compare(k1.1, k2.1)
+    }
+}
+
 pub struct Page {
     space: *mut u8,
     freelist: FreeList,
     hdr: *mut Header,
     trans: HashMap<u32, Transaction>,
+    cmp: PageKeyCmpRc,
 }
 
 impl Page {
-    pub fn calc_size(params: TreeParams, buffsize: u32, cluster_size: u16) -> u32 {
-        let defparam = Header::default(params, buffsize, cluster_size);
-        let freelistsize = freelist::FreeList::calc_size(buffsize, defparam.cluster_size);
-        let result = HEADER_SIZE as u32 + buffsize + freelistsize;
-        return result;
-    }
-
     pub unsafe fn init_buffer(
         buffer: *mut u8,
         buffsize: u32,
         cluster_size: u16,
+        cmp: PageKeyCmpRc,
         params: TreeParams,
     ) -> Result<Page> {
         let result: Page;
@@ -74,17 +92,19 @@ impl Page {
             .add(HEADER_SIZE)
             .add(freelist::FreeList::size_for_len(flsize) as usize);
         let t = HashMap::new();
+
         result = Page {
             hdr: h,
             freelist: fl,
             trans: t,
             space: space,
+            cmp: cmp,
         };
 
         return Ok(result);
     }
 
-    pub unsafe fn from_buf(buffer: *mut u8) -> Result<Page> {
+    pub unsafe fn from_buf(buffer: *mut u8, cmp: PageKeyCmpRc) -> Result<Page> {
         let result: Page;
 
         let h = buffer as *mut Header;
@@ -92,6 +112,11 @@ impl Page {
         let space = buffer
             .add(HEADER_SIZE)
             .add(freelist::FreeList::size_for_len(flsize) as usize);
+        let transcmp = Rc::new(RefCell::new(PageKeyCmpRef {
+            cmp: cmp.clone(),
+            dl: DataList::new(space, 0, 0),
+        }));
+
         let t: HashMap<u32, Transaction> = if (*h).trans_list_offset == 0 {
             HashMap::new()
         } else {
@@ -103,7 +128,12 @@ impl Page {
                 ptr = ptr.add(std::mem::size_of::<u32>());
                 let offset = (ptr as *const u32).read();
                 let cur_trans_offset = space.add(offset as usize);
-                let cur_trans = Transaction::from_buffer(cur_trans_offset, offset, (*h).params);
+                let cur_trans = Transaction::from_buffer(
+                    cur_trans_offset,
+                    offset,
+                    transcmp.clone(),
+                    (*h).params,
+                );
                 transes.insert(cur_trans.tree_id(), cur_trans);
             }
 
@@ -113,10 +143,18 @@ impl Page {
             hdr: h,
             trans: t,
             space: space,
+            cmp: cmp,
             freelist: FreeList::new(buffer.add(HEADER_SIZE), flsize),
         };
 
         return Ok(result);
+    }
+
+    pub fn calc_size(params: TreeParams, buffsize: u32, cluster_size: u16) -> u32 {
+        let defparam = Header::default(params, buffsize, cluster_size);
+        let freelistsize = freelist::FreeList::calc_size(buffsize, defparam.cluster_size);
+        let result = HEADER_SIZE as u32 + buffsize + freelistsize;
+        return result;
     }
 
     pub fn save_trans(&mut self, t: Transaction) -> Result<()> {
@@ -202,15 +240,42 @@ impl Page {
     pub fn tree_params(&self) -> TreeParams {
         return unsafe { (*self.hdr).params };
     }
+
+    pub fn get_cmp(&self) -> TransKeyCmp {
+        let result = PageKeyCmpRef {
+            cmp: self.cmp.clone(),
+            dl: DataList::new(self.space, 0, 0),
+        };
+        return Rc::new(RefCell::new(result));
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     use bpts_tree::params::TreeParams;
 
     use crate::page::Page;
     use crate::prelude::Result;
     use crate::transaction::Transaction;
+
+    use super::PageKeyCmp;
+
+    struct MockKeyCmp {}
+
+    impl MockKeyCmp {
+        fn new() -> MockKeyCmp {
+            MockKeyCmp {}
+        }
+    }
+
+    impl PageKeyCmp for MockKeyCmp {
+        fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
+            key1.cmp(key2)
+        }
+    }
 
     #[test]
     fn page_from_buffer() -> Result<()> {
@@ -223,34 +288,41 @@ mod tests {
             let pos = b.len() - 1 - i;
             b[pos] = i as u8;
         }
+        let cmp = Rc::new(RefCell::new(MockKeyCmp::new()));
+
         unsafe {
             {
-                let mut page =
-                    Page::init_buffer(b.as_mut_ptr(), pagedatasize, cluster_size, tparam.clone())?;
+                let mut page = Page::init_buffer(
+                    b.as_mut_ptr(),
+                    pagedatasize,
+                    cluster_size,
+                    cmp.clone(),
+                    tparam.clone(),
+                )?;
                 assert_eq!(page.get_id(), 0);
                 page.set_id(777);
             }
             {
                 let deafult_params = TreeParams::default();
-                let page2 = Page::from_buf(b.as_mut_ptr())?;
+                let page2 = Page::from_buf(b.as_mut_ptr(), cmp.clone())?;
                 assert_eq!(page2.get_id(), 777);
                 let page_param = page2.tree_params();
                 assert_eq!(page_param.t, deafult_params.t);
             }
             {
-                let mut page = Page::from_buf(b.as_mut_ptr())?;
-                let t = Transaction::new(3, 7, page.tree_params());
+                let mut page = Page::from_buf(b.as_mut_ptr(), cmp.clone())?;
+                let t = Transaction::new(3, 7, page.tree_params(), page.get_cmp());
                 assert!(page.transaction(7).is_none());
                 page.save_trans(t)?;
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
             }
             {
-                let mut page = Page::from_buf(b.as_mut_ptr())?;
+                let mut page = Page::from_buf(b.as_mut_ptr(), cmp.clone())?;
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
                 assert_eq!(page.transaction(7).unwrap().tree_id(), 7);
                 assert_eq!(page.trees_count(), 1);
 
-                let t = Transaction::new(1, 8, page.tree_params());
+                let t = Transaction::new(1, 8, page.tree_params(), page.get_cmp());
                 assert!(!t.is_readonly());
                 page.save_trans(t)?;
                 assert_eq!(page.transaction(8).unwrap().rev(), 1);
@@ -260,7 +332,7 @@ mod tests {
             }
 
             {
-                let mut page = Page::from_buf(b.as_mut_ptr())?;
+                let mut page = Page::from_buf(b.as_mut_ptr(), cmp.clone())?;
                 assert_eq!(page.trees_count(), 2);
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
                 assert_eq!(page.transaction(7).unwrap().tree_id(), 7);
@@ -268,12 +340,12 @@ mod tests {
                 assert_eq!(page.transaction(8).unwrap().rev(), 1);
                 assert_eq!(page.transaction(8).unwrap().tree_id(), 8);
 
-                let t = Transaction::new(2, 8, page.tree_params());
+                let t = Transaction::new(2, 8, page.tree_params(), page.get_cmp());
                 page.save_trans(t)?;
             }
 
             {
-                let page = Page::from_buf(b.as_mut_ptr())?;
+                let page = Page::from_buf(b.as_mut_ptr(), cmp.clone())?;
                 assert_eq!(page.trees_count(), 2);
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
                 assert_eq!(page.transaction(7).unwrap().tree_id(), 7);

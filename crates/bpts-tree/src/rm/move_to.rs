@@ -85,7 +85,7 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
             let parent = storage.get_node(target_ref.parent)?;
             let mut parent_ref = parent.borrow_mut();
             if !target_ref.is_leaf {
-                middle = parent_ref.find_key(first_key);
+                middle = parent_ref.find_key(first_key, storage.get_cmp());
             }
             new_min_of_parent = Some(parent_ref.first_key());
             parent_ref.erase_link(target_ref.id);
@@ -138,7 +138,7 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
         if target_ref.parent.exists() {
             let parent = storage.get_node(leaf_ref.parent)?;
             if !target_ref.is_leaf {
-                middle = parent.borrow().find_key(min_key);
+                middle = parent.borrow().find_key(min_key, storage.get_cmp());
             }
             parent.borrow_mut().erase_link(target_ref.id);
         }

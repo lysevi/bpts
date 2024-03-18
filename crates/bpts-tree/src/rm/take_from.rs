@@ -142,7 +142,7 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
         if !target_ref.is_leaf {
             if leaf_ref.parent == target_ref.parent {
                 let parent = storage.get_node(leaf_ref.parent)?;
-                middle = parent.borrow().find_key(min_key);
+                middle = parent.borrow().find_key(min_key, storage.get_cmp());
             } else {
                 let first_high_child = storage.get_node(leaf_ref.first_data().into_id())?;
                 middle = Some(first_high_child.borrow().first_key());

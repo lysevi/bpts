@@ -9,6 +9,10 @@ use types::Id;
 
 pub type RcNode = Rc<RefCell<Node>>;
 
+pub trait KeyCmp {
+    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering;
+}
+
 #[derive(Clone)]
 pub struct Node {
     pub id: Id,
@@ -96,21 +100,21 @@ impl Node {
         return self.keys_count == 0;
     }
 
-    pub fn find_key(&self, key: u32) -> Option<u32> {
+    pub fn find_key(&self, key: u32, cmp: &dyn KeyCmp) -> Option<u32> {
         if self.is_leaf {
             panic!("logic error");
         }
-        if key < self.keys[0] {
+        if cmp.compare(key, self.keys[0]).is_lt() {
             return Some(*self.keys.first().unwrap());
         }
 
-        if self.keys[self.keys_count - 1] <= key {
+        if cmp.compare(self.keys[self.keys_count - 1], key).is_le() {
             return Some(self.keys[self.keys_count - 1]);
         }
 
         //TODO bin.search
         for i in 0..self.keys_count {
-            match (self.keys[i]).cmp(&key) {
+            match cmp.compare(self.keys[i], key) {
                 std::cmp::Ordering::Less => continue,
                 std::cmp::Ordering::Equal => return Some(self.keys[i]),
                 std::cmp::Ordering::Greater => return Some(self.keys[i - 1]),
@@ -119,19 +123,19 @@ impl Node {
         return None;
     }
 
-    pub fn find(&self, key: u32) -> Option<Record> {
+    pub fn find(&self, cmp: &dyn KeyCmp, key: u32) -> Option<Record> {
         if !self.is_leaf {
-            if key < self.keys[0] {
+            if cmp.compare(key, self.keys[0]).is_lt() {
                 return Some(self.data.first().unwrap().clone());
             }
 
-            if self.keys[self.keys_count - 1] <= key {
+            if cmp.compare(self.keys[self.keys_count - 1], key).is_le() {
                 return Some(self.data[self.data_count - 1].clone());
             }
 
             //TODO bin.search
             for i in 0..self.keys_count {
-                match (self.keys[i]).cmp(&key) {
+                match cmp.compare(self.keys[i], key) {
                     std::cmp::Ordering::Less => continue,
                     std::cmp::Ordering::Equal => return Some(self.data[i + 1].clone()),
                     std::cmp::Ordering::Greater => return Some(self.data[i].clone()),
@@ -142,7 +146,7 @@ impl Node {
 
         //TODO bin.search
         for i in 0..self.keys_count {
-            match (self.keys[i]).cmp(&key) {
+            match cmp.compare(self.keys[i], key) {
                 std::cmp::Ordering::Less => continue,
                 std::cmp::Ordering::Equal => return Some(self.data[i].clone()),
                 std::cmp::Ordering::Greater => continue, //return Some(self.data[i].clone()),
@@ -293,6 +297,8 @@ impl Node {
 
 #[cfg(test)]
 mod tests {
+    use crate::mocks::MockKeyCmp;
+
     use super::*;
 
     #[test]
@@ -310,22 +316,22 @@ mod tests {
             4,
         );
         let ref_leaf = leaf.borrow();
-        if let Some(item) = ref_leaf.find(2) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 2) {
             let v = item.into_u32();
             assert_eq!(v, 2);
         }
 
-        if let Some(item) = ref_leaf.find(1) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 1) {
             let v = item.into_u32();
             assert_eq!(v, 1);
         }
 
-        if let Some(item) = ref_leaf.find(4) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 4) {
             let v = item.into_u32();
             assert_eq!(v, 4);
         }
 
-        let is_none = ref_leaf.find(9);
+        let is_none = ref_leaf.find(&MockKeyCmp::new(), 9);
         assert_eq!(is_none, None);
     }
 
@@ -344,28 +350,28 @@ mod tests {
             4,
         );
         let ref_leaf = leaf.borrow();
-        if let Some(item) = ref_leaf.find(1) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 1) {
             let v = item.into_u32();
             assert_eq!(v, 1);
         } else {
             assert!(false);
         }
 
-        if let Some(item) = ref_leaf.find(3) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 3) {
             let v = item.into_u32();
             assert_eq!(v, 3);
         } else {
             assert!(false);
         }
 
-        if let Some(item) = ref_leaf.find(4) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 4) {
             let v = item.into_u32();
             assert_eq!(v, 3);
         } else {
             assert!(false);
         }
 
-        if let Some(item) = ref_leaf.find(9) {
+        if let Some(item) = ref_leaf.find(&MockKeyCmp::new(), 9) {
             let v = item.into_u32();
             assert_eq!(v, 7);
         } else {

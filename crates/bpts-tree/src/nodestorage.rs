@@ -1,5 +1,5 @@
 use crate::{
-    node::RcNode,
+    node::{KeyCmp, RcNode},
     params::TreeParams,
     types::{self, Id},
     Result,
@@ -16,4 +16,5 @@ pub trait NodeStorage {
     fn erase_node(&mut self, id: &Id);
 
     fn get_params(&self) -> &TreeParams;
+    fn get_cmp(&self) -> &dyn KeyCmp;
 }

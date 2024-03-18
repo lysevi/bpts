@@ -5,6 +5,9 @@
    - [x] free clusters list
    - [ ] free mem after reccord
   - [x] data list
+  - [ ] data list -> data loader
+  - [ ] data loader - load over static methods.
+  - [ ] data loader - remove offset. write over clusters.
   - [ ] is there enough space for recording?
   - [ ] transaction...key+value
   - [ ] page as storage
@@ -17,8 +20,8 @@
   - [x] test - fill, save, load, remove, save.... 
 
 - [x] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
-   - [ ] key comparer
-   - [ ] key - Vec<u8>. 
+   - [x] key comparer
+   - [x] key - Vec<u8>. 
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading

@@ -1,5 +1,5 @@
 use crate::{
-    node::RcNode,
+    node::{KeyCmp, RcNode},
     nodestorage::NodeStorage,
     params::TreeParams,
     types::{self, Id},
@@ -7,9 +7,24 @@ use crate::{
 };
 use std::{collections::HashMap, rc::Rc};
 
+pub struct MockKeyCmp {}
+
+impl MockKeyCmp {
+    pub fn new() -> MockKeyCmp {
+        MockKeyCmp {}
+    }
+}
+
+impl KeyCmp for MockKeyCmp {
+    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
+        key1.cmp(&key2)
+    }
+}
+
 pub struct MockNodeStorage {
     nodes: HashMap<u32, RcNode>,
     params: TreeParams,
+    cmp: MockKeyCmp,
 }
 
 impl MockNodeStorage {
@@ -20,6 +35,7 @@ impl MockNodeStorage {
         MockNodeStorage {
             nodes: HashMap::new(),
             params,
+            cmp: MockKeyCmp::new(),
         }
     }
 
@@ -83,5 +99,9 @@ impl NodeStorage for MockNodeStorage {
 
     fn get_params(&self) -> &TreeParams {
         &self.params
+    }
+
+    fn get_cmp(&self) -> &dyn KeyCmp {
+        return &self.cmp;
     }
 }
