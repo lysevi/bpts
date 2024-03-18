@@ -18,10 +18,7 @@
   - [x] unload after saving
   - [x] save to buffer.
   - [x] test - fill, save, load, remove, save.... 
-
-- [x] different 't' for nodes, leafs, root. (tree_settings.default().t_for_leaf(5).min_size_for_root(2)...)
-   - [x] key comparer
-   - [x] key - Vec<u8>. 
+- [ ] single transaction for many trees.
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
