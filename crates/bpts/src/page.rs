@@ -399,11 +399,9 @@ mod tests {
         let mut all_keys = HashMap::new();
 
         while !page.is_full() {
-            {
-                let tmp = key;
-                let key_sl = unsafe { any_as_u8_slice(&tmp) };
-                page.insert(key_sl, key_sl)?;
-            }
+            let key_sl = unsafe { any_as_u8_slice(&key) };
+            page.insert(key_sl, key_sl)?;
+
             all_keys.insert(key, key);
             key += 1;
 
