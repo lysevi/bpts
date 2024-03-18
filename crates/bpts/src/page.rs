@@ -240,18 +240,35 @@ impl Page {
         };
         return Rc::new(RefCell::new(result));
     }
+
+    pub fn insert(&mut self, key: &[u8], data: &[u8]) -> Result<()> {
+        todo!();
+        Ok(())
+    }
+
+    pub fn find<'a>(&self, key: &[u8]) -> Result<Option<&'a [u8]>> {
+        todo!();
+        Ok(None)
+    }
+
+    pub fn remove(&mut self, key: &[u8]) -> Result<()> {
+        todo!();
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
+    use std::collections::HashMap;
     use std::rc::Rc;
 
     use bpts_tree::params::TreeParams;
 
-    use crate::page::Page;
+    use super::Page;
     use crate::prelude::Result;
     use crate::transaction::Transaction;
+    use crate::utils::any_as_u8_slice;
 
     use super::PageKeyCmp;
 
@@ -351,5 +368,59 @@ mod tests {
             b[pos] = i as u8;
         }
         return Ok(());
+    }
+
+    #[test]
+    fn insert_find_delete() -> Result<()> {
+        let tparam = TreeParams::default();
+        let pagedatasize = 1024 * 1024;
+        let cluster_size = 32;
+        let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
+        let cmp = Rc::new(RefCell::new(MockKeyCmp::new()));
+
+        let mut b = vec![0u8; bufsize as usize + 10];
+
+        for i in 0..10 {
+            let pos = b.len() - 1 - i;
+            b[pos] = i as u8;
+        }
+
+        let mut page = unsafe {
+            Page::init_buffer(
+                b.as_mut_ptr(),
+                pagedatasize,
+                cluster_size,
+                cmp.clone(),
+                tparam.clone(),
+            )?
+        };
+
+        let mut key = 1;
+        let mut all_keys = HashMap::new();
+
+        while !page.is_full() {
+            {
+                let tmp = key;
+                let key_sl = unsafe { any_as_u8_slice(&tmp) };
+                page.insert(key_sl, key_sl)?;
+            }
+            all_keys.insert(key, key);
+            key += 1;
+
+            for item in all_keys.iter() {
+                let key_sl = unsafe { any_as_u8_slice(&item.0) };
+                let result = page.find(key_sl)?;
+                assert!(result.is_some());
+                assert_eq!(key_sl, result.unwrap());
+            }
+        }
+
+        assert!(all_keys.len() > 1);
+
+        for i in 0..10 {
+            let pos = b.len() - 1 - i;
+            b[pos] = i as u8;
+        }
+        Ok(())
     }
 }
