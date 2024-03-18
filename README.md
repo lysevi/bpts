@@ -4,15 +4,16 @@
   - [ ] clusters
    - [x] free clusters list
    - [ ] free mem after reccord
+  - [ ] write data into page.
   - [x] data list
-  - [ ] data list -> data loader
-  - [ ] data loader - load over static methods.
-  - [ ] data loader - remove offset. write over clusters.
+  - [x] data list -> data loader
+  - [x] data list - remove offset. write over clusters.
   - [ ] is there enough space for recording?
-  - [ ] transaction...key+value
+  
   - [ ] page as storage
   - [ ] test: single tree, many transactions: insert+read+remove+read
   - [ ] test: many trees, many transactions: insert+read+remove+read
+  - [ ] crc
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
   - [x] unload after saving

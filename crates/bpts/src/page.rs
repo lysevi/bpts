@@ -5,10 +5,9 @@ use std::rc::Rc;
 use bpts_tree::node::KeyCmp;
 use bpts_tree::params::TreeParams;
 
-use crate::datalist::DataList;
 use crate::freelist::FreeList;
 use crate::transaction::{TransKeyCmp, Transaction};
-use crate::{freelist, prelude::*};
+use crate::{datalist, freelist, prelude::*};
 
 pub trait PageKeyCmp {
     fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering;
@@ -50,14 +49,14 @@ impl Header {
 }
 
 struct PageKeyCmpRef {
-    dl: DataList,
+    buffer: *const u8,
     cmp: PageKeyCmpRc,
 }
 
 impl KeyCmp for PageKeyCmpRef {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        let k1 = unsafe { self.dl.load_key(key1) };
-        let k2 = unsafe { self.dl.load_key(key2) };
+        let k1 = unsafe { datalist::load_key(self.buffer, key1) };
+        let k2 = unsafe { datalist::load_key(self.buffer, key2) };
         self.cmp.borrow().compare(k1.1, k2.1)
     }
 }
@@ -114,7 +113,7 @@ impl Page {
             .add(freelist::FreeList::size_for_len(flsize) as usize);
         let transcmp = Rc::new(RefCell::new(PageKeyCmpRef {
             cmp: cmp.clone(),
-            dl: DataList::new(space, 0, 0),
+            buffer: space,
         }));
 
         let t: HashMap<u32, Transaction> = if (*h).trans_list_offset == 0 {
@@ -174,21 +173,19 @@ impl Page {
                 self.freelist.set(first_cluster + i, true)?;
             }
 
-            let mut free_space_head = first_cluster as u32 * (*self.hdr).cluster_size as u32;
+            let mut offset = first_cluster as u32 * (*self.hdr).cluster_size as u32;
 
-            //let mut free_space_head = (*self.hdr).free_space_head;
             let mut target = t;
-            let offset = free_space_head;
             let ptr = self.space.add(offset as usize);
             let writed_bytes = target.save_to(ptr, offset);
             assert_eq!(writed_bytes, neeed_bytes);
-            free_space_head += writed_bytes;
+            offset += writed_bytes;
 
             self.trans.insert(target.tree_id(), target);
 
-            let trans_list_offset = free_space_head;
+            let trans_list_offset = offset;
 
-            let mut ptr = self.space.add(free_space_head as usize);
+            let mut ptr = self.space.add(offset as usize);
 
             let count_ptr = ptr as *mut u32;
             let count = self.trans.len() as u32;
@@ -200,15 +197,10 @@ impl Page {
                 std::ptr::copy(&value, offset_ptr, 1);
             }
 
-            //let offset = std::mem::size_of::<u32>() * (self.trans.len() + 1);
-            //free_space_head += offset as u32;
-
-            //(*self.hdr).free_space_head = free_space_head;
             (*self.hdr).trans_list_offset = trans_list_offset;
         }
 
         Ok(())
-        //self.trans = Some(transes);
     }
 
     pub fn get_id(&self) -> u32 {
@@ -244,7 +236,7 @@ impl Page {
     pub fn get_cmp(&self) -> TransKeyCmp {
         let result = PageKeyCmpRef {
             cmp: self.cmp.clone(),
-            dl: DataList::new(self.space, 0, 0),
+            buffer: self.space,
         };
         return Rc::new(RefCell::new(result));
     }

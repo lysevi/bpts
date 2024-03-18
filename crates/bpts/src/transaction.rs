@@ -130,11 +130,11 @@ impl Transaction {
         }
     }
 
-    pub unsafe fn save_to(&mut self, buffer: *mut u8, offset: u32) -> u32 {
+    pub unsafe fn save_to(&mut self, buffer: *mut u8, global_offset: u32) -> u32 {
         let mut writer = UnsafeWriter::new(buffer);
         self.send_to_writer(&mut writer);
 
-        self.offset = offset;
+        self.offset = global_offset;
         self.buffer = Some(buffer);
         return writer.size() as u32;
     }
