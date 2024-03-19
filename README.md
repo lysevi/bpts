@@ -27,6 +27,7 @@
   - [x] test - fill, save, load, remove, save.... 
 - [ ] - bpts_tree is a submodule of bpts
 - [ ] - bpts_tree::types::Error - in lib.rs
+- [ ] - binary search in nodes.
 - [ ] single transaction for many trees.
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)
