@@ -28,6 +28,9 @@
 - [ ] - bpts_tree is a submodule of bpts
 - [ ] - bpts_tree::types::Error - in lib.rs
 - [ ] - binary search in nodes.
+  - [ ] - benchmark - node::find_key
+  - [ ] - benchmark - node::find
+  - [ ] - benchmark - split::insert_key_to_parent
 - [ ] single transaction for many trees.
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)
