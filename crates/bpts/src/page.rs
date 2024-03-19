@@ -282,11 +282,6 @@ impl Page {
     //TODO! write status enum
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
         let tparams = self.tree_params();
-        let mut trans = if let Some(t) = self.trans.get(&tree_id) {
-            Transaction::from_transaction(t)
-        } else {
-            Transaction::new(0, tree_id, tparams.clone(), self.get_cmp())
-        };
 
         let data_size = datalist::get_pack_size(key, data);
         let size_in_clusters = unsafe { (data_size as f32) / ((*self.hdr).cluster_size as f32) };
@@ -303,6 +298,12 @@ impl Page {
         let data_offset = unsafe { self.offset_of_cluster(data_cluster.unwrap()) };
 
         let key_offset = unsafe { datalist::insert(self.space, data_offset, key, data) };
+
+        let mut trans = if let Some(t) = self.trans.get(&tree_id) {
+            Transaction::from_transaction(t)
+        } else {
+            Transaction::new(0, tree_id, tparams.clone(), self.get_cmp())
+        };
 
         let root = if let Some(r) = trans.get_root() {
             r.clone()
@@ -326,8 +327,8 @@ impl Page {
 
     pub fn find<'a>(&self, tree_id: u32, key: &'a [u8]) -> Result<Option<&'a [u8]>> {
         if let Some(t) = self.trans.get(&tree_id) {
-            if let Some(root) = t.get_root() {
-                let mut trans = Transaction::from_transaction(t);
+            let mut trans = Transaction::from_transaction(t);
+            if let Some(root) = trans.get_root() {
                 let etalon_key = key.to_vec();
                 let cmp = Rc::new(RefCell::new(PageKeyCmpRef {
                     user_key: Some(etalon_key),
@@ -349,8 +350,25 @@ impl Page {
         return Ok(None);
     }
 
-    pub fn remove(&mut self, _tree_id: u32, _key: &[u8]) -> Result<()> {
-        todo!();
+    pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
+        if let Some(t) = self.trans.get(&tree_id) {
+            let mut trans = Transaction::from_transaction(t);
+            if let Some(root) = trans.get_root() {
+                let etalon_key = key.to_vec();
+                let cmp = Rc::new(RefCell::new(PageKeyCmpRef {
+                    user_key: Some(etalon_key),
+                    cmp: self.cmp.clone(),
+                    buffer: self.space,
+                }));
+                trans.set_cmp(cmp);
+
+                let _res = bpts_tree::remove::remove_key(&mut trans, &root.clone(), std::u32::MAX)?;
+                self.save_trans(trans)?;
+                //TODO free space
+                return Ok(());
+            }
+        }
+        return Ok(());
     }
 }
 
@@ -467,7 +485,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_find_delete() -> Result<()> {
+    fn insert_find_delete_in_full() -> Result<()> {
         let tparam = TreeParams::default();
         let pagedatasize = 1024 * 1024;
         let cluster_size = 32;
@@ -519,6 +537,104 @@ mod tests {
         }
 
         assert!(all_keys.len() > 1);
+
+        // while all_keys.len() > 0 {
+        //     {
+        //         let item = all_keys.first().unwrap();
+        //         println!("remove: {}", item);
+        //         let key_sl = unsafe { any_as_u8_slice(item) };
+        //         page.remove(0u32, key_sl)?;
+        //         let result = page.find(0u32, key_sl)?;
+        //         assert!(result.is_none());
+        //     }
+        //     all_keys.remove(0);
+        //     for i in all_keys.iter() {
+        //         let key_sl = unsafe { any_as_u8_slice(i) };
+        //         let result = page.find(0u32, key_sl)?;
+        //         assert!(result.is_some());
+        //     }
+        // }
+
+        for i in 0..10 {
+            let pos = b.len() - 1 - i;
+            b[pos] = i as u8;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn insert_find_delete() -> Result<()> {
+        let tparam = TreeParams::default();
+        let pagedatasize = 1024 * 1024 * 1024;
+        let cluster_size = 32;
+        let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
+        let cmp = Rc::new(RefCell::new(MockKeyCmp::new()));
+
+        let mut b = vec![0u8; bufsize as usize + 10];
+
+        for i in 0..10 {
+            let pos = b.len() - 1 - i;
+            b[pos] = i as u8;
+        }
+
+        let mut page = unsafe {
+            Page::init_buffer(
+                b.as_mut_ptr(),
+                pagedatasize,
+                cluster_size,
+                cmp.clone(),
+                tparam.clone(),
+            )?
+        };
+
+        let mut key = 1;
+        let mut all_keys = Vec::new();
+
+        for _i in 0..(page.tree_params().t * 2) {
+            let key_sl = unsafe { any_as_u8_slice(&key) };
+            //println!("insert: {}", key);
+            // if key == 200 {
+            //     println!("!");
+            // }
+            let write_res = page.insert(0u32, key_sl, key_sl);
+
+            if write_res.is_err() {
+                break;
+            }
+
+            all_keys.push(key);
+            key += 1;
+
+            for item in all_keys.iter() {
+                //println!("find: {}", item);
+                let key_sl = unsafe { any_as_u8_slice(item) };
+                let result = page.find(0u32, key_sl)?;
+                assert!(result.is_some());
+                assert_eq!(key_sl, result.unwrap());
+            }
+        }
+
+        assert!(all_keys.len() > 1);
+
+        while all_keys.len() > 0 {
+            {
+                let item = all_keys.first().unwrap();
+                println!("remove: {}", item);
+                if *item == 102 {
+                    println!("!");
+                }
+                let key_sl = unsafe { any_as_u8_slice(item) };
+                page.remove(0u32, key_sl)?;
+                let result = page.find(0u32, key_sl)?;
+                assert!(result.is_none());
+            }
+            all_keys.remove(0);
+            for i in all_keys.iter() {
+                let key_sl = unsafe { any_as_u8_slice(i) };
+                let result = page.find(0u32, key_sl)?;
+                assert!(result.is_some());
+            }
+        }
 
         for i in 0..10 {
             let pos = b.len() - 1 - i;

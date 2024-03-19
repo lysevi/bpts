@@ -229,7 +229,9 @@ impl NodeStorage for Transaction {
     fn get_root(&self) -> Option<RcNode> {
         if self.nodes.len() == 1 {
             let res = self.nodes.iter().next();
-            return Some(res.unwrap().1.clone());
+            let res = res.unwrap();
+            let res = res.1;
+            return Some(res.clone());
         }
         for i in &self.nodes {
             let node = i.1;
