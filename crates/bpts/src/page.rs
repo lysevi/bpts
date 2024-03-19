@@ -211,6 +211,7 @@ impl Page {
             }
 
             let first_cluster = first_cluster.unwrap();
+            println!("getmem {};{}", first_cluster, clusters_need);
             for i in 0..clusters_need {
                 self.freelist.set(first_cluster + i, true)?;
             }
@@ -303,7 +304,11 @@ impl Page {
 
         let key_offset = unsafe { datalist::insert(self.space, data_offset, key, data) };
 
+        let mut old_trans_offset = None;
+        let mut old_trans_size = 0usize;
         let mut trans = if let Some(t) = self.trans.get(&tree_id) {
+            old_trans_offset = Some(t.offset());
+            old_trans_size = t.size() as usize;
             Transaction::from_transaction(t)
         } else {
             Transaction::new(0, tree_id, tparams.clone(), self.get_cmp())
@@ -325,6 +330,15 @@ impl Page {
         )?;
 
         self.save_trans(trans)?;
+        if old_trans_offset.is_some() {
+            let cluster_num =
+                unsafe { old_trans_offset.unwrap() as f32 / ((*self.hdr).cluster_size as f32) };
+            println!(
+                "free {};{}",
+                cluster_num,
+                self.clusters_for_bytes(old_trans_size)
+            );
+        }
         //TODO free space
         Ok(())
     }
