@@ -195,6 +195,10 @@ impl Page {
         return clusters_need;
     }
 
+    unsafe fn offset_of_cluster(&self, cluster: usize) -> u32 {
+        cluster as u32 * (*self.hdr).cluster_size as u32
+    }
+
     pub fn save_trans(&mut self, t: Transaction) -> Result<()> {
         //TODO! status enum
         let neeed_bytes = t.size();
@@ -278,10 +282,6 @@ impl Page {
             buffer: self.space,
         };
         return Rc::new(RefCell::new(result));
-    }
-
-    unsafe fn offset_of_cluster(&self, cluster: usize) -> u32 {
-        cluster as u32 * (*self.hdr).cluster_size as u32
     }
 
     //TODO! enum for write status
