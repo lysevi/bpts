@@ -211,7 +211,7 @@ impl Page {
             }
 
             let first_cluster = first_cluster.unwrap();
-            println!("getmem {};{}", first_cluster, clusters_need);
+            //println!("getmem {};{}", first_cluster, clusters_need);
             for i in 0..clusters_need {
                 self.freelist.set(first_cluster + i, true)?;
             }
@@ -219,12 +219,14 @@ impl Page {
             let mut offset = self.offset_of_cluster(first_cluster);
 
             let mut target = t;
+
             let ptr = self.space.add(offset as usize);
             let writed_bytes = target.save_to(ptr, offset);
             assert_eq!(writed_bytes, neeed_bytes);
             offset += writed_bytes;
 
-            self.trans.insert(target.tree_id(), target);
+            let tree_id = target.tree_id();
+            self.trans.insert(tree_id, target);
 
             let trans_list_offset = offset;
 
@@ -334,13 +336,15 @@ impl Page {
             let cluster_num =
                 unsafe { old_trans_offset.unwrap() as f32 / ((*self.hdr).cluster_size as f32) }
                     as usize;
-            println!(
-                "free {};{}    free_clusters={}",
-                cluster_num,
-                self.clusters_for_bytes(old_trans_size),
-                unsafe { self.freelist.free_clusters() }
-            );
-            for i in 0..old_trans_size {
+            let clusteres_count = self.clusters_for_bytes(old_trans_size);
+            // println!(
+            //     "free {:?} -  {};{}    free_clusters={}",
+            //     old_trans_offset,
+            //     cluster_num,
+            //     clusteres_count,
+            //     unsafe { self.freelist.free_clusters() }
+            // );
+            for i in 0..clusteres_count {
                 unsafe { self.freelist.set(cluster_num + i, false)? };
             }
         }
@@ -509,7 +513,7 @@ mod tests {
     #[test]
     fn insert_find_delete_in_full() -> Result<()> {
         let tparam = TreeParams::default();
-        let pagedatasize = 1024 * 10;
+        let pagedatasize = 1024 * 20;
         let cluster_size = 32;
         let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
         let cmp = Rc::new(RefCell::new(MockKeyCmp::new()));
@@ -614,7 +618,7 @@ mod tests {
 
         for _i in 0..(page.tree_params().t * 2) {
             let key_sl = unsafe { any_as_u8_slice(&key) };
-            //println!("insert: {}", key);
+            println!("insert: {}", key);
             // if key == 200 {
             //     println!("!");
             // }
