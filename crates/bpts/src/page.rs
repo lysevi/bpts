@@ -189,12 +189,17 @@ impl Page {
         return result;
     }
 
+    pub fn clusters_for_bytes(&self, size: usize) -> usize {
+        let size_in_clusters = unsafe { (size as f32) / ((*self.hdr).cluster_size as f32) };
+        let clusters_need = (size_in_clusters).ceil() as usize;
+        return clusters_need;
+    }
+
     pub fn save_trans(&mut self, t: Transaction) -> Result<()> {
         //TODO! status enum
         let neeed_bytes = t.size();
         unsafe {
-            let size_in_clusters = (neeed_bytes as f32) / ((*self.hdr).cluster_size as f32);
-            let clusters_need = (size_in_clusters).ceil() as usize;
+            let clusters_need = self.clusters_for_bytes(neeed_bytes as usize);
 
             let first_cluster = self.freelist.get_region_top(clusters_need);
             if first_cluster.is_none() {
@@ -279,13 +284,12 @@ impl Page {
         cluster as u32 * (*self.hdr).cluster_size as u32
     }
 
-    //TODO! write status enum
+    //TODO! enum for write status
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
         let tparams = self.tree_params();
 
         let data_size = datalist::get_pack_size(key, data);
-        let size_in_clusters = unsafe { (data_size as f32) / ((*self.hdr).cluster_size as f32) };
-        let clusters_need = (size_in_clusters).ceil() as usize;
+        let clusters_need = self.clusters_for_bytes(data_size);
         let data_cluster = unsafe { self.freelist.get_region_bottom(clusters_need) };
         if data_cluster.is_none() {
             return Err(bpts_tree::types::Error("no space left".to_owned()));
@@ -321,7 +325,7 @@ impl Page {
         )?;
 
         self.save_trans(trans)?;
-
+        //TODO free space
         Ok(())
     }
 
@@ -350,6 +354,7 @@ impl Page {
         return Ok(None);
     }
 
+    //TODO enum for remove status
     pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
         if let Some(t) = self.trans.get(&tree_id) {
             let mut trans = Transaction::from_transaction(t);

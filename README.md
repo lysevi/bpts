@@ -14,7 +14,7 @@
   - [ ] test: single tree, many transactions:
     - [x] insert
     - [x] find
-    - [ ] remove
+    - [x] remove
   - [ ] test: many trees, many transactions:     
     - [ ] insert
     - [ ] find
