@@ -345,9 +345,7 @@ impl Page {
                 if find_res.is_none() {
                     return Ok(None);
                 }
-                //TODO! datalist::load_data
-                let (_key, data) =
-                    unsafe { datalist::load(self.space, find_res.unwrap().into_u32()) };
+                let data = unsafe { datalist::load_data(self.space, find_res.unwrap().into_u32()) };
                 return Ok(Some(data));
             }
         }
@@ -625,9 +623,9 @@ mod tests {
             {
                 let item = all_keys.first().unwrap();
                 println!("remove: {}", item);
-                if *item == 102 {
-                    println!("!");
-                }
+                // if *item == 102 {
+                //     println!("!");
+                // }
                 let key_sl = unsafe { any_as_u8_slice(item) };
                 page.remove(0u32, key_sl)?;
                 let result = page.find(0u32, key_sl)?;

@@ -67,6 +67,22 @@ pub unsafe fn load_key<'a>(buffer: *const u8, offset: u32) -> &'a [u8] {
     return key;
 }
 
+pub unsafe fn load_data<'a>(buffer: *const u8, offset: u32) -> &'a [u8] {
+    let mut read_offset = offset as usize;
+
+    let key_len = (buffer.add(read_offset) as *const u32).read();
+    read_offset += std::mem::size_of::<u32>();
+    let data_len = (buffer.add(read_offset) as *const u32).read();
+    read_offset += std::mem::size_of::<u32>();
+
+    let data = std::slice::from_raw_parts(
+        buffer.add(read_offset + key_len as usize),
+        data_len as usize,
+    );
+
+    return data;
+}
+
 #[cfg(test)]
 mod tests {
     use bpts_tree::prelude::*;
@@ -99,6 +115,12 @@ mod tests {
 
         assert_eq!(key1, [1, 2, 3]);
         assert_eq!(key2, [4, 5, 6]);
+
+        let data1 = unsafe { super::load_data(buffer.as_ptr(), offset1) };
+        let data2 = unsafe { super::load_data(buffer.as_ptr(), offset2) };
+
+        assert_eq!(data1, [3, 2, 1]);
+        assert_eq!(data2, [7, 8, 9]);
         Ok(())
     }
 }
