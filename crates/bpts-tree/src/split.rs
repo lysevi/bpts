@@ -128,7 +128,12 @@ pub fn split_node<Storage: NodeStorage>(
         {
             let mut ref_to_parent = parent_node.borrow_mut();
 
-            insert_key_to_parent(&mut ref_to_parent, middle_key, new_brother.borrow().id);
+            insert_key_to_parent(
+                &mut ref_to_parent,
+                storage.get_cmp(),
+                middle_key,
+                new_brother.borrow().id,
+            );
             ref_to_parent.keys_count += 1;
             ref_to_parent.data_count += 1;
         }
@@ -141,10 +146,10 @@ pub fn split_node<Storage: NodeStorage>(
     }
 }
 
-fn insert_key_to_parent(target_node: &mut Node, key: u32, id: Id) {
+fn insert_key_to_parent(target_node: &mut Node, cmp: &dyn crate::node::KeyCmp, key: u32, id: Id) {
     let mut pos = 0usize;
     for item in target_node.key_iter() {
-        if *item >= key {
+        if cmp.compare(*item, key).is_ge() {
             break;
         }
         pos += 1;
@@ -157,7 +162,7 @@ fn insert_key_to_parent(target_node: &mut Node, key: u32, id: Id) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mocks::MockNodeStorage;
+    use crate::mocks::{MockKeyCmp, MockNodeStorage};
     use crate::read::{self, find};
     use crate::types;
     fn check_link_to_brother(storage: &MockNodeStorage) {
@@ -347,7 +352,7 @@ mod tests {
         ];
         let leaf = Node::new_leaf(types::Id(1), keys, data, 2, 3);
         let mut ref_to_leaf = leaf.borrow_mut();
-        insert_key_to_parent(&mut ref_to_leaf, 19, types::Id(19));
+        insert_key_to_parent(&mut ref_to_leaf, &MockKeyCmp::new(), 19, types::Id(19));
 
         assert_eq!(ref_to_leaf.keys, vec![13, 19, 24, 0]);
         assert_eq!(

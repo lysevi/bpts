@@ -1,7 +1,7 @@
 use crate::{nodestorage::NodeStorage, types, Result};
 
 pub fn map_up<Action, Storage: NodeStorage>(
-    storage: &mut Storage,
+    storage: &Storage,
     id: types::Id,
     act: &mut Action,
 ) -> Result<()>

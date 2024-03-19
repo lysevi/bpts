@@ -145,14 +145,20 @@ impl Transaction {
             let cp = Node::copy(&i.borrow());
             new_nodes.insert(i.borrow().id.0, cp);
         }
+        let mut hdr = other.header.clone();
+        hdr.rev += 1;
         Transaction {
-            header: other.header.clone(),
+            header: hdr,
             buffer: None,
             offset: 0,
             nodes: new_nodes,
             params: other.params,
             cmp: other.cmp.clone(),
         }
+    }
+
+    pub fn set_cmp(&mut self, c: TransKeyCmp) {
+        self.cmp = c;
     }
 
     fn send_to_writer<Writer: BufferWriter>(&self, writer: &mut Writer) {
@@ -221,6 +227,10 @@ impl KeyCmp for Transaction {
 
 impl NodeStorage for Transaction {
     fn get_root(&self) -> Option<RcNode> {
+        if self.nodes.len() == 1 {
+            let res = self.nodes.iter().next();
+            return Some(res.unwrap().1.clone());
+        }
         for i in &self.nodes {
             let node = i.1;
             if !node.borrow().is_leaf && node.borrow().parent.is_empty() {

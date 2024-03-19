@@ -58,17 +58,24 @@ pub(super) fn erase_key<Storage: NodeStorage>(
         let mut target_ref = target.borrow_mut();
         let first_key = target_ref.keys[0];
         erase_from_node(&mut target_ref, key);
-        if target_ref.keys_count > 0 && target_ref.is_leaf && first_key != target_ref.first_key() {
-            rollup_keys(
-                storage,
-                target_ref.parent,
-                first_key,
-                target_ref.first_key(),
-            )?;
+        {
+            let cmp = storage.get_cmp();
+            if target_ref.keys_count > 0
+                && target_ref.is_leaf
+                && cmp.compare(first_key, target_ref.first_key()).is_ne()
+            {
+                rollup_keys(
+                    storage,
+                    target_ref.parent,
+                    first_key,
+                    target_ref.first_key(),
+                )?;
+            }
         }
+        let cmp = storage.get_cmp();
         if target_ref.data_count >= storage.get_params().get_min_size_leaf() {
             //update keys in parent
-            if first_key != target_ref.keys[0] && target_ref.parent.exists() {
+            if cmp.compare(first_key, target_ref.keys[0]).is_ne() && target_ref.parent.exists() {
                 let parent = storage.get_node(target_ref.parent)?;
                 parent
                     .borrow_mut()

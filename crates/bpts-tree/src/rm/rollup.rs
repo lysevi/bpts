@@ -7,8 +7,9 @@ pub(super) fn rollup_keys<Storage: NodeStorage>(
     newkey: u32,
 ) -> Result<()> {
     println!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
+    let cmp = storage.get_cmp();
     let mut f = |x: u32| {
-        if x == key {
+        if cmp.compare(x, key).is_eq() {
             println!("update key in {:?}", x);
             return newkey;
         } else {

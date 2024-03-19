@@ -50,6 +50,16 @@ impl FreeList {
         return Ok(false);
     }
 
+    pub unsafe fn is_full(&self) -> bool {
+        for index in 0..(self.bufflen as usize) {
+            let v: u8 = self.buffer.add(index).read();
+            if v == 0 {
+                return false;
+            }
+        }
+        true
+    }
+
     pub unsafe fn get_region_top(&self, i: usize) -> Option<usize> {
         for index in 0..(self.bufflen as usize) {
             let v: u8 = self.buffer.add(index).read();

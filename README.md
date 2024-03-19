@@ -4,21 +4,29 @@
   - [ ] clusters
    - [x] free clusters list
    - [ ] free mem after reccord
-  - [ ] write data into page.
+  - [x] write data into page.
   - [x] data list
   - [x] data list -> data loader
   - [x] data list - remove offset. write over clusters.
-  - [ ] is there enough space for recording?
+  - [x] is there enough space for recording?
   
   - [ ] page as storage
-  - [ ] test: single tree, many transactions: insert+read+remove+read
-  - [ ] test: many trees, many transactions: insert+read+remove+read
+  - [ ] test: single tree, many transactions:
+    - [x] insert
+    - [x] find
+    - [ ] remove
+  - [ ] test: many trees, many transactions:     
+    - [ ] insert
+    - [ ] find
+    - [ ] remove
   - [ ] crc
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
   - [x] unload after saving
   - [x] save to buffer.
   - [x] test - fill, save, load, remove, save.... 
+- [ ] - bpts_tree is a submodule of bpts
+- [ ] - bpts_tree::types::Error - in lib.rs
 - [ ] single transaction for many trees.
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)

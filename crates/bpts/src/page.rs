@@ -2,8 +2,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use bpts_tree::node::KeyCmp;
+use bpts_tree::node::{KeyCmp, Node};
+use bpts_tree::nodestorage::NodeStorage;
 use bpts_tree::params::TreeParams;
+use bpts_tree::types::Id;
 
 use crate::freelist::FreeList;
 use crate::transaction::{TransKeyCmp, Transaction};
@@ -49,15 +51,35 @@ impl Header {
 }
 
 struct PageKeyCmpRef {
+    user_key: Option<Vec<u8>>,
     buffer: *const u8,
     cmp: PageKeyCmpRc,
 }
 
+impl PageKeyCmpRef {
+    fn get_key(&self, k: u32) -> Vec<u8> {
+        if k == std::u32::MAX {
+            //TODO zero copy
+            if let Some(x) = &self.user_key {
+                let mut res = Vec::new();
+
+                for i in x.iter() {
+                    res.push(*i);
+                }
+                return res;
+            } else {
+                panic!();
+            }
+        }
+        return unsafe { datalist::load_key(self.buffer, k).to_vec() };
+    }
+}
+
 impl KeyCmp for PageKeyCmpRef {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        let k1 = unsafe { datalist::load_key(self.buffer, key1) };
-        let k2 = unsafe { datalist::load_key(self.buffer, key2) };
-        self.cmp.borrow().compare(k1.1, k2.1)
+        let k1 = self.get_key(key1);
+        let k2 = self.get_key(key2);
+        self.cmp.borrow().compare(k1.as_slice(), k2.as_slice())
     }
 }
 
@@ -112,6 +134,7 @@ impl Page {
             .add(HEADER_SIZE)
             .add(freelist::FreeList::size_for_len(flsize) as usize);
         let transcmp = Rc::new(RefCell::new(PageKeyCmpRef {
+            user_key: None,
             cmp: cmp.clone(),
             buffer: space,
         }));
@@ -165,7 +188,7 @@ impl Page {
 
             let first_cluster = self.freelist.get_region_top(clusters_need);
             if first_cluster.is_none() {
-                bpts_tree::types::Error("no space left".to_owned());
+                return Err(bpts_tree::types::Error("no space left".to_owned()));
             }
 
             let first_cluster = first_cluster.unwrap();
@@ -173,7 +196,7 @@ impl Page {
                 self.freelist.set(first_cluster + i, true)?;
             }
 
-            let mut offset = first_cluster as u32 * (*self.hdr).cluster_size as u32;
+            let mut offset = self.offset_of_cluster(first_cluster);
 
             let mut target = t;
             let ptr = self.space.add(offset as usize);
@@ -226,7 +249,7 @@ impl Page {
     }
 
     pub fn is_full(&self) -> bool {
-        todo!()
+        unsafe { self.freelist.is_full() }
     }
 
     pub fn tree_params(&self) -> TreeParams {
@@ -235,32 +258,95 @@ impl Page {
 
     pub fn get_cmp(&self) -> TransKeyCmp {
         let result = PageKeyCmpRef {
+            user_key: None,
             cmp: self.cmp.clone(),
             buffer: self.space,
         };
         return Rc::new(RefCell::new(result));
     }
 
-    pub fn insert(&mut self, key: &[u8], data: &[u8]) -> Result<()> {
-        todo!();
+    unsafe fn offset_of_cluster(&self, cluster: usize) -> u32 {
+        cluster as u32 * (*self.hdr).cluster_size as u32
+    }
+
+    //TODO! write status enum
+    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
+        let tparams = self.tree_params();
+        let mut trans = if let Some(t) = self.trans.get(&tree_id) {
+            Transaction::from_transaction(t)
+        } else {
+            Transaction::new(0, tree_id, tparams.clone(), self.get_cmp())
+        };
+
+        let data_size = datalist::get_pack_size(key, data);
+        let size_in_clusters = unsafe { (data_size as f32) / ((*self.hdr).cluster_size as f32) };
+        let clusters_need = (size_in_clusters).ceil() as usize;
+        let data_cluster = unsafe { self.freelist.get_region_bottom(clusters_need) };
+        if data_cluster.is_none() {
+            return Err(bpts_tree::types::Error("no space left".to_owned()));
+        }
+        let first_cluster = data_cluster.unwrap();
+        for i in 0..clusters_need {
+            unsafe { self.freelist.set(first_cluster + i, true)? };
+        }
+
+        let data_offset = unsafe { self.offset_of_cluster(data_cluster.unwrap()) };
+
+        let key_offset = unsafe { datalist::insert(self.space, data_offset, key, data) };
+
+        let root = if let Some(r) = trans.get_root() {
+            r.clone()
+        } else {
+            let res = Node::new_leaf_with_size(Id(1), tparams.t);
+            trans.add_node(&res);
+            res
+        };
+
+        let _insert_res = bpts_tree::insert::insert(
+            &mut trans,
+            &root,
+            key_offset,
+            &bpts_tree::record::Record::from_u32(key_offset),
+        )?;
+
+        self.save_trans(trans)?;
+
         Ok(())
     }
 
-    pub fn find<'a>(&self, key: &[u8]) -> Result<Option<&'a [u8]>> {
-        todo!();
-        Ok(None)
+    pub fn find<'a>(&self, tree_id: u32, key: &'a [u8]) -> Result<Option<&'a [u8]>> {
+        if let Some(t) = self.trans.get(&tree_id) {
+            if let Some(root) = t.get_root() {
+                let mut trans = Transaction::from_transaction(t);
+                let etalon_key = key.to_vec();
+                let cmp = Rc::new(RefCell::new(PageKeyCmpRef {
+                    user_key: Some(etalon_key),
+                    cmp: self.cmp.clone(),
+                    buffer: self.space,
+                }));
+                trans.set_cmp(cmp);
+
+                let find_res = bpts_tree::read::find(&mut trans, &root.clone(), std::u32::MAX)?;
+                if find_res.is_none() {
+                    return Ok(None);
+                }
+                //TODO! datalist::load_data
+                let (_key, data) =
+                    unsafe { datalist::load(self.space, find_res.unwrap().into_u32()) };
+                return Ok(Some(data));
+            }
+        }
+        return Ok(None);
     }
 
-    pub fn remove(&mut self, key: &[u8]) -> Result<()> {
+    pub fn remove(&mut self, _tree_id: u32, _key: &[u8]) -> Result<()> {
         todo!();
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
-    use std::collections::HashMap;
     use std::rc::Rc;
 
     use bpts_tree::params::TreeParams;
@@ -396,18 +482,27 @@ mod tests {
         };
 
         let mut key = 1;
-        let mut all_keys = HashMap::new();
+        let mut all_keys = Vec::new();
 
         while !page.is_full() {
             let key_sl = unsafe { any_as_u8_slice(&key) };
-            page.insert(key_sl, key_sl)?;
+            //println!("insert: {}", key);
+            // if key == 200 {
+            //     println!("!");
+            // }
+            let write_res = page.insert(0u32, key_sl, key_sl);
 
-            all_keys.insert(key, key);
+            if write_res.is_err() {
+                break;
+            }
+
+            all_keys.push(key);
             key += 1;
 
             for item in all_keys.iter() {
-                let key_sl = unsafe { any_as_u8_slice(&item.0) };
-                let result = page.find(key_sl)?;
+                //println!("find: {}", item);
+                let key_sl = unsafe { any_as_u8_slice(item) };
+                let result = page.find(0u32, key_sl)?;
                 assert!(result.is_some());
                 assert_eq!(key_sl, result.unwrap());
             }

@@ -20,18 +20,19 @@ pub fn insert<Storage: NodeStorage>(
 
             target_node = scan_result.unwrap();
         }
+        let cmp = storage.get_cmp();
         // println!("insert into {:?}", target_node.borrow().id);
         let mut mut_ref = target_node.borrow_mut();
         let can_insert = mut_ref.can_insert(storage.get_params().get_t());
 
         let mut index = mut_ref.keys_count;
         for i in 0..mut_ref.keys_count {
-            if mut_ref.keys[i] > key {
+            if cmp.compare(mut_ref.keys[i], key).is_gt() {
                 index = i;
                 break;
             }
 
-            if mut_ref.keys[i] == key {
+            if cmp.compare(mut_ref.keys[i], key).is_eq() {
                 index = i;
                 break;
             }
