@@ -332,12 +332,17 @@ impl Page {
         self.save_trans(trans)?;
         if old_trans_offset.is_some() {
             let cluster_num =
-                unsafe { old_trans_offset.unwrap() as f32 / ((*self.hdr).cluster_size as f32) };
+                unsafe { old_trans_offset.unwrap() as f32 / ((*self.hdr).cluster_size as f32) }
+                    as usize;
             println!(
-                "free {};{}",
+                "free {};{}    free_clusters={}",
                 cluster_num,
-                self.clusters_for_bytes(old_trans_size)
+                self.clusters_for_bytes(old_trans_size),
+                unsafe { self.freelist.free_clusters() }
             );
+            for i in 0..old_trans_size {
+                unsafe { self.freelist.set(cluster_num + i, false)? };
+            }
         }
         //TODO free space
         Ok(())
@@ -504,7 +509,7 @@ mod tests {
     #[test]
     fn insert_find_delete_in_full() -> Result<()> {
         let tparam = TreeParams::default();
-        let pagedatasize = 1024 * 1024;
+        let pagedatasize = 1024 * 10;
         let cluster_size = 32;
         let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
         let cmp = Rc::new(RefCell::new(MockKeyCmp::new()));
@@ -531,7 +536,7 @@ mod tests {
 
         while !page.is_full() {
             let key_sl = unsafe { any_as_u8_slice(&key) };
-            //println!("insert: {}", key);
+            println!("insert: {}", key);
             // if key == 200 {
             //     println!("!");
             // }
@@ -554,7 +559,7 @@ mod tests {
         }
 
         assert!(all_keys.len() > 1);
-
+        println!("keys: {}", all_keys.len());
         // while all_keys.len() > 0 {
         //     {
         //         let item = all_keys.first().unwrap();

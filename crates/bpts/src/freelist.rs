@@ -60,6 +60,17 @@ impl FreeList {
         true
     }
 
+    pub unsafe fn free_clusters(&self) -> usize {
+        let mut res = 0;
+        for index in 0..(self.bufflen as usize) {
+            let v: u8 = self.buffer.add(index).read();
+            if v == 0 {
+                res += 1;
+            }
+        }
+        res
+    }
+
     pub unsafe fn get_region_top(&self, i: usize) -> Option<usize> {
         for index in 0..(self.bufflen as usize) {
             let v: u8 = self.buffer.add(index).read();
