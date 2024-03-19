@@ -1,5 +1,5 @@
 use crate::{
-    node::{Node, RcNode},
+    node::{KeyCmp, Node, RcNode},
     nodestorage::NodeStorage,
     types, utils,
 };
@@ -11,7 +11,7 @@ pub mod rebalancing;
 pub mod rollup;
 pub mod take_from;
 
-fn erase_from_node(target: &mut Node, key: u32) {
+fn erase_from_node(cmp: &dyn KeyCmp, target: &mut Node, key: u32) {
     let is_leaf = target.is_leaf;
 
     if !is_leaf {
@@ -34,7 +34,7 @@ fn erase_from_node(target: &mut Node, key: u32) {
     }
 
     for i in 0..target.keys_count {
-        if target.keys[i] == key {
+        if cmp.compare(target.keys[i], key).is_eq() {
             utils::remove_with_shift(&mut target.keys, i);
             if !target.is_leaf {
                 utils::remove_with_shift(&mut target.data, i + 1);
@@ -57,7 +57,8 @@ pub(super) fn erase_key<Storage: NodeStorage>(
     {
         let mut target_ref = target.borrow_mut();
         let first_key = target_ref.keys[0];
-        erase_from_node(&mut target_ref, key);
+        let cmp = storage.get_cmp();
+        erase_from_node(cmp, &mut target_ref, key);
         {
             let cmp = storage.get_cmp();
             if target_ref.keys_count > 0
@@ -72,7 +73,7 @@ pub(super) fn erase_key<Storage: NodeStorage>(
                 )?;
             }
         }
-        let cmp = storage.get_cmp();
+
         if target_ref.data_count >= storage.get_params().get_min_size_leaf() {
             //update keys in parent
             if cmp.compare(first_key, target_ref.keys[0]).is_ne() && target_ref.parent.exists() {
