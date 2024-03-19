@@ -57,29 +57,39 @@ struct PageKeyCmpRef {
 }
 
 impl PageKeyCmpRef {
-    fn get_key(&self, k: u32) -> Vec<u8> {
-        if k == std::u32::MAX {
-            //TODO zero copy
-            if let Some(x) = &self.user_key {
-                let mut res = Vec::new();
-
-                for i in x.iter() {
-                    res.push(*i);
-                }
-                return res;
-            } else {
-                panic!();
-            }
+    fn cmp_with_left(&self, key2: u32) -> std::cmp::Ordering {
+        let other = unsafe { datalist::load_key(self.buffer, key2) };
+        if let Some(x) = &self.user_key {
+            return self.cmp.borrow().compare(x.as_slice(), other);
         }
-        return unsafe { datalist::load_key(self.buffer, k).to_vec() };
+        panic!();
+    }
+
+    fn cmp_with_right(&self, key1: u32) -> std::cmp::Ordering {
+        let other = unsafe { datalist::load_key(self.buffer, key1) };
+        if let Some(x) = &self.user_key {
+            return self.cmp.borrow().compare(other, x.as_slice());
+        }
+        panic!();
     }
 }
 
 impl KeyCmp for PageKeyCmpRef {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        let k1 = self.get_key(key1);
-        let k2 = self.get_key(key2);
-        self.cmp.borrow().compare(k1.as_slice(), k2.as_slice())
+        if key1 == std::u32::MAX && key2 == std::u32::MAX {
+            return std::cmp::Ordering::Equal;
+        }
+        if key1 == std::u32::MAX {
+            return self.cmp_with_left(key2);
+        }
+
+        if key1 != std::u32::MAX && key2 != std::u32::MAX {
+            let k1 = unsafe { datalist::load_key(self.buffer, key1) };
+            let k2 = unsafe { datalist::load_key(self.buffer, key2) };
+            return self.cmp.borrow().compare(k1, k2);
+        }
+
+        return self.cmp_with_right(key1);
     }
 }
 
