@@ -36,6 +36,8 @@
    - [ ] Meta-page store all tree. link to prev. meta-page
 - [ ] tables
    - [ ] indexes
+- [ ] - bloom in transaction
+
 
 
 - [x] cursor. map over cursor.
