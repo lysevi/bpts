@@ -1,10 +1,11 @@
 # bpts
 
 - [ ] Page is full.
-  - [ ] clusters
+  - [x] clusters
    - [x] free clusters list
    - [x] free mem after reccord
    - [x] free data clusters.
+  - [ ] remove over insert special flag.
   - [x] write data into page.
   - [x] data list
   - [x] data list -> data loader
