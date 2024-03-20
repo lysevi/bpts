@@ -140,35 +140,17 @@ impl Transaction {
     }
 
     pub fn from_transaction(other: &Transaction) -> Transaction {
-        if other.buffer.is_some() {
-            let mut res = unsafe {
-                Transaction::from_buffer(
-                    other.buffer.unwrap(),
-                    other.offset,
-                    other.cmp.clone(),
-                    other.params,
-                )
-            };
-            res.offset = 0;
-            res.buffer = None;
-            return res;
-        } else {
-            let mut new_nodes = HashMap::new();
-            for i in other.nodes.values() {
-                let cp = Node::copy(&i.borrow());
-                new_nodes.insert(i.borrow().id.0, cp);
-            }
-            let mut hdr = other.header.clone();
-            hdr.rev += 1;
-            Transaction {
-                header: hdr,
-                buffer: None,
-                offset: 0,
-                nodes: new_nodes,
-                params: other.params,
-                cmp: other.cmp.clone(),
-            }
-        }
+        let mut res = unsafe {
+            Transaction::from_buffer(
+                other.buffer.unwrap(),
+                other.offset,
+                other.cmp.clone(),
+                other.params,
+            )
+        };
+        res.offset = 0;
+        res.buffer = None;
+        return res;
     }
 
     pub fn set_cmp(&mut self, c: TransKeyCmp) {
