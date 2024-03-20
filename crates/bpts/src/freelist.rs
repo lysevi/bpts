@@ -119,6 +119,7 @@ impl FreeList {
 mod tests {
     use super::FreeList;
     use bpts_tree::prelude::Result;
+    
     #[test]
     fn freelist() -> Result<()> {
         const BUFFERSIZE: usize = 100;
