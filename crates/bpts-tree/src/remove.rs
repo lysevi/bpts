@@ -1,18 +1,20 @@
-use crate::{node::RcNode, nodestorage::NodeStorage, read, rm::erase_key, Result};
+use crate::{node::RcNode, nodestorage::NodeStorage, read, record::Record, rm::erase_key, Result};
 
-pub fn remove_key<Storage: NodeStorage>(
+pub fn remove_key_with_data<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
     key: u32,
-) -> Result<RcNode> {
+) -> Result<(Record, RcNode)> {
     let target_node: RcNode;
 
     let scan_result = read::scan(storage, &root, key);
     if scan_result.is_err() {
-        return scan_result;
+        return Err(scan_result.err().unwrap());
     } else {
         target_node = scan_result.unwrap();
     }
+
+    let res = target_node.borrow().find(storage.get_cmp(), key).unwrap();
 
     {
         let r = target_node.borrow();
@@ -21,7 +23,20 @@ pub fn remove_key<Storage: NodeStorage>(
             r.id, r.left.0, r.right.0, r.parent.0
         );
     }
-    return erase_key(storage, &target_node, key, Some(root.clone()));
+    let new_root = erase_key(storage, &target_node, key, Some(root.clone()))?;
+    return Ok((res, new_root));
+}
+
+pub fn remove_key<Storage: NodeStorage>(
+    storage: &mut Storage,
+    root: &RcNode,
+    key: u32,
+) -> Result<RcNode> {
+    let subres = remove_key_with_data(storage, root, key);
+    match subres {
+        Ok(v) => Ok(v.1),
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]

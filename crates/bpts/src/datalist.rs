@@ -83,6 +83,17 @@ pub unsafe fn load_data<'a>(buffer: *const u8, offset: u32) -> &'a [u8] {
     return data;
 }
 
+pub unsafe fn load_size<'a>(buffer: *const u8, offset: u32) -> u32 {
+    let mut read_offset = offset as usize;
+
+    let key_len = (buffer.add(read_offset) as *const u32).read();
+    read_offset += std::mem::size_of::<u32>();
+    let data_len = (buffer.add(read_offset) as *const u32).read();
+
+    let res = (std::mem::size_of::<u32>() * 2) as u32 + key_len + data_len;
+
+    return res;
+}
 #[cfg(test)]
 mod tests {
     use bpts_tree::prelude::*;

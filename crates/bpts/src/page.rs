@@ -248,6 +248,10 @@ impl Page {
         Ok(())
     }
 
+    pub fn free_clusters_count(&self) -> usize {
+        unsafe { self.freelist.free_clusters() }
+    }
+
     pub fn get_id(&self) -> u32 {
         let result = unsafe { (*self.hdr).id };
         return result;
@@ -376,18 +380,23 @@ impl Page {
                 }));
                 trans.set_cmp(cmp);
 
-                let _res = bpts_tree::remove::remove_key(&mut trans, &root.clone(), std::u32::MAX)?;
+                let res = bpts_tree::remove::remove_key_with_data(
+                    &mut trans,
+                    &root.clone(),
+                    std::u32::MAX,
+                )?;
                 self.save_trans(trans)?;
                 self.free_mem(old_trans_offset, old_trans_size)?;
 
+                let removed_data = res.0;
+
+                let data_size = unsafe { datalist::load_size(self.space, removed_data.into_u32()) };
+
+                self.free_mem(removed_data.into_u32(), data_size as usize)?;
                 return Ok(());
             }
         }
         return Ok(());
-    }
-
-    pub fn free_clusters_count(&self) -> usize {
-        unsafe { self.freelist.free_clusters() }
     }
 
     fn free_mem(&mut self, old_trans_offset: u32, old_trans_size: usize) -> Result<()> {
@@ -664,6 +673,7 @@ mod tests {
                 let key_sl = unsafe { any_as_u8_slice(i) };
                 let result = page.find(0u32, key_sl)?;
                 assert!(result.is_some());
+                assert_eq!(key_sl, result.unwrap());
             }
         }
 

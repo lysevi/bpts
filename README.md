@@ -4,7 +4,7 @@
   - [ ] clusters
    - [x] free clusters list
    - [x] free mem after reccord
-   - [ ] free data clusters.
+   - [x] free data clusters.
   - [x] write data into page.
   - [x] data list
   - [x] data list -> data loader

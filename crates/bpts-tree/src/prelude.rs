@@ -10,6 +10,7 @@ pub use crate::read::map;
 pub use crate::read::map_rev;
 pub use crate::record::Record;
 pub use crate::remove::remove_key;
+pub use crate::remove::remove_key_with_data;
 pub use crate::types::Id;
 pub use crate::utils::debug;
 pub use crate::Result;
