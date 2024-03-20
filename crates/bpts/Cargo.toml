@@ -9,3 +9,10 @@ edition = "2021"
 bpts_tree= {path="../bpts-tree"}
 memmap2="*"
 tempfile ="*"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+ 
+[[bench]]
+name = "freelist_b"
+harness = false
