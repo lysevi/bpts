@@ -3,7 +3,8 @@
 - [ ] Page is full.
   - [ ] clusters
    - [x] free clusters list
-   - [ ] free mem after reccord
+   - [x] free mem after reccord
+   - [ ] free data clusters.
   - [x] write data into page.
   - [x] data list
   - [x] data list -> data loader
@@ -15,6 +16,7 @@
     - [x] insert
     - [x] find
     - [x] remove
+
   - [ ] test: many trees, many transactions:     
     - [ ] insert
     - [ ] find

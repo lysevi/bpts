@@ -333,22 +333,8 @@ impl Page {
 
         self.save_trans(trans)?;
         if old_trans_offset.is_some() {
-            let cluster_num =
-                unsafe { old_trans_offset.unwrap() as f32 / ((*self.hdr).cluster_size as f32) }
-                    as usize;
-            let clusteres_count = self.clusters_for_bytes(old_trans_size);
-            // println!(
-            //     "free {:?} -  {};{}    free_clusters={}",
-            //     old_trans_offset,
-            //     cluster_num,
-            //     clusteres_count,
-            //     unsafe { self.freelist.free_clusters() }
-            // );
-            for i in 0..clusteres_count {
-                unsafe { self.freelist.set(cluster_num + i, false)? };
-            }
+            self.free_mem(old_trans_offset.unwrap(), old_trans_size)?;
         }
-        //TODO free space
         Ok(())
     }
 
@@ -378,6 +364,8 @@ impl Page {
     //TODO enum for remove status
     pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
         if let Some(t) = self.trans.get(&tree_id) {
+            let old_trans_offset = t.offset();
+            let old_trans_size = t.size() as usize;
             let mut trans = Transaction::from_transaction(t);
             if let Some(root) = trans.get_root() {
                 let etalon_key = key.to_vec();
@@ -390,11 +378,27 @@ impl Page {
 
                 let _res = bpts_tree::remove::remove_key(&mut trans, &root.clone(), std::u32::MAX)?;
                 self.save_trans(trans)?;
-                //TODO free space
+                self.free_mem(old_trans_offset, old_trans_size)?;
+
                 return Ok(());
             }
         }
         return Ok(());
+    }
+
+    pub fn free_clusters_count(&self) -> usize {
+        unsafe { self.freelist.free_clusters() }
+    }
+
+    fn free_mem(&mut self, old_trans_offset: u32, old_trans_size: usize) -> Result<()> {
+        let cluster_num =
+            unsafe { old_trans_offset as f32 / ((*self.hdr).cluster_size as f32) } as usize;
+        let clusteres_count = self.clusters_for_bytes(old_trans_size);
+
+        for i in 0..clusteres_count {
+            unsafe { self.freelist.set(cluster_num + i, false)? };
+        }
+        Ok(())
     }
 }
 
@@ -511,7 +515,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_find_delete_in_full() -> Result<()> {
+    fn insert_find_in_full() -> Result<()> {
         let tparam = TreeParams::default();
         let pagedatasize = 1024 * 20;
         let cluster_size = 32;
@@ -641,6 +645,7 @@ mod tests {
         }
 
         assert!(all_keys.len() > 1);
+        let free_clusters = page.free_clusters_count();
 
         while all_keys.len() > 0 {
             {
@@ -661,6 +666,8 @@ mod tests {
                 assert!(result.is_some());
             }
         }
+
+        assert!(free_clusters < page.free_clusters_count());
 
         for i in 0..10 {
             let pos = b.len() - 1 - i;
