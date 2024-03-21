@@ -13,9 +13,6 @@ pub fn remove_key_with_data<Storage: NodeStorage>(
     } else {
         target_node = scan_result.unwrap();
     }
-
-    let res = target_node.borrow().find(storage.get_cmp(), key).unwrap();
-
     {
         let r = target_node.borrow();
         println!(
@@ -23,8 +20,13 @@ pub fn remove_key_with_data<Storage: NodeStorage>(
             r.id, r.left.0, r.right.0, r.parent.0
         );
     }
+    let res = target_node.borrow().find(storage.get_cmp(), key);
+    if res.is_none() {
+        println!("!");
+    }
+
     let new_root = erase_key(storage, &target_node, key, Some(root.clone()))?;
-    return Ok((res, new_root));
+    return Ok((res.unwrap(), new_root));
 }
 
 pub fn remove_key<Storage: NodeStorage>(
@@ -41,6 +43,9 @@ pub fn remove_key<Storage: NodeStorage>(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use core::num;
+    use std::collections::HashSet;
+
     use crate::prelude::*;
 
     pub fn make_tree(nodes_count: usize, t: usize) -> (MockNodeStorage, RcNode, Vec<u32>) {
@@ -1050,6 +1055,86 @@ pub(crate) mod tests {
         return Ok(());
     }
 
+    fn remove_by_list(t: usize, nums: Vec<u32>) {
+        println!("nums: {:?}", nums.len());
+        print!("t:{}", t);
+        let mut root_node = Node::new_leaf_with_size(Id(1), t);
+        let params = TreeParams::default_with_t(t).with_min_size_root(2);
+        let mut storage: MockNodeStorage = MockNodeStorage::new(params);
+        storage.add_node(&root_node);
+
+        for i in &nums {
+            // if *i == 8 {
+            //     println!("")
+            // }
+            //let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
+            let res = insert(&mut storage, &root_node, *i, &Record::from_u32(*i));
+            //crate::helpers::print_state(&str_before, &String::from(""));
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+        }
+
+        let str_before =
+            debug::storage_to_string(&storage, root_node.clone(), true, &String::from("before"));
+
+        for i in &nums {
+            let res = find(&mut storage, &root_node, *i);
+            if res.is_err() {
+                println!("");
+                println!("> not found {}", i);
+            }
+            assert!(res.is_ok());
+            let v = res.unwrap();
+            if !v.is_some() {
+                println!("not found {}", *i);
+                debug::print_state(&str_before, &String::from(""));
+                assert!(false);
+            }
+            assert!(v.is_some());
+            let rec = v.unwrap();
+            assert_eq!(rec.into_u32(), *i);
+        }
+
+        let mut removed = HashSet::new();
+
+        for i in &nums {
+            println!("><> {}", *i);
+
+            removed.insert(*i);
+            let str_before = debug::storage_to_string(
+                &storage,
+                root_node.clone(),
+                true,
+                &String::from("before"),
+            );
+            let res = remove_key(&mut storage, &root_node, *i);
+            if res.is_err() {
+                println!("> not found {}", i);
+                assert!(false);
+            }
+            assert!(res.is_ok());
+            root_node = res.unwrap();
+
+            let str_after =
+                debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
+            for item in &nums {
+                if removed.contains(item) {
+                    continue;
+                }
+
+                let res = find(&mut storage, &root_node, *item);
+                if res.is_err() {
+                    println!("> error {}", *item);
+                }
+
+                if res.unwrap().is_none() {
+                    debug::print_state(&str_before, &str_after);
+                    println!("> error {}", *item);
+                    return;
+                }
+            }
+        }
+    }
     #[test]
     fn many_inserts_3_22() -> Result<()> {
         many_inserts(3, 22)
@@ -1127,5 +1212,36 @@ pub(crate) mod tests {
             assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
         }
         return Ok(());
+    }
+
+    #[test]
+    fn remove_by_numlist() -> Result<()> {
+        let nums = vec![
+            381, 147, 372, 83, 191, 338, 40, 141, 289, 76, 188, 257, 154, 38, 72, 112, 125, 306,
+            255, 184, 81, 143, 132, 370, 177, 108, 324, 120, 155, 205, 36, 115, 355, 318, 219, 346,
+            58, 365, 233, 52, 70, 167, 88, 197, 92, 95, 389, 304, 270, 312, 245, 314, 398, 291,
+            369, 4, 256, 388, 263, 26, 301, 35, 302, 14, 56, 91, 303, 244, 400, 87, 278, 351, 227,
+            29, 307, 163, 113, 249, 373, 391, 296, 190, 41, 333, 85, 272, 98, 126, 39, 243, 138,
+            23, 22, 264, 228, 271, 215, 322, 75, 25, 171, 352, 371, 200, 376, 253, 18, 320, 327,
+            336, 332, 349, 13, 218, 343, 64, 117, 356, 198, 382, 30, 347, 168, 374, 335, 79, 378,
+            208, 178, 294, 47, 67, 173, 74, 90, 251, 89, 151, 337, 201, 86, 199, 237, 165, 282, 50,
+            140, 9, 275, 298, 12, 390, 48, 37, 119, 134, 49, 238, 285, 242, 80, 19, 299, 300, 71,
+            135, 385, 295, 54, 144, 20, 330, 66, 290, 326, 110, 202, 104, 317, 368, 273, 109, 180,
+            287, 248, 43, 34, 105, 266, 357, 185, 362, 123, 8, 136, 6, 159, 31, 146, 207, 107, 111,
+            224, 153, 223, 366, 241, 158, 162, 345, 203, 286, 252, 254, 232, 94, 209, 288, 137,
+            100, 353, 68, 210, 397, 292, 258, 103, 5, 16, 99, 93, 230, 160, 44, 57, 55, 259, 367,
+            78, 239, 283, 277, 150, 61, 323, 77, 7, 196, 360, 269, 10, 350, 386, 348, 206, 250,
+            204, 325, 316, 354, 129, 262, 342, 101, 53, 65, 2, 28, 221, 97, 246, 176, 164, 226,
+            339, 193, 170, 309, 174, 305, 383, 276, 396, 399, 260, 128, 130, 394, 152, 189, 82,
+            133, 280, 265, 319, 69, 139, 297, 361, 240, 186, 102, 145, 187, 179, 212, 24, 384, 122,
+            214, 377, 32, 395, 392, 393, 359, 1, 222, 195, 73, 334, 182, 315, 157, 311, 229, 62,
+            183, 27, 216, 114, 121, 380, 156, 341, 46, 331, 225, 293, 175, 169, 358, 274, 267, 231,
+            308, 166, 96, 11, 131, 149, 17, 192, 236, 328, 127, 364, 181, 148, 161, 142, 234, 344,
+            247, 321, 84, 51, 379, 118, 15, 33, 363, 329, 220, 284, 21, 60, 124, 217, 106, 211,
+            281, 116, 172, 45, 310, 340, 59, 268, 375, 63, 3, 235, 42, 313, 279, 387, 194, 261,
+            213,
+        ];
+        remove_by_list(4, nums);
+        Ok(())
     }
 }

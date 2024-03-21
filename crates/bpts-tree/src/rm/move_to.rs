@@ -7,6 +7,9 @@ pub(super) fn move_to_lower(
     low_side_node: &mut Node,
     middle: Option<u32>,
 ) -> Result<()> {
+    if !target_node.is_leaf && target_node.id == crate::types::Id(29) {
+        println!("!");
+    }
     println!(
         "move_to_lower target={:?} low={:?}",
         target_node.id, low_side_node.id

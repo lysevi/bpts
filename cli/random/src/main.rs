@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{collections::HashSet, io::Write};
 
 use bpts_tree::prelude::*;
 use rand::prelude::*;
@@ -10,6 +10,7 @@ fn main() {
 
     let mut nums: Vec<u32> = (1..=count).collect();
     nums.shuffle(&mut rng);
+
     println!("nums: {:?}", nums.len());
     // let t = 5;
     // nums = vec![9, 1, 7, 3, 4, 5, 2, 0, 8, 6];
@@ -46,14 +47,16 @@ fn main() {
         for i in &nums {
             let res = find(&mut storage, &root_node, *i);
             if res.is_err() {
+                println!("");
                 println!("> not found {}", i);
+                panic!();
             }
             assert!(res.is_ok());
             let v = res.unwrap();
             if !v.is_some() {
                 println!("not found {}", *i);
                 crate::debug::print_state(&str_before, &String::from(""));
-                return;
+                panic!();
             }
             assert!(v.is_some());
             let rec = v.unwrap();
@@ -63,22 +66,59 @@ fn main() {
         println!("\tread:{:?}", duration);
         std::io::stdout().flush().unwrap();
 
-        /*start = Instant::now();
+        start = Instant::now();
+        let mut removed = HashSet::new();
+
         for i in &nums {
+            // println!("><> {}", *i);
+            // if *i == 373 {
+            //     println!("!");
+            // }
+
+            removed.insert(*i);
+            // let str_before = crate::debug::storage_to_string(
+            //     &storage,
+            //     root_node.clone(),
+            //     true,
+            //     &String::from("before"),
+            // );
             let res = remove_key(&mut storage, &root_node, *i);
             if res.is_err() {
                 println!("> not found {}", i);
             }
             assert!(res.is_ok());
             root_node = res.unwrap();
-            let res = find(&mut storage, &root_node, *i);
-            if res.is_err() {
-                println!("> error {}", i);
+
+            // let str_after = crate::debug::storage_to_string(
+            //     &storage,
+            //     root_node.clone(),
+            //     true,
+            //     &String::from("after"),
+            // );
+            for item in &nums {
+                if removed.contains(item) {
+                    continue;
+                }
+
+                let res = find(&mut storage, &root_node, *item);
+                if res.is_err() {
+                    println!("> error {}", *item);
+                }
+
+                if res.unwrap().is_none() {
+                    //crate::debug::print_state(&str_before, &str_after);
+                    println!("> not found {}", *item);
+                    return;
+                }
             }
-            assert!(res.unwrap().is_none());
+            // let res = find(&mut storage, &root_node, *i);
+            // if res.is_err() {
+            //     println!("> error {}", i);
+            // }
+            //assert!(res.unwrap().is_none());
         }
         duration = start.elapsed();
-        println!("\remove:{:?}", duration);
-        std::io::stdout().flush().unwrap();*/
+        println!("\tremove:{:?}", duration);
+        std::io::stdout().flush().unwrap();
     }
 }

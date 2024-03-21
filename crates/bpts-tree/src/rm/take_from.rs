@@ -78,14 +78,28 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
     leaf_ref: &mut Node,
     t: usize,
 ) -> Result<bool> {
+    if !target_ref.is_leaf && target_ref.id == crate::types::Id(78) {
+        println!("!");
+    }
     if leaf_ref.data_count > t {
         let mut middle: Option<u32> = None;
         let mut first_key = target_ref.first_key();
         let taken_key = leaf_ref.keys[leaf_ref.keys_count - 1];
         if !target_ref.is_leaf {
-            // if leaf_ref.parent == target_ref.parent {
-            let first_child = storage.get_node(target_ref.data[0].into_id())?;
-            middle = Some(first_child.borrow().first_key());
+            if leaf_ref.parent == target_ref.parent {
+                let parent = storage.get_node(target_ref.parent)?;
+                let parent_ref = parent.borrow_mut();
+                middle = parent_ref.find_key(first_key, storage.get_cmp());
+            }
+            // else if leaf_ref.parent != target_ref.parent {
+            //     let parent = storage.get_node(target_ref.parent)?;
+            //     let parent_ref = parent.borrow_mut();
+            //     middle = parent_ref.find_key(first_key, storage.get_cmp())
+            // }
+            if middle.is_none() {
+                let first_child = storage.get_node(target_ref.data[0].into_id())?;
+                middle = Some(first_child.borrow().first_key());
+            }
             // } else {
             //     todo!();
             // }
