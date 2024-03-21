@@ -78,26 +78,26 @@ fn node_as_string(b: &mut Builder, node: &crate::node::Node, graphviz: bool, gra
             "{}_{} [label=\"{} \\n {}\" shape=\"{}\"];",
             graph_name, node.id.0, node.id.0, key_as_string, shape
         ));
-        if node.right.exists() {
-            b.append(format!(
-                "{}_{} -> {}_{};",
-                graph_name, node.id.0, graph_name, node.right.0
-            ));
-        }
+        // if node.right.exists() {
+        //     b.append(format!(
+        //         "{}_{} -> {}_{};",
+        //         graph_name, node.id.0, graph_name, node.right.0
+        //     ));
+        // }
 
-        if node.left.exists() {
-            b.append(format!(
-                "{}_{} -> {}_{};",
-                graph_name, node.id.0, graph_name, node.left.0
-            ));
-        }
+        // if node.left.exists() {
+        //     b.append(format!(
+        //         "{}_{} -> {}_{};",
+        //         graph_name, node.id.0, graph_name, node.left.0
+        //     ));
+        // }
 
-        if node.parent.exists() {
-            b.append(format!(
-                "{}_{} -> {}_{};",
-                graph_name, node.id.0, graph_name, node.parent.0
-            ));
-        }
+        // if node.parent.exists() {
+        //     b.append(format!(
+        //         "{}_{} -> {}_{};",
+        //         graph_name, node.id.0, graph_name, node.parent.0
+        //     ));
+        // }
     } else {
         let key_slice = &node.keys[0..node.keys_count];
         let string_data = if node.is_leaf {
