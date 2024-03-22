@@ -1,11 +1,14 @@
 use crate::{
+    types::{self, Id},
+    Error,
+};
+use std::{collections::HashMap, rc::Rc};
+
+use super::{
     node::{KeyCmp, RcNode},
     nodestorage::NodeStorage,
     params::TreeParams,
-    types::{self, Id},
-    Result,
 };
-use std::{collections::HashMap, rc::Rc};
 
 pub struct MockKeyCmp {}
 
@@ -78,12 +81,12 @@ impl NodeStorage for MockNodeStorage {
             None => types::Id(1),
         }
     }
-    fn get_node(&self, id: Id) -> Result<RcNode> {
+    fn get_node(&self, id: Id) -> crate::Result<RcNode> {
         let res = self.nodes.get(&id.unwrap());
         if let Some(r) = res {
             Ok(Rc::clone(r))
         } else {
-            Err(types::Error(format!("not found Id={}", id.0)))
+            Err(Error(format!("not found Id={}", id.0)))
         }
     }
 

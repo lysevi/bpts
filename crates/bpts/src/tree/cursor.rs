@@ -1,8 +1,9 @@
-use crate::{
+use crate::tree::{
     node::{Node, RcNode},
     nodestorage::{self, NodeStorage},
-    prelude::Record,
 };
+
+use super::record::Record;
 
 pub enum CursorState {
     End,

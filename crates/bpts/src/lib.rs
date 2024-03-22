@@ -1,22 +1,22 @@
+use std::fmt::Display;
+
 pub mod datalist;
 pub mod freelist;
 pub mod mfile;
 pub mod page;
 pub mod prelude;
 pub mod transaction;
+pub mod tree;
+pub mod types;
 pub mod utils;
-pub type Result<T> = bpts_tree::Result<T>;
 
-pub struct Storage {
-    pages: Vec<page::Page>,
-}
+#[derive(Debug)]
+pub struct Error(pub String);
 
-impl Storage {
-    pub fn new() -> Storage {
-        Storage { pages: Vec::new() }
-    }
-
-    pub fn pages_count(&self) -> usize {
-        self.pages.len()
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Error({})", self.0)
     }
 }
+
+pub type Result<T> = std::result::Result<T, Error>;

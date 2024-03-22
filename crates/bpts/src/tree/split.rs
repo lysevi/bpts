@@ -1,9 +1,9 @@
-use crate::{
+use crate::{types::Id, utils, Result};
+
+use super::{
     node::{Node, RcNode},
     nodestorage::NodeStorage,
     record::Record,
-    types::Id,
-    utils, Result,
 };
 
 pub fn split_node<Storage: NodeStorage>(
@@ -146,7 +146,12 @@ pub fn split_node<Storage: NodeStorage>(
     }
 }
 
-fn insert_key_to_parent(target_node: &mut Node, cmp: &dyn crate::node::KeyCmp, key: u32, id: Id) {
+fn insert_key_to_parent(
+    target_node: &mut Node,
+    cmp: &dyn crate::tree::node::KeyCmp,
+    key: u32,
+    id: Id,
+) {
     let mut pos = 0usize;
     for item in target_node.key_iter() {
         if cmp.compare(*item, key).is_ge() {
@@ -162,8 +167,9 @@ fn insert_key_to_parent(target_node: &mut Node, cmp: &dyn crate::node::KeyCmp, k
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mocks::{MockKeyCmp, MockNodeStorage};
-    use crate::read::{self, find};
+    use crate::tree::mocks::{MockKeyCmp, MockNodeStorage};
+    use crate::tree::params::TreeParams;
+    use crate::tree::read::{self, find};
     use crate::types;
     fn check_link_to_brother(storage: &MockNodeStorage) {
         let all_links_exists = storage.all(|n| {
@@ -191,8 +197,7 @@ mod tests {
             6,
             6,
         );
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
 
         let root = split_node(&mut storage, &leaf1, None)?;
@@ -275,8 +280,7 @@ mod tests {
             5,
             6,
         );
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(3));
         storage.add_node(&first_root_node);
 
         {
@@ -384,8 +388,7 @@ mod tests {
             1,
             2,
         );
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(3));
         storage.add_node(&root_node);
 
         let leaf1_node = Node::new_leaf(

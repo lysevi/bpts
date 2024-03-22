@@ -1,7 +1,9 @@
 use crate::{
-    node::{KeyCmp, Node, RcNode},
-    nodestorage::NodeStorage,
-    types, utils,
+    tree::{
+        node::{KeyCmp, Node, RcNode},
+        nodestorage::NodeStorage,
+    },
+    utils::*,
 };
 
 use self::rollup::rollup_keys;
@@ -35,11 +37,11 @@ fn erase_from_node(cmp: &dyn KeyCmp, target: &mut Node, key: u32) {
 
     for i in 0..target.keys_count {
         if cmp.compare(target.keys[i], key).is_eq() {
-            utils::remove_with_shift(&mut target.keys, i);
+            remove_with_shift(&mut target.keys, i);
             if !target.is_leaf {
-                utils::remove_with_shift(&mut target.data, i + 1);
+                remove_with_shift(&mut target.data, i + 1);
             } else {
-                utils::remove_with_shift(&mut target.data, i);
+                remove_with_shift(&mut target.data, i);
             }
             target.keys_count -= 1;
             target.data_count -= 1;
@@ -53,7 +55,7 @@ pub(super) fn erase_key<Storage: NodeStorage>(
     target: &RcNode,
     key: u32,
     root: Option<RcNode>,
-) -> Result<RcNode, types::Error> {
+) -> Result<RcNode, crate::Error> {
     {
         let mut target_ref = target.borrow_mut();
         let first_key = target_ref.keys[0];

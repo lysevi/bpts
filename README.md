@@ -11,13 +11,11 @@
   - [x] data list -> data loader
   - [x] data list - remove offset. write over clusters.
   - [x] is there enough space for recording?
-  
   - [ ] page as storage
   - [ ] test: single tree, many transactions:
     - [x] insert
     - [x] find
     - [x] remove
-
   - [ ] test: many trees, many transactions:     
     - [ ] insert
     - [ ] find
@@ -28,12 +26,11 @@
   - [x] unload after saving
   - [x] save to buffer.
   - [x] test - fill, save, load, remove, save.... 
-- [ ] - bpts_tree is a submodule of bpts
-- [ ] - bpts_tree::types::Error - in lib.rs
 - [ ] - binary search in nodes.
   - [ ] - benchmark - node::find_key
   - [ ] - benchmark - node::find
   - [ ] - benchmark - split::insert_key_to_parent
+- [ ] - Record is a array with common type.
 - [ ] single transaction for many trees.
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)

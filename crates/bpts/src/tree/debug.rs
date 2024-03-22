@@ -1,16 +1,20 @@
-use crate::prelude::*;
 use string_builder::Builder;
 
-pub fn print_state(str_before: &String, str_after: &String) {
+use crate::types::Id;
+
+use super::node::Node;
+
+pub fn print_states(args: &[&str]) {
     print!("digraph G {{");
-    print!("{}", str_before);
-    print!("{}", str_after);
+    for i in args {
+        println!("{}", *i);
+    }
     println!("}}");
 }
 
-pub fn storage_to_string<Storage: NodeStorage>(
+pub fn storage_to_string<Storage: crate::tree::nodestorage::NodeStorage>(
     storage: &Storage,
-    root: crate::node::RcNode,
+    root: crate::tree::node::RcNode,
     graphviz: bool,
     graph_name: &String,
 ) -> String {
@@ -69,7 +73,7 @@ pub fn storage_to_string<Storage: NodeStorage>(
     return bldr.string().unwrap();
 }
 
-fn node_as_string(b: &mut Builder, node: &crate::node::Node, graphviz: bool, graph_name: &String) {
+fn node_as_string(b: &mut Builder, node: &Node, graphviz: bool, graph_name: &String) {
     if graphviz {
         let key_slice = &node.keys[0..node.keys_count];
         let key_as_string = format!("{:?}", key_slice);

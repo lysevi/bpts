@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
-use crate::cursor;
-use crate::node::*;
-use crate::nodestorage::NodeStorage;
-use crate::record::Record;
+use crate::tree::cursor;
 use crate::types::{self};
-use crate::Result;
+use crate::{Error, Result};
+
+use super::node::RcNode;
+use super::nodestorage::NodeStorage;
+use super::record::Record;
 
 pub fn scan<Storage: NodeStorage>(
     storage: &mut Storage,
@@ -24,7 +25,7 @@ pub fn scan<Storage: NodeStorage>(
             }
             let rec = ref_target.find(storage.get_cmp(), key);
             if rec.is_none() {
-                return Err(types::Error(format!("{} not found", key)));
+                return Err(Error(format!("{} not found", key)));
             }
             node_id = rec.unwrap().into_id();
         }
@@ -34,7 +35,7 @@ pub fn scan<Storage: NodeStorage>(
                 target = Rc::clone(&r);
             }
             Err(e) => {
-                return Err(types::Error(format!("{:?} not found - '{}'", node_id, e)));
+                return Err(Error(format!("{:?} not found - '{}'", node_id, e)));
             }
         }
     }
@@ -127,7 +128,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{mocks::MockNodeStorage, node::Node};
+    use crate::tree::{mocks::MockNodeStorage, node::Node, params::TreeParams};
 
     #[test]
     fn find_in_tree() -> Result<()> {
@@ -139,8 +140,7 @@ mod tests {
             2,
         );
 
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
         let res = find(&mut storage, &leaf1, 2)?;
         assert!(res.is_some());

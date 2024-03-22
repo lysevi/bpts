@@ -1,18 +1,17 @@
-use crate::{
+use crate::tree::{
     node::RcNode,
     nodestorage::NodeStorage,
     rm::{
         move_to::{try_move_to_high, try_move_to_low},
         take_from::{try_take_from_high, try_take_from_low},
     },
-    Result,
 };
 
 pub(in super::super) fn rebalancing<Storage: NodeStorage>(
     storage: &mut Storage,
     target: &RcNode,
     root: Option<RcNode>,
-) -> Result<RcNode> {
+) -> crate::Result<RcNode> {
     println!("resize Id={:?}", target.borrow().id.0);
     let mut target_ref = target.borrow_mut();
     let mut t = storage.get_params().get_min_size_leaf();
@@ -104,14 +103,15 @@ pub(in super::super) fn rebalancing<Storage: NodeStorage>(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use super::super::super::remove::tests::make_tree;
-    use crate::prelude::*;
-
+    use crate::tree::debug;
+    use crate::tree::nodestorage::NodeStorage;
+    use crate::tree::read::find;
+    use crate::{prelude::*, types::Id};
+    use std::collections::HashSet;
     #[test]
     #[ignore]
-    fn remove_with_take_high_leaf_diff_parent() -> Result<()> {
+    fn remove_with_take_high_leaf_diff_parent() -> crate::Result<()> {
         let (mut storage, mut root_node, _keys) = make_tree(10, 4);
 
         let mut keyset: HashSet<u32> = HashSet::from_iter(_keys.iter().cloned());
@@ -119,7 +119,7 @@ mod tests {
         let str_before =
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("before"));
         {
-            let node = storage.get_node(Id(4)).unwrap();
+            let node = storage.get_node(Id(4))?;
             let mut nr = node.borrow_mut();
             nr.keys_count -= 2;
             nr.data_count -= 2;
@@ -128,7 +128,7 @@ mod tests {
         }
 
         {
-            let node = storage.get_node(Id(5)).unwrap();
+            let node = storage.get_node(Id(5))?;
             {
                 let mut nr = node.borrow_mut();
                 nr.keys_count -= 2;
@@ -149,13 +149,13 @@ mod tests {
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
 
         {
-            debug::print_state(&str_before, &str_after);
+            debug::print_states(&[&str_before, &str_after]);
         }
 
         for i in keyset {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                debug::print_state(&str_before, &str_after);
+                debug::print_states(&[&str_before, &str_after]);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
@@ -203,13 +203,13 @@ mod tests {
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
 
         {
-            debug::print_state(&str_before, &str_after);
+            debug::print_states(&[&str_before, &str_after]);
         }
 
         for i in keyset {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                debug::print_state(&str_before, &str_after);
+                debug::print_states(&[&str_before, &str_after]);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
@@ -246,13 +246,13 @@ mod tests {
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
 
         {
-            debug::print_state(&str_before, &str_after);
+            debug::print_states(&[&str_before, &str_after]);
         }
 
         for i in [2, 157, 58, 59, 60, 61, 62, 63, 64, 65] {
             let find_res = find(&mut storage, &root_node, i);
             if find_res.is_err() {
-                debug::print_state(&str_before, &str_after);
+                debug::print_states(&[&str_before, &str_after]);
             }
             assert!(find_res.is_ok());
             assert_eq!(find_res.unwrap().unwrap().into_u32(), i);
@@ -289,13 +289,13 @@ mod tests {
             debug::storage_to_string(&storage, root_node.clone(), true, &String::from("after"));
 
         {
-            debug::print_state(&str_before, &str_after);
+            debug::print_states(&[&str_before, &str_after]);
         }
 
         for i in [2, 66, 67, 68, 69, 70, 71, 157] {
             let find_res = find(&mut storage, &root_node, i)?;
             if find_res.is_none() {
-                debug::print_state(&str_before, &str_after);
+                debug::print_states(&[&str_before, &str_after]);
             }
             assert!(find_res.is_some());
             assert_eq!(find_res.unwrap().into_u32(), i);

@@ -1,8 +1,16 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use bpts_tree::prelude::*;
+use crate::{
+    tree::{
+        node::{KeyCmp, Node, RcNode},
+        params::TreeParams,
+        record::Record,
+    },
+    types::Id,
+    utils::bufferwriter::{BufferWriter, Counter, UnsafeWriter},
+};
 
-use crate::utils::bufferwriter::{BufferWriter, Counter, UnsafeWriter};
+use crate::tree::nodestorage::NodeStorage;
 
 /*
 header, node_count, node1,...,node_N
@@ -16,7 +24,7 @@ pub struct TransactionHeader {
     size: u32,
 }
 
-pub type TransKeyCmp = Rc<RefCell<dyn bpts_tree::prelude::KeyCmp>>;
+pub type TransKeyCmp = Rc<RefCell<dyn KeyCmp>>;
 
 #[derive(Clone)]
 pub struct Transaction {
@@ -251,12 +259,12 @@ impl NodeStorage for Transaction {
         }
     }
 
-    fn get_node(&self, id: Id) -> Result<RcNode> {
+    fn get_node(&self, id: Id) -> crate::Result<RcNode> {
         let res = self.nodes.get(&id.unwrap());
         if let Some(r) = res {
             Ok(r.clone())
         } else {
-            Err(bpts_tree::types::Error(format!("not found Id={}", id.0)))
+            Err(crate::Error(format!("not found Id={}", id.0)))
         }
     }
 
@@ -289,14 +297,18 @@ impl NodeStorage for Transaction {
 mod tests {
     use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-    use bpts_tree::prelude::*;
-
     use super::Transaction;
+    use crate::tree::nodestorage::NodeStorage;
+    use crate::{
+        tree::{insert, node::Node, params::TreeParams, read::find, record::Record},
+        types::Id,
+    };
+
     #[test]
-    fn transaction_save() -> Result<()> {
+    fn transaction_save() -> crate::Result<()> {
         let max_node_count = 10;
         let params = TreeParams::default();
-        let cmp = Rc::new(RefCell::new(bpts_tree::mocks::MockKeyCmp::new()));
+        let cmp = Rc::new(RefCell::new(crate::tree::mocks::MockKeyCmp::new()));
         let mut storage = Transaction::new(0, 1, params.clone(), cmp.clone());
 
         let mut root_node = Node::new_leaf_with_size(Id(1), params.t);
@@ -308,7 +320,7 @@ mod tests {
         let mut key: u32 = 1;
         while storage.nodes_count() < max_node_count {
             key += 1;
-            let res = insert(&mut storage, &root_node, key, &Record::from_u32(key));
+            let res = insert::insert(&mut storage, &root_node, key, &Record::from_u32(key));
             allkeys.insert(key, false);
             assert!(res.is_ok());
             root_node = res.unwrap();

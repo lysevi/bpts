@@ -1,6 +1,15 @@
 use std::{collections::HashSet, io::Write};
 
-use bpts_tree::prelude::*;
+use bpts::tree::debug::{print_states, storage_to_string};
+use bpts::tree::insert;
+use bpts::tree::nodestorage::NodeStorage;
+use bpts::tree::read::find;
+use bpts::tree::record::Record;
+use bpts::tree::remove::remove_key;
+use bpts::{
+    tree::{mocks::MockNodeStorage, node::Node, params::TreeParams},
+    types::Id,
+};
 use rand::prelude::*;
 use std::time::Instant;
 
@@ -28,7 +37,7 @@ fn main() {
             //     println!("")
             // }
             //let str_before = storage.to_string(root_node.clone(), true, &String::from("before"));
-            let res = insert(&mut storage, &root_node, *i, &Record::from_u32(*i));
+            let res = insert::insert(&mut storage, &root_node, *i, &Record::from_u32(*i));
             //crate::helpers::print_state(&str_before, &String::from(""));
             assert!(res.is_ok());
             root_node = res.unwrap();
@@ -37,12 +46,8 @@ fn main() {
         let mut duration = start.elapsed();
         print!("\tstorage size:{} \twrite:{:?}", storage.size(), duration);
         std::io::stdout().flush().unwrap();
-        let str_before = crate::debug::storage_to_string(
-            &storage,
-            root_node.clone(),
-            true,
-            &String::from("before"),
-        );
+        let str_before =
+            storage_to_string(&storage, root_node.clone(), true, &String::from("before"));
         start = Instant::now();
         for i in &nums {
             let res = find(&mut storage, &root_node, *i);
@@ -55,7 +60,7 @@ fn main() {
             let v = res.unwrap();
             if !v.is_some() {
                 println!("not found {}", *i);
-                crate::debug::print_state(&str_before, &String::from(""));
+                print_states(&[&str_before]);
                 panic!();
             }
             assert!(v.is_some());

@@ -96,9 +96,8 @@ pub unsafe fn load_size<'a>(buffer: *const u8, offset: u32) -> u32 {
 }
 #[cfg(test)]
 mod tests {
-    use bpts_tree::prelude::*;
     #[test]
-    fn save() -> Result<()> {
+    fn save() -> crate::Result<()> {
         const BUFFERSIZE: usize = 100;
         let mut buffer = vec![0u8; BUFFERSIZE];
 

@@ -1,13 +1,11 @@
-use crate::{
-    node::RcNode, nodestorage::NodeStorage, read, record::Record, split::split_node, Result,
-};
+use super::{node::RcNode, nodestorage::NodeStorage, read, record::Record, split::split_node};
 
 pub fn insert<Storage: NodeStorage>(
     storage: &mut Storage,
     root: &RcNode,
     key: u32,
     value: &Record,
-) -> Result<RcNode> {
+) -> crate::Result<RcNode> {
     let target_node: RcNode;
     {
         if root.borrow().is_empty() {
@@ -48,14 +46,24 @@ pub fn insert<Storage: NodeStorage>(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::prelude::*;
+    use tests::read::{find, map, map_rev};
 
-    fn many_inserts(t: usize, maxnodecount: usize) -> Result<()> {
+    use super::*;
+    use crate::{
+        tree::{
+            debug,
+            mocks::MockNodeStorage,
+            node::Node,
+            params::{self, TreeParams},
+        },
+        types::Id,
+    };
+
+    fn many_inserts(t: usize, maxnodecount: usize) -> crate::Result<()> {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
         let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
+            MockNodeStorage::new(params::TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut key: u32 = 1;
@@ -117,10 +125,9 @@ mod tests {
         Ok(())
     }
 
-    fn many_inserts_back(t: usize, maxnodecount: usize) -> Result<()> {
+    fn many_inserts_back(t: usize, maxnodecount: usize) -> crate::Result<()> {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut keys = Vec::new();
@@ -192,7 +199,7 @@ mod tests {
         Ok(())
     }
 
-    fn inserts_to_middle(key_from: u32, key_to: u32, t: usize) -> Result<()> {
+    fn inserts_to_middle(key_from: u32, key_to: u32, t: usize) -> crate::Result<()> {
         let mut ranges = Vec::new();
         ranges.push((key_from, key_to));
 
@@ -224,13 +231,12 @@ mod tests {
         }
 
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(t));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         for i in 0..keys.len() {
             //println!("insert {}", keys[i]);
-            let str_before = crate::prelude::debug::storage_to_string(
+            let str_before = debug::storage_to_string(
                 &storage,
                 root_node.clone(),
                 true,
@@ -252,7 +258,7 @@ mod tests {
                 let res = find(&mut storage, &root_node, keys[j]);
                 if res.is_err() {
                     println!("> not found {}", keys[j]);
-                    debug::print_state(&str_before, &str_after)
+                    debug::print_states(&[&str_before, &str_after]);
                 }
                 assert!(res.is_ok());
                 assert_eq!(res.unwrap().unwrap().into_u32(), keys[j]);
@@ -262,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn insert_to_tree() -> Result<()> {
+    fn insert_to_tree() -> crate::Result<()> {
         let leaf1 = Node::new_leaf(
             Id(1),
             vec![2, 3, 0, 0, 0, 0],
@@ -278,8 +284,7 @@ mod tests {
             2,
         );
 
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(crate::params::TreeParams::default_with_t(3));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(3));
         storage.add_node(&leaf1);
 
         let new_value = Record::from_u32(1);
@@ -319,32 +324,32 @@ mod tests {
     }
 
     #[test]
-    fn many_inserts_3_10() -> Result<()> {
+    fn many_inserts_3_10() -> crate::Result<()> {
         many_inserts(3, 10)
     }
 
     #[test]
-    fn many_inserts_7_22() -> Result<()> {
+    fn many_inserts_7_22() -> crate::Result<()> {
         many_inserts(7, 22)
     }
 
     #[test]
-    fn many_inserts_back_3_10() -> Result<()> {
+    fn many_inserts_back_3_10() -> crate::Result<()> {
         many_inserts_back(3, 10)
     }
 
     #[test]
-    fn many_inserts_back_7_22() -> Result<()> {
+    fn many_inserts_back_7_22() -> crate::Result<()> {
         many_inserts_back(7, 22)
     }
 
     #[test]
-    fn inserts_to_middle_1_100_3() -> Result<()> {
+    fn inserts_to_middle_1_100_3() -> crate::Result<()> {
         inserts_to_middle(1, 100, 3)
     }
 
     #[test]
-    fn inserts_to_middle_1_500_6() -> Result<()> {
+    fn inserts_to_middle_1_500_6() -> crate::Result<()> {
         inserts_to_middle(1, 500, 6)
     }
 

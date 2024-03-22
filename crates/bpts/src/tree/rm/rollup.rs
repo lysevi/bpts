@@ -1,11 +1,16 @@
-use crate::{map_up_to_tree::map_up, nodestorage::NodeStorage, types, Result};
+//use crate::{map_up_to_tree::map_up, nodestorage::NodeStorage, types, Result};
+
+use crate::{
+    tree::{map_up_to_tree::map_up, nodestorage::NodeStorage},
+    types::Id,
+};
 
 pub(super) fn rollup_keys<Storage: NodeStorage>(
     storage: &Storage,
-    id: types::Id,
+    id: Id,
     key: u32,
     newkey: u32,
-) -> Result<()> {
+) -> crate::Result<()> {
     println!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
     let cmp = storage.get_cmp();
     let mut f = |x: u32| {

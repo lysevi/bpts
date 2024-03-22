@@ -1,11 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::record;
-use crate::types;
+use crate::tree::record;
+use crate::types::Id;
 use crate::utils;
 
 use record::Record;
-use types::Id;
 
 pub type RcNode = Rc<RefCell<Node>>;
 
@@ -297,7 +296,7 @@ impl Node {
 
 #[cfg(test)]
 mod tests {
-    use crate::mocks::MockKeyCmp;
+    use crate::tree::mocks::MockKeyCmp;
 
     use super::*;
 

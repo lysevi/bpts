@@ -1,4 +1,6 @@
-use crate::{nodestorage::NodeStorage, types, Result};
+use crate::{types, Result};
+
+use super::nodestorage::NodeStorage;
 
 pub fn map_up<Action, Storage: NodeStorage>(
     storage: &Storage,

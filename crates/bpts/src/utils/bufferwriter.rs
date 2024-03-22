@@ -1,6 +1,8 @@
+use crate::types::Id;
+
 pub trait BufferWriter {
     fn size(&self) -> usize;
-    fn write_id(&mut self, v: bpts_tree::types::Id);
+    fn write_id(&mut self, v: Id);
     fn write_u32(&mut self, v: u32);
     fn write_i32(&mut self, v: i32);
     fn write_bool(&mut self, v: bool);
@@ -33,7 +35,7 @@ impl BufferWriter for Counter {
         self.count += std::mem::size_of::<T>();
     }
 
-    fn write_id(&mut self, _: bpts_tree::types::Id) {
+    fn write_id(&mut self, _: Id) {
         self.plus::<i32>();
     }
 
@@ -65,7 +67,7 @@ impl BufferWriter for UnsafeWriter {
         self.count
     }
 
-    fn write_id(&mut self, v: bpts_tree::types::Id) {
+    fn write_id(&mut self, v: Id) {
         self.write_u32(v.0);
     }
 

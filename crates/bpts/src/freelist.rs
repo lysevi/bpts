@@ -1,4 +1,4 @@
-use bpts_tree::prelude::Result;
+use crate::Result;
 
 //TODO! bitmap
 pub struct FreeList {
@@ -27,7 +27,7 @@ impl FreeList {
 
     pub unsafe fn set(&mut self, i: usize, val: bool) -> Result<()> {
         if i > self.bufflen as usize {
-            return Err(bpts_tree::types::Error("out of bounds".to_owned()));
+            return Err(crate::Error("out of bounds".to_owned()));
         }
         let f = if val { 1u8 } else { 0u8 };
         self.buffer.add(i).write(f);
@@ -40,7 +40,7 @@ impl FreeList {
 
     pub unsafe fn get(&self, i: usize) -> Result<bool> {
         if i > self.bufflen as usize {
-            return Err(bpts_tree::types::Error("out of bounds".to_owned()));
+            return Err(crate::Error("out of bounds".to_owned()));
         }
 
         let f: u8 = self.buffer.add(i).read();
@@ -118,10 +118,9 @@ impl FreeList {
 #[cfg(test)]
 mod tests {
     use super::FreeList;
-    use bpts_tree::prelude::Result;
-    
+
     #[test]
-    fn freelist() -> Result<()> {
+    fn freelist() -> crate::Result<()> {
         const BUFFERSIZE: usize = 100;
         let mut buffer = vec![0u8; BUFFERSIZE + 10];
         for i in 0..10 {

@@ -1,15 +1,16 @@
 use crate::{
-    node::{KeyCmp, RcNode},
-    params::TreeParams,
-    types::{self, Id},
-    Result,
+    tree::{
+        node::{KeyCmp, RcNode},
+        params::TreeParams,
+    },
+    types::Id,
 };
 
 pub trait NodeStorage {
     fn get_root(&self) -> Option<RcNode>;
-    fn get_new_id(&self) -> types::Id;
+    fn get_new_id(&self) -> Id;
     //TODO get_node(ptr) -> Option<&Node>;
-    fn get_node(&self, id: Id) -> Result<RcNode>;
+    fn get_node(&self, id: Id) -> crate::Result<RcNode>;
     //TODO add_node(node) -> ptr
     fn add_node(&mut self, node: &RcNode);
 

@@ -2,13 +2,12 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use bpts_tree::node::{KeyCmp, Node};
-use bpts_tree::nodestorage::NodeStorage;
-use bpts_tree::params::TreeParams;
-use bpts_tree::types::Id;
-
 use crate::freelist::FreeList;
 use crate::transaction::{TransKeyCmp, Transaction};
+use crate::tree::node::{KeyCmp, Node};
+use crate::tree::nodestorage::NodeStorage;
+use crate::tree::params::TreeParams;
+use crate::types::Id;
 use crate::{datalist, freelist, prelude::*};
 
 pub trait PageKeyCmp {
@@ -207,7 +206,7 @@ impl Page {
 
             let first_cluster = self.freelist.get_region_top(clusters_need);
             if first_cluster.is_none() {
-                return Err(bpts_tree::types::Error("no space left".to_owned()));
+                return Err(crate::Error("no space left".to_owned()));
             }
 
             let first_cluster = first_cluster.unwrap();
@@ -299,7 +298,7 @@ impl Page {
         let clusters_need = self.clusters_for_bytes(data_size);
         let data_cluster = unsafe { self.freelist.get_region_bottom(clusters_need) };
         if data_cluster.is_none() {
-            return Err(bpts_tree::types::Error("no space left".to_owned()));
+            return Err(crate::Error("no space left".to_owned()));
         }
         let first_cluster = data_cluster.unwrap();
         for i in 0..clusters_need {
@@ -328,11 +327,11 @@ impl Page {
             res
         };
 
-        let _insert_res = bpts_tree::insert::insert(
+        let _insert_res = crate::tree::insert::insert(
             &mut trans,
             &root,
             key_offset,
-            &bpts_tree::record::Record::from_u32(key_offset),
+            &crate::tree::record::Record::from_u32(key_offset),
         )?;
 
         self.save_trans(trans)?;
@@ -354,7 +353,7 @@ impl Page {
                 }));
                 trans.set_cmp(cmp);
 
-                let find_res = bpts_tree::read::find(&mut trans, &root.clone(), std::u32::MAX)?;
+                let find_res = crate::tree::read::find(&mut trans, &root.clone(), std::u32::MAX)?;
                 if find_res.is_none() {
                     return Ok(None);
                 }
@@ -380,7 +379,7 @@ impl Page {
                 }));
                 trans.set_cmp(cmp);
 
-                let res = bpts_tree::remove::remove_key_with_data(
+                let res = crate::tree::remove::remove_key_with_data(
                     &mut trans,
                     &root.clone(),
                     std::u32::MAX,
@@ -416,7 +415,7 @@ mod tests {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use bpts_tree::params::TreeParams;
+    use crate::tree::params::TreeParams;
 
     use super::Page;
     use crate::prelude::Result;

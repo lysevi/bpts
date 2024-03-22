@@ -1,4 +1,8 @@
-use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
+use crate::{
+    tree::{node::Node, nodestorage::NodeStorage},
+    types::Id,
+    utils::insert_to_array,
+};
 
 use super::rollup::rollup_keys;
 
@@ -6,8 +10,8 @@ pub(super) fn move_to_lower(
     target_node: &mut Node,
     low_side_node: &mut Node,
     middle: Option<u32>,
-) -> Result<()> {
-    if !target_node.is_leaf && target_node.id == crate::types::Id(29) {
+) -> crate::Result<()> {
+    if !target_node.is_leaf && target_node.id == Id(29) {
         println!("!");
     }
     println!(
@@ -16,7 +20,7 @@ pub(super) fn move_to_lower(
     );
     //if !target_node.is_leaf
     if middle.is_some() {
-        utils::insert_to_array(
+        insert_to_array(
             &mut low_side_node.keys,
             low_side_node.keys_count,
             middle.unwrap(),
@@ -53,15 +57,15 @@ pub(super) fn move_to_higher(
 
     //TODO! opt
     if !target.is_leaf {
-        utils::insert_to_array(&mut high_side.keys, 0, middle.unwrap());
+        insert_to_array(&mut high_side.keys, 0, middle.unwrap());
         high_side.keys_count += 1;
     }
     for (i, key) in target.key_iter().enumerate() {
-        utils::insert_to_array(&mut high_side.keys, i, *key);
+        insert_to_array(&mut high_side.keys, i, *key);
     }
 
     for (i, data) in target.data_iter().enumerate() {
-        utils::insert_to_array(&mut high_side.data, i, data.clone());
+        insert_to_array(&mut high_side.data, i, data.clone());
 
         if !target.is_leaf {
             let node = storage.get_node(data.into_id()).unwrap();
@@ -78,7 +82,7 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool> {
+) -> crate::Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
         let first_key = target_ref.first_key();
         let mut middle: Option<u32> = None;
@@ -134,7 +138,7 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool> {
+) -> crate::Result<bool> {
     if (leaf_ref.keys_count + target_ref.keys_count) < 2 * t {
         let min_key = leaf_ref.keys[0];
         let mut middle: Option<u32> = None;

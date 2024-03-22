@@ -1,4 +1,8 @@
-use crate::{node::Node, nodestorage::NodeStorage, utils, Result};
+use crate::{
+    tree::{node::Node, nodestorage::NodeStorage},
+    types::Id,
+    utils::{insert_to_array, remove_with_shift},
+};
 
 use super::rollup::rollup_keys;
 
@@ -14,7 +18,7 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
 
     if !target.is_leaf && middle.is_some() {
         println!("take_from_low insert middle");
-        utils::insert_to_array(&mut target.keys, 0, middle.unwrap());
+        insert_to_array(&mut target.keys, 0, middle.unwrap());
         target.keys_count += 1;
     }
 
@@ -25,12 +29,12 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
         let min_data_node = storage.get_node(max_data.into_id()).unwrap();
         min_data_node.borrow_mut().parent = target.id;
     } else {
-        utils::insert_to_array(&mut target.keys, 0, max_key);
+        insert_to_array(&mut target.keys, 0, max_key);
         target.keys_count += 1;
     }
 
     //utils::insert_to_array(&mut target.keys, 0, max_key);
-    utils::insert_to_array(&mut target.data, 0, max_data);
+    insert_to_array(&mut target.data, 0, max_data);
     low_side.keys_count -= 1;
     low_side.data_count -= 1;
 
@@ -57,8 +61,8 @@ pub(super) fn take_from_high(target: &mut Node, high_side: &mut Node, middle: Op
         position = target.data_count;
         target.data[position] = min_data;
 
-        utils::remove_with_shift(&mut high_side.keys, 0);
-        utils::remove_with_shift(&mut high_side.data, 0);
+        remove_with_shift(&mut high_side.keys, 0);
+        remove_with_shift(&mut high_side.data, 0);
 
         high_side.keys_count -= 1;
         high_side.data_count -= 1;
@@ -77,8 +81,8 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool> {
-    if !target_ref.is_leaf && target_ref.id == crate::types::Id(78) {
+) -> crate::Result<bool> {
+    if !target_ref.is_leaf && target_ref.id == Id(78) {
         println!("!");
     }
     if leaf_ref.data_count > t {
@@ -143,7 +147,7 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
     target_ref: &mut Node,
     leaf_ref: &mut Node,
     t: usize,
-) -> Result<bool> {
+) -> crate::Result<bool> {
     if leaf_ref.data_count > t {
         let mut first_key = leaf_ref.keys[0];
         if !leaf_ref.is_leaf {
