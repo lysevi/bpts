@@ -102,14 +102,12 @@ pub fn split_node<Storage: NodeStorage>(
 
         ref_to_brother.right = target_node.borrow().right;
         if ref_to_brother.right.exists() {
-            //TODO! check result
             let right_brother = storage.get_node(ref_to_brother.right)?;
             right_brother.borrow_mut().left = new_id;
         }
         target_node.borrow_mut().right = ref_to_brother.id;
         ref_to_brother.left = target_node.borrow().id;
     }
-    //TODO! check result
 
     //let lowest_key = ref_to_brother.keys[0];
     if is_new_root {
@@ -123,7 +121,6 @@ pub fn split_node<Storage: NodeStorage>(
 
         return Ok(parent_node.clone());
     } else {
-        //TODO! check result;
         let can_insert = parent_node.borrow().can_insert(t);
         {
             let mut ref_to_parent = parent_node.borrow_mut();

@@ -11,8 +11,7 @@
   - [x] data list -> data loader
   - [x] data list - remove offset. write over clusters.
   - [x] is there enough space for recording?
-  - [ ] page as storage
-  - [ ] test: single tree, many transactions:
+  - [x] test: single tree, many transactions:
     - [x] insert
     - [x] find
     - [x] remove
