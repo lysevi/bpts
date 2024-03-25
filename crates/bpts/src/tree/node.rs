@@ -131,24 +131,25 @@ impl Node {
             if cmp.compare(self.keys[self.keys_count - 1], key).is_le() {
                 return Some(self.data[self.data_count - 1].clone());
             }
-
-            //TODO bin.search
-            for i in 0..self.keys_count {
-                match cmp.compare(self.keys[i], key) {
-                    std::cmp::Ordering::Less => continue,
-                    std::cmp::Ordering::Equal => return Some(self.data[i + 1].clone()),
-                    std::cmp::Ordering::Greater => return Some(self.data[i].clone()),
-                }
-            }
-            return None;
         }
 
         //TODO bin.search
         for i in 0..self.keys_count {
             match cmp.compare(self.keys[i], key) {
                 std::cmp::Ordering::Less => continue,
-                std::cmp::Ordering::Equal => return Some(self.data[i].clone()),
-                std::cmp::Ordering::Greater => continue, //return Some(self.data[i].clone()),
+                std::cmp::Ordering::Equal => {
+                    return if !self.is_leaf {
+                        Some(self.data[i + 1].clone())
+                    } else {
+                        Some(self.data[i].clone())
+                    };
+                }
+                std::cmp::Ordering::Greater => {
+                    if !self.is_leaf {
+                        return Some(self.data[i].clone());
+                    }
+                    continue;
+                }
             }
         }
         return None;
