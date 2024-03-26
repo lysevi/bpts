@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 pub mod datalist;
+pub mod db;
 pub mod freelist;
 pub mod mfile;
 pub mod page;
