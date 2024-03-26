@@ -16,3 +16,8 @@ criterion = { version = "0.4", features = ["html_reports"] }
 [[bench]]
 name = "freelist_b"
 harness = false
+
+
+[features]
+
+verbose = []

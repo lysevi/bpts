@@ -4,6 +4,7 @@ use crate::{
         nodestorage::NodeStorage,
     },
     utils::*,
+    verbose,
 };
 
 use self::rollup::rollup_keys;
@@ -32,7 +33,7 @@ fn erase_from_node(cmp: &dyn KeyCmp, target: &mut Node, key: u32) {
             target.data_count -= 1;
         }*/
     } else {
-        println!("erase_key_data leaf from={:?} key={}", target.id, key);
+        verbose!("erase_key_data leaf from={:?} key={}", target.id, key);
     }
 
     for i in 0..target.keys_count {

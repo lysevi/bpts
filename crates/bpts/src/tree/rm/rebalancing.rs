@@ -1,10 +1,13 @@
-use crate::tree::{
-    node::RcNode,
-    nodestorage::NodeStorage,
-    rm::{
-        move_to::{try_move_to_high, try_move_to_low},
-        take_from::{try_take_from_high, try_take_from_low},
+use crate::{
+    tree::{
+        node::RcNode,
+        nodestorage::NodeStorage,
+        rm::{
+            move_to::{try_move_to_high, try_move_to_low},
+            take_from::{try_take_from_high, try_take_from_low},
+        },
     },
+    verbose,
 };
 
 pub(in super::super) fn rebalancing<Storage: NodeStorage>(
@@ -12,7 +15,7 @@ pub(in super::super) fn rebalancing<Storage: NodeStorage>(
     target: &RcNode,
     root: Option<RcNode>,
 ) -> crate::Result<RcNode> {
-    println!("resize Id={:?}", target.borrow().id.0);
+    verbose!("resize Id={:?}", target.borrow().id.0);
     let mut target_ref = target.borrow_mut();
     let mut t = storage.get_params().get_min_size_leaf();
     if !target_ref.is_leaf {

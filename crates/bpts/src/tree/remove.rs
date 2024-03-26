@@ -1,4 +1,7 @@
-use crate::tree::{node::RcNode, nodestorage::NodeStorage, read, record::Record, rm::erase_key};
+use crate::{
+    tree::{node::RcNode, nodestorage::NodeStorage, read, record::Record, rm::erase_key},
+    verbose,
+};
 
 pub fn remove_key_with_data<Storage: NodeStorage>(
     storage: &mut Storage,
@@ -15,14 +18,17 @@ pub fn remove_key_with_data<Storage: NodeStorage>(
     }
     {
         let r = target_node.borrow();
-        println!(
+        verbose!(
             "remove from {:?} ({},{},{})",
-            r.id, r.left.0, r.right.0, r.parent.0
+            r.id,
+            r.left.0,
+            r.right.0,
+            r.parent.0
         );
     }
     let res = target_node.borrow().find(storage.get_cmp(), key);
     if res.is_none() {
-        println!("!");
+        verbose!("!");
     }
 
     let new_root = erase_key(storage, &target_node, key, Some(root.clone()))?;
@@ -986,9 +992,7 @@ pub(crate) mod tests {
                 assert!(find_res.is_some());
                 assert_eq!(find_res.unwrap().into_u32(), i);
                 println!(">> {} {} remove {:?} size: {}", hight, t, i, storage.size());
-                if hight == 6 && i == 11 {
-                    println!("!");
-                }
+
                 let str_before = debug::storage_to_string(
                     &storage,
                     root_node.clone(),

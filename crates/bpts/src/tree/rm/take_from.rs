@@ -2,6 +2,7 @@ use crate::{
     tree::{node::Node, nodestorage::NodeStorage},
     types::Id,
     utils::{insert_to_array, remove_with_shift},
+    verbose,
 };
 
 use super::rollup::rollup_keys;
@@ -12,12 +13,12 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
     low_side: &mut Node,
     middle: Option<u32>,
 ) {
-    println!("take_from_low target={:?} low={:?}", target.id, low_side.id);
+    verbose!("take_from_low target={:?} low={:?}", target.id, low_side.id);
 
     //let mut min_key = target.first_key();
 
     if !target.is_leaf && middle.is_some() {
-        println!("take_from_low insert middle");
+        verbose!("take_from_low insert middle");
         insert_to_array(&mut target.keys, 0, middle.unwrap());
         target.keys_count += 1;
     }
@@ -43,9 +44,11 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
 }
 
 pub(super) fn take_from_high(target: &mut Node, high_side: &mut Node, middle: Option<u32>) -> u32 {
-    println!(
+    verbose!(
         "take_key_from_high target={:?} high={:?} minKey={}",
-        target.id, high_side.id, high_side.keys[0]
+        target.id,
+        high_side.id,
+        high_side.keys[0]
     );
 
     let mut min_key = high_side.first_key();
@@ -53,7 +56,7 @@ pub(super) fn take_from_high(target: &mut Node, high_side: &mut Node, middle: Op
     let min_data = high_side.first_data();
     if !target.is_leaf {
         min_key = middle.unwrap();
-        println!(" new minKey={}", min_key);
+        verbose!(" new minKey={}", min_key);
     }
     {
         let mut position = target.keys_count;
@@ -83,7 +86,7 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
     t: usize,
 ) -> crate::Result<bool> {
     if !target_ref.is_leaf && target_ref.id == Id(78) {
-        println!("!");
+        verbose!("!");
     }
     if leaf_ref.data_count > t {
         let mut middle: Option<u32> = None;

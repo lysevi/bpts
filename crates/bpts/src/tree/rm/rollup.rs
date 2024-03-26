@@ -3,6 +3,7 @@
 use crate::{
     tree::{map_up_to_tree::map_up, nodestorage::NodeStorage},
     types::Id,
+    verbose,
 };
 
 pub(super) fn rollup_keys<Storage: NodeStorage>(
@@ -11,11 +12,11 @@ pub(super) fn rollup_keys<Storage: NodeStorage>(
     key: u32,
     newkey: u32,
 ) -> crate::Result<()> {
-    println!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
+    verbose!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
     let cmp = storage.get_cmp();
     let mut f = |x: u32| {
         if cmp.compare(x, key).is_eq() {
-            println!("update key in {:?}", x);
+            verbose!("update key in {:?}", x);
             return newkey;
         } else {
             return x;

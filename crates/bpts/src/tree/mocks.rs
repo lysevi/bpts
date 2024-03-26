@@ -1,6 +1,6 @@
 use crate::{
     types::{self, Id},
-    Error,
+    verbose, Error,
 };
 use std::{collections::HashMap, rc::Rc};
 
@@ -96,7 +96,7 @@ impl NodeStorage for MockNodeStorage {
     }
 
     fn erase_node(&mut self, id: &Id) {
-        println!("erase node: Id={}", id.0);
+        verbose!("erase node: Id={}", id.0);
         self.nodes.remove(&id.0);
     }
 

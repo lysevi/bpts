@@ -79,9 +79,7 @@ mod tests {
 
             for i in 2..=key {
                 //println!("! {:?}", i);
-                if key == 22 && i == 20 {
-                    println!("!");
-                }
+
                 let res = find(&mut storage, &root_node, i)?;
                 assert!(res.is_some());
                 assert_eq!(res.unwrap().into_u32(), i);

@@ -1,5 +1,4 @@
 use std::fmt::Display;
-
 pub mod datalist;
 pub mod db;
 pub mod freelist;
@@ -21,3 +20,21 @@ impl Display for Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[macro_export]
+#[cfg(feature = "verbose")]
+macro_rules! verbose {
+    () => {
+        print!("\n")
+    };
+    ($($arg:tt)*) => {{
+        println!($($arg)*)
+    }};
+}
+
+#[macro_export]
+#[cfg(not(feature = "verbose"))]
+macro_rules! verbose {
+    () => {};
+    ($($arg:tt)*) => {{}};
+}

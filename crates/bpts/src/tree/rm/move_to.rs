@@ -2,6 +2,7 @@ use crate::{
     tree::{node::Node, nodestorage::NodeStorage},
     types::Id,
     utils::insert_to_array,
+    verbose,
 };
 
 use super::rollup::rollup_keys;
@@ -11,12 +12,10 @@ pub(super) fn move_to_lower(
     low_side_node: &mut Node,
     middle: Option<u32>,
 ) -> crate::Result<()> {
-    if !target_node.is_leaf && target_node.id == Id(29) {
-        println!("!");
-    }
-    println!(
+    verbose!(
         "move_to_lower target={:?} low={:?}",
-        target_node.id, low_side_node.id
+        target_node.id,
+        low_side_node.id
     );
     //if !target_node.is_leaf
     if middle.is_some() {
@@ -50,9 +49,10 @@ pub(super) fn move_to_higher(
     high_side: &mut Node,
     middle: Option<u32>,
 ) {
-    println!(
+    verbose!(
         "move_to_higher target={:?} low={:?}",
-        target.id, high_side.id
+        target.id,
+        high_side.id
     );
 
     //TODO! opt

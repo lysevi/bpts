@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::tree::cursor;
 use crate::types::{self};
-use crate::{Error, Result};
+use crate::{verbose, Error, Result};
 
 use super::node::RcNode;
 use super::nodestorage::NodeStorage;
@@ -19,7 +19,7 @@ pub fn scan<Storage: NodeStorage>(
         let node_id: types::Id;
         {
             let ref_target = target.borrow();
-            //println!("scan > {:?}", ref_target.id);
+            //verbose!("scan > {:?}", ref_target.id);
             if ref_target.is_leaf {
                 return Ok(Rc::clone(&target));
             }

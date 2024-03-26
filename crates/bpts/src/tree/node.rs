@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::tree::record;
 use crate::types::Id;
-use crate::utils;
+use crate::{utils, verbose};
 
 use record::Record;
 
@@ -194,9 +194,11 @@ impl Node {
     }
 
     pub fn update_key(&mut self, child: Id, new_key: u32) {
-        println!(
+        verbose!(
             "update key target={:?} child={:?} new={}",
-            self.id, child, new_key
+            self.id,
+            child,
+            new_key
         );
 
         if self.is_leaf {
@@ -221,7 +223,7 @@ impl Node {
     }
 
     pub fn erase_link(&mut self, child: Id) {
-        println!("erase_link target={:?} child={:?}", self.id, child);
+        verbose!("erase_link target={:?} child={:?}", self.id, child);
 
         if self.is_leaf {
             panic!("logic error");

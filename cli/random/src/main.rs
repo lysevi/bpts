@@ -68,7 +68,7 @@ fn main() {
             assert_eq!(rec.into_u32(), *i);
         }
         duration = start.elapsed();
-        println!("\tread:{:?}", duration);
+        print!("\tread:{:?}", duration);
         std::io::stdout().flush().unwrap();
 
         start = Instant::now();
