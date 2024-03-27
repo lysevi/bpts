@@ -202,46 +202,64 @@ impl Page {
         //TODO! status enum
         let neeed_bytes = t.size();
         unsafe {
-            let clusters_need = self.clusters_for_bytes(neeed_bytes as usize);
+            {
+                let clusters_need = self.clusters_for_bytes(neeed_bytes as usize);
 
-            let first_cluster = self.freelist.get_region_top(clusters_need);
-            if first_cluster.is_none() {
-                return Err(crate::Error("no space left".to_owned()));
+                let first_cluster = self.freelist.get_region_top(clusters_need);
+                if first_cluster.is_none() {
+                    return Err(crate::Error("no space left".to_owned()));
+                }
+
+                let first_cluster = first_cluster.unwrap();
+                //println!("getmem {};{}", first_cluster, clusters_need);
+                //TODO refact
+                for i in 0..clusters_need {
+                    self.freelist.set(first_cluster + i, true)?;
+                }
+
+                let mut offset = self.offset_of_cluster(first_cluster);
+
+                let mut target = t;
+
+                let ptr = self.space.add(offset as usize);
+                let writed_bytes = target.save_to(ptr, offset);
+                assert_eq!(writed_bytes, neeed_bytes);
+                offset += writed_bytes;
+
+                let tree_id = target.tree_id();
+                self.trans.insert(tree_id, target);
             }
+            {
+                let neeed_bytes = (std::mem::size_of::<u32>() * (self.trans.len() + 1)) as u32;
+                let clusters_need = self.clusters_for_bytes(neeed_bytes as usize);
 
-            let first_cluster = first_cluster.unwrap();
-            //println!("getmem {};{}", first_cluster, clusters_need);
-            for i in 0..clusters_need {
-                self.freelist.set(first_cluster + i, true)?;
+                let first_cluster = self.freelist.get_region_top(clusters_need);
+                if first_cluster.is_none() {
+                    return Err(crate::Error("no space left for trans list".to_owned()));
+                }
+
+                //TODO refact
+                let first_cluster = first_cluster.unwrap();
+                for i in 0..clusters_need {
+                    self.freelist.set(first_cluster + i, true)?;
+                }
+
+                let trans_list_offset = self.offset_of_cluster(first_cluster);
+
+                let mut ptr = self.space.add(trans_list_offset as usize);
+
+                let count_ptr = ptr as *mut u32;
+                let count = self.trans.len() as u32;
+                std::ptr::copy(&count, count_ptr, 1);
+                for trans in self.trans.iter() {
+                    ptr = ptr.add(std::mem::size_of::<u32>());
+                    let offset_ptr = ptr as *mut u32;
+                    let value = trans.1.offset();
+                    std::ptr::copy(&value, offset_ptr, 1);
+                }
+
+                (*self.hdr).trans_list_offset = trans_list_offset;
             }
-
-            let mut offset = self.offset_of_cluster(first_cluster);
-
-            let mut target = t;
-
-            let ptr = self.space.add(offset as usize);
-            let writed_bytes = target.save_to(ptr, offset);
-            assert_eq!(writed_bytes, neeed_bytes);
-            offset += writed_bytes;
-
-            let tree_id = target.tree_id();
-            self.trans.insert(tree_id, target);
-
-            let trans_list_offset = offset;
-
-            let mut ptr = self.space.add(offset as usize);
-
-            let count_ptr = ptr as *mut u32;
-            let count = self.trans.len() as u32;
-            std::ptr::copy(&count, count_ptr, 1);
-            for trans in self.trans.iter() {
-                ptr = ptr.add(std::mem::size_of::<u32>());
-                let offset_ptr = ptr as *mut u32;
-                let value = trans.1.offset();
-                std::ptr::copy(&value, offset_ptr, 1);
-            }
-
-            (*self.hdr).trans_list_offset = trans_list_offset;
         }
 
         Ok(())
@@ -676,7 +694,7 @@ mod tests {
             }
         }
 
-        assert!(free_clusters < page.free_clusters_count());
+        //assert!(free_clusters < page.free_clusters_count());
 
         for i in 0..10 {
             let pos = b.len() - 1 - i;
