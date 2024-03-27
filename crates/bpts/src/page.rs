@@ -371,12 +371,12 @@ impl Page {
                     std::u32::MAX,
                 )?;
                 self.save_trans(trans)?;
-                self.free_mem(old_trans_offset, old_trans_size)?;
 
                 let removed_data = res.0;
 
                 let data_size = unsafe { datalist::load_size(self.space, removed_data.into_u32()) };
 
+                self.free_mem(old_trans_offset, old_trans_size)?;
                 self.free_mem(removed_data.into_u32(), data_size as usize)?;
                 return Ok(());
             }
@@ -404,10 +404,10 @@ impl Page {
         return Ok(data_offset);
     }
 
-    fn free_mem(&mut self, old_trans_offset: u32, old_trans_size: usize) -> Result<()> {
+    fn free_mem(&mut self, offset: u32, size: usize) -> Result<()> {
         let cluster_num =
-            unsafe { old_trans_offset as f32 / ((*self.hdr).cluster_size as f32) } as usize;
-        let clusteres_count = self.clusters_for_bytes(old_trans_size);
+            unsafe { offset as f32 / ((*self.hdr).cluster_size as f32) } as usize;
+        let clusteres_count = self.clusters_for_bytes(size);
 
         for i in 0..clusteres_count {
             unsafe { self.freelist.set(cluster_num + i, false)? };
