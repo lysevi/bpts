@@ -6,7 +6,6 @@
     - [ ] find
     - [ ] remove
   - [ ] crc
-  - [ ] free clusters after transaction list page.rs:697:9:
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
 - [ ] - binary search in nodes.

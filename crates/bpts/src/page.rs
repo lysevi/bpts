@@ -201,50 +201,24 @@ impl Page {
     pub fn save_trans(&mut self, t: Transaction) -> Result<()> {
         //TODO! status enum
         let neeed_bytes = t.size();
+        let old_translist_size = std::mem::size_of::<u32>() * (self.trans.len() + 1);
         unsafe {
             {
-                let clusters_need = self.clusters_for_bytes(neeed_bytes as usize);
-
-                let first_cluster = self.freelist.get_region_top(clusters_need);
-                if first_cluster.is_none() {
-                    return Err(crate::Error("no space left".to_owned()));
-                }
-
-                let first_cluster = first_cluster.unwrap();
-                //println!("getmem {};{}", first_cluster, clusters_need);
-                //TODO refact
-                for i in 0..clusters_need {
-                    self.freelist.set(first_cluster + i, true)?;
-                }
-
-                let mut offset = self.offset_of_cluster(first_cluster);
+                let offset = self.get_mem(neeed_bytes as usize, true)?;
 
                 let mut target = t;
 
                 let ptr = self.space.add(offset as usize);
                 let writed_bytes = target.save_to(ptr, offset);
                 assert_eq!(writed_bytes, neeed_bytes);
-                offset += writed_bytes;
 
                 let tree_id = target.tree_id();
                 self.trans.insert(tree_id, target);
             }
             {
                 let neeed_bytes = (std::mem::size_of::<u32>() * (self.trans.len() + 1)) as u32;
-                let clusters_need = self.clusters_for_bytes(neeed_bytes as usize);
 
-                let first_cluster = self.freelist.get_region_top(clusters_need);
-                if first_cluster.is_none() {
-                    return Err(crate::Error("no space left for trans list".to_owned()));
-                }
-
-                //TODO refact
-                let first_cluster = first_cluster.unwrap();
-                for i in 0..clusters_need {
-                    self.freelist.set(first_cluster + i, true)?;
-                }
-
-                let trans_list_offset = self.offset_of_cluster(first_cluster);
+                let trans_list_offset = self.get_mem(neeed_bytes as usize, true)?;
 
                 let mut ptr = self.space.add(trans_list_offset as usize);
 
@@ -258,7 +232,11 @@ impl Page {
                     std::ptr::copy(&value, offset_ptr, 1);
                 }
 
+                let old_trans_list = (*self.hdr).trans_list_offset;
                 (*self.hdr).trans_list_offset = trans_list_offset;
+                if old_trans_list != 0 {
+                    self.free_mem(old_trans_list, old_translist_size)?
+                }
             }
         }
 
@@ -313,17 +291,7 @@ impl Page {
         let tparams = self.tree_params();
 
         let data_size = datalist::get_pack_size(key, data);
-        let clusters_need = self.clusters_for_bytes(data_size);
-        let data_cluster = unsafe { self.freelist.get_region_bottom(clusters_need) };
-        if data_cluster.is_none() {
-            return Err(crate::Error("no space left".to_owned()));
-        }
-        let first_cluster = data_cluster.unwrap();
-        for i in 0..clusters_need {
-            unsafe { self.freelist.set(first_cluster + i, true)? };
-        }
-
-        let data_offset = unsafe { self.offset_of_cluster(data_cluster.unwrap()) };
+        let data_offset = self.get_mem(data_size, false)?;
 
         let key_offset = unsafe { datalist::insert(self.space, data_offset, key, data) };
 
@@ -414,6 +382,26 @@ impl Page {
             }
         }
         return Ok(());
+    }
+
+    //TODO enum for from_top
+    fn get_mem(&mut self, data_size: usize, from_top: bool) -> Result<u32> {
+        let clusters_need = self.clusters_for_bytes(data_size);
+        let data_cluster = if from_top {
+            unsafe { self.freelist.get_region_top(clusters_need) }
+        } else {
+            unsafe { self.freelist.get_region_bottom(clusters_need) }
+        };
+        if data_cluster.is_none() {
+            return Err(crate::Error("no space left".to_owned()));
+        }
+        let first_cluster = data_cluster.unwrap();
+        for i in 0..clusters_need {
+            unsafe { self.freelist.set(first_cluster + i, true)? };
+        }
+
+        let data_offset = unsafe { self.offset_of_cluster(data_cluster.unwrap()) };
+        return Ok(data_offset);
     }
 
     fn free_mem(&mut self, old_trans_offset: u32, old_trans_size: usize) -> Result<()> {
@@ -694,7 +682,7 @@ mod tests {
             }
         }
 
-        //assert!(free_clusters < page.free_clusters_count());
+        assert!(free_clusters < page.free_clusters_count());
 
         for i in 0..10 {
             let pos = b.len() - 1 - i;
