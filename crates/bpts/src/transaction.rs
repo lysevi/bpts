@@ -264,7 +264,7 @@ impl NodeStorage for Transaction {
         if let Some(r) = res {
             Ok(r.clone())
         } else {
-            Err(crate::Error(format!("not found Id={}", id.0)))
+            Err(crate::Error::Fail(format!("not found Id={}", id.0)))
         }
     }
 

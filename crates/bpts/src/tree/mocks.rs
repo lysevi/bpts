@@ -86,7 +86,7 @@ impl NodeStorage for MockNodeStorage {
         if let Some(r) = res {
             Ok(Rc::clone(r))
         } else {
-            Err(Error(format!("not found Id={}", id.0)))
+            Err(Error::Fail(format!("not found Id={}", id.0)))
         }
     }
 

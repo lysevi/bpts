@@ -1141,7 +1141,7 @@ pub(crate) mod tests {
                 if res.unwrap().is_none() {
                     debug::print_states(&[&str_before, &str_after]);
                     println!("> error {}", *item);
-                    return Err(Error("".to_owned()));
+                    return Err(Error::Fail("".to_owned()));
                 }
             }
         }

@@ -25,7 +25,7 @@ pub fn scan<Storage: NodeStorage>(
             }
             let rec = ref_target.find(storage.get_cmp(), key);
             if rec.is_none() {
-                return Err(Error(format!("{} not found", key)));
+                return Err(Error::Fail(format!("{} not found", key)));
             }
             node_id = rec.unwrap().into_id();
         }
@@ -35,7 +35,7 @@ pub fn scan<Storage: NodeStorage>(
                 target = Rc::clone(&r);
             }
             Err(e) => {
-                return Err(Error(format!("{:?} not found - '{}'", node_id, e)));
+                return Err(Error::Fail(format!("{:?} not found - '{}'", node_id, e)));
             }
         }
     }

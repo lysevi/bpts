@@ -286,7 +286,6 @@ impl Page {
         return Rc::new(RefCell::new(result));
     }
 
-    //TODO! enum for write status
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
         let tparams = self.tree_params();
 
@@ -350,7 +349,6 @@ impl Page {
         return Ok(None);
     }
 
-    //TODO enum for remove status
     pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
         if let Some(t) = self.trans.get(&tree_id) {
             let old_trans_offset = t.offset();
@@ -384,7 +382,6 @@ impl Page {
         return Ok(());
     }
 
-    //TODO enum for from_top
     fn get_mem(&mut self, data_size: usize, from_top: bool) -> Result<u32> {
         let clusters_need = self.clusters_for_bytes(data_size);
         let data_cluster = if from_top {
@@ -393,7 +390,7 @@ impl Page {
             unsafe { self.freelist.get_region_bottom(clusters_need) }
         };
         if data_cluster.is_none() {
-            return Err(crate::Error("no space left".to_owned()));
+            return Err(crate::Error::IsFull);
         }
         let first_cluster = data_cluster.unwrap();
         for i in 0..clusters_need {
@@ -405,8 +402,7 @@ impl Page {
     }
 
     fn free_mem(&mut self, offset: u32, size: usize) -> Result<()> {
-        let cluster_num =
-            unsafe { offset as f32 / ((*self.hdr).cluster_size as f32) } as usize;
+        let cluster_num = unsafe { offset as f32 / ((*self.hdr).cluster_size as f32) } as usize;
         let clusteres_count = self.clusters_for_bytes(size);
 
         for i in 0..clusteres_count {

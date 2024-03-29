@@ -11,11 +11,14 @@ pub mod types;
 pub mod utils;
 
 #[derive(Debug)]
-pub struct Error(pub String);
+pub enum Error {
+    Fail(String),
+    IsFull,
+}
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Error({})", self.0)
+        write!(f, "Error({:?})", self)
     }
 }
 

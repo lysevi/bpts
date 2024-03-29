@@ -27,7 +27,7 @@ impl FreeList {
 
     pub unsafe fn set(&mut self, i: usize, val: bool) -> Result<()> {
         if i > self.bufflen as usize {
-            return Err(crate::Error("out of bounds".to_owned()));
+            return Err(crate::Error::Fail("out of bounds".to_owned()));
         }
         let f = if val { 1u8 } else { 0u8 };
         self.buffer.add(i).write(f);
@@ -40,7 +40,7 @@ impl FreeList {
 
     pub unsafe fn get(&self, i: usize) -> Result<bool> {
         if i > self.bufflen as usize {
-            return Err(crate::Error("out of bounds".to_owned()));
+            return Err(crate::Error::Fail("out of bounds".to_owned()));
         }
 
         let f: u8 = self.buffer.add(i).read();
