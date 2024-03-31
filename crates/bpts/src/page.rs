@@ -93,9 +93,10 @@ impl KeyCmp for PageKeyCmpRef {
 }
 
 pub struct Page {
+    all_buffer: *mut u8,
     space: *mut u8,
     freelist: FreeList,
-    hdr: *mut Header,
+    hdr: *const Header,
     trans: HashMap<u32, Transaction>,
     cmp: PageKeyCmpRc,
 }
@@ -127,6 +128,7 @@ impl Page {
             hdr: h,
             freelist: fl,
             trans: t,
+            all_buffer: buffer,
             space: space,
             cmp: cmp,
         };
@@ -173,6 +175,7 @@ impl Page {
         result = Page {
             hdr: h,
             trans: t,
+            all_buffer: buffer,
             space: space,
             cmp: cmp,
             freelist: FreeList::new(buffer.add(HEADER_SIZE), flsize),
@@ -233,7 +236,8 @@ impl Page {
                 }
 
                 let old_trans_list = (*self.hdr).trans_list_offset;
-                (*self.hdr).trans_list_offset = trans_list_offset;
+                self.header_update_trans_list_offset(trans_list_offset);
+
                 if old_trans_list != 0 {
                     self.free_mem(old_trans_list, old_translist_size)?
                 }
@@ -243,6 +247,18 @@ impl Page {
         Ok(())
     }
 
+    pub unsafe fn header_update_trans_list_offset(&self, trans_list_offset: u32) {
+        let field_offset = std::mem::offset_of!(Header, trans_list_offset);
+        (self.all_buffer.add(field_offset) as *mut u32).write(trans_list_offset);
+    }
+
+    pub fn header_set_id(&mut self, i: u32) {
+        unsafe {
+            let field_offset = std::mem::offset_of!(Header, id);
+            (self.all_buffer.add(field_offset) as *mut u32).write(i);
+        }
+    }
+
     pub fn free_clusters_count(&self) -> usize {
         unsafe { self.freelist.free_clusters() }
     }
@@ -250,12 +266,6 @@ impl Page {
     pub fn get_id(&self) -> u32 {
         let result = unsafe { (*self.hdr).id };
         return result;
-    }
-
-    pub fn set_id(&mut self, i: u32) {
-        unsafe {
-            (*self.hdr).id = i;
-        }
     }
 
     pub fn transaction(&self, tree_id: u32) -> Option<Transaction> {
@@ -463,7 +473,7 @@ mod tests {
                     tparam.clone(),
                 )?;
                 assert_eq!(page.get_id(), 0);
-                page.set_id(777);
+                page.header_set_id(777);
             }
             {
                 let deafult_params = TreeParams::default();
