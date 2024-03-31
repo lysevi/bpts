@@ -17,13 +17,13 @@ pub fn remove_key_with_data<Storage: NodeStorage>(
         target_node = scan_result.unwrap();
     }
     {
-        let r = target_node.borrow();
+        let _r = target_node.borrow();
         verbose!(
             "remove from {:?} ({},{},{})",
-            r.id,
-            r.left.0,
-            r.right.0,
-            r.parent.0
+            _r.id,
+            _r.left.0,
+            _r.right.0,
+            _r.parent.0
         );
     }
     let res = target_node.borrow().find(storage.get_cmp(), key);

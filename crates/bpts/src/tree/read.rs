@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::tree::cursor;
 use crate::types::{self};
-use crate::{verbose, Error, Result};
+use crate::{Error, Result};
 
 use super::node::RcNode;
 use super::nodestorage::NodeStorage;
