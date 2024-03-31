@@ -3,7 +3,7 @@ DbHeader:DataBlock;Page1;Page2...PageN:DataBlock
 */
 
 pub struct DbHeader {
-    is_closed_normalu: bool,
+    is_closed_normally: bool,
 }
 
 pub struct DataBlockHeader {
