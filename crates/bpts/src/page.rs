@@ -31,7 +31,7 @@ struct Header {
     pub id: u32,
     pub trans_list_offset: u32,
     pub cluster_size: u16,
-    pub freelist_size: u32,
+    pub freelist_fullsize: u32,
     params: TreeParams,
 }
 
@@ -43,7 +43,7 @@ impl Header {
             id: 0,
             trans_list_offset: 0,
             cluster_size,
-            freelist_size: freelist::FreeList::calc_size(buffsize, cluster_size),
+            freelist_fullsize: freelist::FreeList::calc_full_size(buffsize, cluster_size),
             params,
         }
     }
@@ -116,12 +116,10 @@ impl Page {
         (*h) = Header::default(params, buffsize, cluster_size);
         (*h).params = params;
 
-        let flsize = (*h).freelist_size;
-        let mut fl = FreeList::new(buffer.add(HEADER_SIZE), flsize);
-        fl.init();
-        let space = buffer
-            .add(HEADER_SIZE)
-            .add(freelist::FreeList::size_for_len(flsize) as usize);
+        let flsize = (*h).freelist_fullsize;
+        let fl = FreeList::init(buffer.add(HEADER_SIZE), buffsize, (*h).cluster_size);
+
+        let space = buffer.add(HEADER_SIZE).add(flsize as usize);
         let t = HashMap::new();
 
         result = Page {
@@ -140,10 +138,8 @@ impl Page {
         let result: Page;
 
         let h = buffer as *mut Header;
-        let flsize = (*h).freelist_size;
-        let space = buffer
-            .add(HEADER_SIZE)
-            .add(freelist::FreeList::size_for_len(flsize) as usize);
+        let flsize = (*h).freelist_fullsize;
+        let space = buffer.add(HEADER_SIZE).add(flsize as usize);
         let transcmp = Rc::new(RefCell::new(PageKeyCmpRef {
             user_key: None,
             cmp: cmp.clone(),
@@ -178,7 +174,7 @@ impl Page {
             all_buffer: buffer,
             space: space,
             cmp: cmp,
-            freelist: FreeList::new(buffer.add(HEADER_SIZE), flsize),
+            freelist: FreeList::open(buffer.add(HEADER_SIZE)),
         };
 
         return Ok(result);
@@ -186,14 +182,14 @@ impl Page {
 
     pub fn calc_size(params: TreeParams, buffsize: u32, cluster_size: u16) -> u32 {
         let defparam = Header::default(params, buffsize, cluster_size);
-        let freelistsize = freelist::FreeList::calc_size(buffsize, defparam.cluster_size);
+        let freelistsize = freelist::FreeList::calc_full_size(buffsize, defparam.cluster_size);
         let result = HEADER_SIZE as u32 + buffsize + freelistsize;
         return result;
     }
 
     pub fn clusters_for_bytes(&self, size: usize) -> usize {
         let size_in_clusters = unsafe { (size as f32) / ((*self.hdr).cluster_size as f32) };
-        let clusters_need = (size_in_clusters).ceil() as usize;
+        let clusters_need = size_in_clusters.ceil() as usize;
         return clusters_need;
     }
 

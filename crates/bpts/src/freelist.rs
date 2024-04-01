@@ -1,32 +1,50 @@
 use crate::Result;
 
-//TODO! bitmap
-pub struct FreeList {
-    buffer: *mut u8,
-    bufflen: u32,
+#[derive(Clone, Copy)]
+pub struct FreeListHeader {
+    len: u32,
 }
 
+//TODO! bitmap
+#[repr(C, packed)]
+pub struct FreeList {
+    buffer: *mut u8,
+    hdr: FreeListHeader,
+}
+
+const FREE_LIST_HEADER_SIZE: usize = std::mem::size_of::<FreeListHeader>();
+
 impl FreeList {
-    pub fn calc_size(buffsize: u32, cluster_size: u16) -> u32 {
-        return buffsize / cluster_size as u32;
+    pub fn calc_full_size(databuffsize: u32, cluster_size: u16) -> u32 {
+        let fsize = FREE_LIST_HEADER_SIZE as f32 + databuffsize as f32 / cluster_size as f32;
+        return fsize.ceil() as u32;
     }
 
-    pub fn size_for_len(len: u32) -> u32 {
-        return len;
+    pub unsafe fn open(buffer: *mut u8) -> FreeList {
+        let hdr = (buffer as *mut FreeListHeader).read();
+        return FreeList {
+            hdr: hdr,
+            buffer: buffer.add(FREE_LIST_HEADER_SIZE),
+        };
     }
 
-    pub fn new(buffer: *mut u8, bufflen: u32) -> FreeList {
-        FreeList { buffer, bufflen }
-    }
-
-    pub unsafe fn init(&mut self) {
-        for i in 0..self.bufflen {
-            self.buffer.add(i as usize).write(0u8);
+    pub unsafe fn init(buffer: *mut u8, databuffsize: u32, cluster_size: u16) -> FreeList {
+        let len =
+            FreeList::calc_full_size(databuffsize, cluster_size) - FREE_LIST_HEADER_SIZE as u32;
+        let hdr = FreeListHeader { len };
+        (buffer as *mut FreeListHeader).write(hdr.clone());
+        let space = buffer.add(FREE_LIST_HEADER_SIZE);
+        for i in 0..hdr.len {
+            space.add(i as usize).write(0u8);
         }
+        return FreeList {
+            hdr: hdr,
+            buffer: space,
+        };
     }
 
     pub unsafe fn set(&mut self, i: usize, val: bool) -> Result<()> {
-        if i > self.bufflen as usize {
+        if i > self.hdr.len as usize {
             return Err(crate::Error::Fail("out of bounds".to_owned()));
         }
         let f = if val { 1u8 } else { 0u8 };
@@ -35,11 +53,11 @@ impl FreeList {
     }
 
     pub fn len(&self) -> usize {
-        (self.bufflen) as usize
+        (self.hdr.len) as usize
     }
 
     pub unsafe fn get(&self, i: usize) -> Result<bool> {
-        if i > self.bufflen as usize {
+        if i > self.hdr.len as usize {
             return Err(crate::Error::Fail("out of bounds".to_owned()));
         }
 
@@ -51,7 +69,7 @@ impl FreeList {
     }
 
     pub unsafe fn is_full(&self) -> bool {
-        for index in 0..(self.bufflen as usize) {
+        for index in 0..(self.hdr.len as usize) {
             let v: u8 = self.buffer.add(index).read();
             if v == 0 {
                 return false;
@@ -62,7 +80,7 @@ impl FreeList {
 
     pub unsafe fn free_clusters(&self) -> usize {
         let mut res = 0;
-        for index in 0..(self.bufflen as usize) {
+        for index in 0..(self.hdr.len as usize) {
             let v: u8 = self.buffer.add(index).read();
             if v == 0 {
                 res += 1;
@@ -72,7 +90,7 @@ impl FreeList {
     }
 
     pub unsafe fn get_region_top(&self, i: usize) -> Option<usize> {
-        for index in 0..(self.bufflen as usize) {
+        for index in 0..(self.hdr.len as usize) {
             let v: u8 = self.buffer.add(index).read();
             if v == 0 {
                 let mut all_is_free = true;
@@ -92,7 +110,7 @@ impl FreeList {
     }
 
     pub unsafe fn get_region_bottom(&self, i: usize) -> Option<usize> {
-        for index in (i..(self.bufflen as usize)).rev() {
+        for index in (i..(self.hdr.len as usize)).rev() {
             let v: u8 = self.buffer.add(index).read();
             if v == 0 {
                 let mut all_is_free = true;
@@ -121,18 +139,15 @@ mod tests {
 
     #[test]
     fn freelist() -> crate::Result<()> {
-        const BUFFERSIZE: usize = 100;
-        let mut buffer = vec![0u8; BUFFERSIZE + 10];
+        const BUFFERLEN: usize = 100;
+        let buffsize = FreeList::calc_full_size(BUFFERLEN as u32, 1);
+        let mut buffer = vec![0u8; buffsize as usize + 10];
         for i in 0..10 {
             let pos = buffer.len() - 1 - i;
             buffer[pos] = i as u8;
         }
 
-        let mut fl = FreeList::new(buffer.as_mut_ptr(), BUFFERSIZE as u32);
-        unsafe { fl.init() };
-        for i in 0..BUFFERSIZE {
-            assert_eq!(buffer[i], 0);
-        }
+        let mut fl = unsafe { FreeList::init(buffer.as_mut_ptr(), BUFFERLEN as u32, 1) };
 
         for i in 0..10 {
             let pos = buffer.len() - 1 - i;
@@ -140,7 +155,7 @@ mod tests {
         }
 
         unsafe {
-            assert!(fl.set(BUFFERSIZE * 2, true).is_err());
+            assert!(fl.set((buffsize * 2) as usize, true).is_err());
 
             assert!(!fl.set(1, true).is_err());
 
