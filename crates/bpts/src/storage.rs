@@ -68,55 +68,59 @@ where
         }
     }
 
-    pub fn init(&mut self, params: StorageParams, cmp: HashMap<u32, PageKeyCmpRc>) -> Result<()> {
+    pub fn init(pstore: &'a PS, params: &StorageParams) -> Result<()> {
         let hdr = StorageParams {
             is_closed_normally: false,
-            ..params
+            ..*params
         };
 
-        self.pstore.header_write(&hdr)?;
+        pstore.header_write(&hdr)?;
         let tparam = TreeParams::default();
-        let page_free_list = FreeList::calc_full_size(hdr.freepagelist_len, 1);
+        let page_free_list_size = FreeList::calc_full_size(hdr.freepagelist_len, 1);
         let page_full_size = Page::calc_size(tparam, params.page_size, params.cluster_size);
 
         let dblock = DataBlockHeader {
-            freelist_size: page_free_list,
+            freelist_size: page_free_list_size,
             next_data_block_offset: 0,
         };
 
-        self.pstore
-            .alloc_region(DATABLOCKHEADERSIZE + page_free_list + page_full_size)?;
-
-        let mut space = self.pstore.space_ptr()?;
+        pstore.alloc_region(DATABLOCKHEADERSIZE + page_free_list_size + page_full_size)?;
+        let space = pstore.space_ptr()?;
         unsafe { (space as *mut DataBlockHeader).write(dblock) };
+        Ok(())
+    }
+
+    pub fn open(pstore: &'a PS, cmp: HashMap<u32, PageKeyCmpRc>) -> Result<Storage<'a, PS>> {
+        let mut result = Storage::new(pstore);
+        let p = pstore.header_read()?;
+        result.params = p;
+        let sparams = result.get_storage_params().unwrap();
+        let space = pstore.space_ptr()?;
+
+        let dblock = unsafe { (space as *mut DataBlockHeader).read() };
 
         let freelist_space = unsafe { space.add(DATABLOCKHEADERSIZE as usize) };
 
-        let mut freelist = unsafe { FreeList::init(freelist_space, hdr.freepagelist_len, 1) };
-        self.space = unsafe { space.add(page_free_list as usize) };
+        let mut freelist = unsafe { FreeList::init(freelist_space, sparams.freepagelist_len, 1) };
+        result.space = unsafe { space.add(dblock.freelist_size as usize) };
+
         unsafe {
             freelist.set(0, true)?;
             let page = Page::init_buffer(
-                self.space,
-                hdr.page_size,
-                hdr.cluster_size,
+                result.space,
+                sparams.page_size,
+                sparams.cluster_size,
                 cmp,
-                hdr.treeParams,
+                sparams.treeParams,
             )?;
-            self.curpage = Some(page)
+            result.curpage = Some(page)
         };
-        self.freelist = Some(freelist);
-
-        Ok(())
+        result.freelist = Some(freelist);
+        result.space = space;
+        Ok(result)
     }
 
-    pub fn open(&mut self) -> Result<()> {
-        let p = self.pstore.header_read()?;
-        self.params = p;
-        Ok(())
-    }
-
-    pub fn get_params(&self) -> Option<StorageParams> {
+    pub fn get_storage_params(&self) -> Option<StorageParams> {
         return match self.params {
             Some(x) => Some(unsafe { (*x).clone() }),
             None => None,
@@ -192,8 +196,7 @@ mod tests {
         allCmp.insert(0u32, cmp.clone());
 
         let fstore = MockPageStorage::new();
-        let mut store = Storage::new(&fstore);
-        store.init(StorageParams::default(), allCmp)?;
+        Storage::init(&fstore, &StorageParams::default())?;
 
         let writed_header = fstore.header_read()?;
         assert!(writed_header.is_some());
@@ -202,8 +205,9 @@ mod tests {
             assert_eq!((*writed_header).cluster_size, 16);
             assert_eq!((*writed_header).page_size, 1024);
         }
-        store.open()?;
-        let writed_params = store.get_params();
+
+        let store = Storage::open(&fstore, allCmp)?;
+        let writed_params = store.get_storage_params();
         assert!(writed_params.is_some());
         assert_eq!(writed_params.unwrap().cluster_size, 16);
         assert_eq!(writed_params.unwrap().page_size, 1024);
