@@ -1,12 +1,12 @@
 use crate::Result;
-
+#[repr(C, packed)]
 #[derive(Clone, Copy)]
 pub struct FreeListHeader {
     len: u32,
 }
 
 //TODO! bitmap
-#[repr(C, packed)]
+
 pub struct FreeList {
     buffer: *mut u8,
     hdr: FreeListHeader,

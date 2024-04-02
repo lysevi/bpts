@@ -1,10 +1,10 @@
 use std::fmt::Display;
 pub mod datalist;
-pub mod db;
 pub mod freelist;
 pub mod mfile;
 pub mod page;
 pub mod prelude;
+pub mod storage;
 pub mod transaction;
 pub mod tree;
 pub mod types;

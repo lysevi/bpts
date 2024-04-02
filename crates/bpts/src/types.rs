@@ -23,3 +23,28 @@ impl Id {
         self.0 = EMPTY_ID.0;
     }
 }
+
+pub(crate) struct SingleElementStore<T> {
+    value: Option<T>,
+}
+
+impl<T> SingleElementStore<T> {
+    pub fn new() -> SingleElementStore<T> {
+        SingleElementStore { value: None }
+    }
+
+    pub fn replace(&mut self, v: T) {
+        self.value = Some(v);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        return self.value.is_none();
+    }
+
+    pub fn as_ptr(&self) -> *const T {
+        match self.value {
+            Some(ref x) => unsafe { x as *const T },
+            None => std::ptr::null(),
+        }
+    }
+}
