@@ -3,7 +3,6 @@ use crate::Result;
 #[derive(Clone, Copy)]
 pub struct FreeListHeader {
     len: u32,
-    next_freelist: u32,
 }
 
 //TODO! bitmap
@@ -32,10 +31,7 @@ impl FreeList {
     pub unsafe fn init(buffer: *mut u8, databuffsize: u32, cluster_size: u16) -> FreeList {
         let len =
             FreeList::calc_full_size(databuffsize, cluster_size) - FREE_LIST_HEADER_SIZE as u32;
-        let hdr = FreeListHeader {
-            len,
-            next_freelist: 0,
-        };
+        let hdr = FreeListHeader { len };
         (buffer as *mut FreeListHeader).write(hdr.clone());
         let space = buffer.add(FREE_LIST_HEADER_SIZE);
         for i in 0..hdr.len {

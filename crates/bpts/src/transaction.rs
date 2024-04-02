@@ -33,7 +33,7 @@ pub struct Transaction {
     offset: u32,
     nodes: HashMap<u32, RcNode>,
     params: TreeParams,
-    cmp: TransKeyCmp,
+    cmp: Option<TransKeyCmp>,
 }
 
 impl Transaction {
@@ -49,14 +49,14 @@ impl Transaction {
             offset: 0u32,
             nodes: HashMap::new(),
             params: params,
-            cmp: keycmp,
+            cmp: Some(keycmp),
         }
     }
 
     pub unsafe fn from_buffer(
         buffer: *mut u8,
         global_offset: u32,
-        keycmp: TransKeyCmp,
+
         params: TreeParams,
     ) -> Transaction {
         let mut ptr_offset = 0;
@@ -134,7 +134,7 @@ impl Transaction {
             offset: global_offset,
             nodes: nodes,
             params: params,
-            cmp: keycmp,
+            cmp: None,
         }
     }
 
@@ -148,21 +148,18 @@ impl Transaction {
     }
 
     pub fn from_transaction(other: &Transaction) -> Transaction {
-        let mut res = unsafe {
-            Transaction::from_buffer(
-                other.buffer.unwrap(),
-                other.offset,
-                other.cmp.clone(),
-                other.params,
-            )
-        };
+        let mut res =
+            unsafe { Transaction::from_buffer(other.buffer.unwrap(), other.offset, other.params) };
+
+        let c = other.cmp.clone();
+        res.set_cmp(c.unwrap());
         res.offset = 0;
         res.buffer = None;
         return res;
     }
 
     pub fn set_cmp(&mut self, c: TransKeyCmp) {
-        self.cmp = c;
+        self.cmp = Some(c);
     }
 
     fn send_to_writer<Writer: BufferWriter>(&self, writer: &mut Writer) {
@@ -224,8 +221,15 @@ impl Transaction {
 
 impl KeyCmp for Transaction {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        let r = self.cmp.borrow();
-        return r.compare(key1, key2);
+        match &self.cmp {
+            Some(c) => {
+                let r = c.borrow();
+                return r.compare(key1, key2);
+            }
+            None => panic!(),
+        };
+        // let r = self.cmp.unwrap().borrow();
+        // return r.compare(key1, key2);
     }
 }
 
@@ -350,9 +354,9 @@ mod tests {
 
         {
             let slice = buffer.as_mut_slice();
-            let loaded_trans =
-                unsafe { Transaction::from_buffer(slice.as_mut_ptr(), 0, cmp.clone(), params) };
-
+            let mut loaded_trans =
+                unsafe { Transaction::from_buffer(slice.as_mut_ptr(), 0, params) };
+            loaded_trans.set_cmp(cmp.clone());
             assert!(loaded_trans.is_readonly());
             assert_eq!(loaded_trans.nodes_count(), storage.nodes_count());
 
