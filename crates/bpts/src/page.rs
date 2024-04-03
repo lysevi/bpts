@@ -8,7 +8,7 @@ use crate::tree::node::{KeyCmp, Node};
 use crate::tree::nodestorage::NodeStorage;
 use crate::tree::params::TreeParams;
 use crate::types::Id;
-use crate::{datalist, freelist, prelude::*, tree};
+use crate::{datalist, freelist, prelude::*};
 
 pub trait PageKeyCmp {
     fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering;
@@ -401,7 +401,7 @@ impl Page {
         }
         let first_cluster = data_cluster.unwrap();
         for i in 0..clusters_need {
-            unsafe { self.freelist.set(first_cluster + i, true)? };
+            unsafe { self.freelist.set(first_cluster + i, 1)? };
         }
 
         let data_offset = unsafe { self.offset_of_cluster(data_cluster.unwrap()) };
@@ -413,7 +413,7 @@ impl Page {
         let clusteres_count = self.clusters_for_bytes(size);
 
         for i in 0..clusteres_count {
-            unsafe { self.freelist.set(cluster_num + i, false)? };
+            unsafe { self.freelist.set(cluster_num + i, 0)? };
         }
         Ok(())
     }
@@ -461,46 +461,46 @@ mod tests {
         }
 
         let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockPageKeyCmp::new()));
-        let mut allCmp = HashMap::new();
-        allCmp.insert(7u32, cmp.clone());
-        allCmp.insert(8u32, cmp.clone());
+        let mut all_cmp = HashMap::new();
+        all_cmp.insert(7u32, cmp.clone());
+        all_cmp.insert(8u32, cmp.clone());
         unsafe {
             {
                 let mut page = Page::init_buffer(
                     b.as_mut_ptr(),
                     pagedatasize,
                     cluster_size,
-                    allCmp,
+                    all_cmp,
                     tparam.clone(),
                 )?;
                 assert_eq!(page.get_id(), 0);
                 page.header_set_id(777);
             }
             {
-                let mut allCmp = HashMap::new();
-                allCmp.insert(7u32, cmp.clone());
-                allCmp.insert(8u32, cmp.clone());
+                let mut all_cmp = HashMap::new();
+                all_cmp.insert(7u32, cmp.clone());
+                all_cmp.insert(8u32, cmp.clone());
                 let deafult_params = TreeParams::default();
-                let page2 = Page::from_buf(b.as_mut_ptr(), allCmp)?;
+                let page2 = Page::from_buf(b.as_mut_ptr(), all_cmp)?;
                 assert_eq!(page2.get_id(), 777);
                 let page_param = page2.tree_params();
                 assert_eq!(page_param.t, deafult_params.t);
             }
             {
-                let mut allCmp = HashMap::new();
-                allCmp.insert(7u32, cmp.clone());
-                allCmp.insert(8u32, cmp.clone());
-                let mut page = Page::from_buf(b.as_mut_ptr(), allCmp)?;
+                let mut all_cmp = HashMap::new();
+                all_cmp.insert(7u32, cmp.clone());
+                all_cmp.insert(8u32, cmp.clone());
+                let mut page = Page::from_buf(b.as_mut_ptr(), all_cmp)?;
                 let t = Transaction::new(3, 7, page.tree_params(), page.get_cmp(7));
                 assert!(page.transaction(7).is_none());
                 page.save_trans(t)?;
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
             }
             {
-                let mut allCmp = HashMap::new();
-                allCmp.insert(7u32, cmp.clone());
-                allCmp.insert(8u32, cmp.clone());
-                let mut page = Page::from_buf(b.as_mut_ptr(), allCmp)?;
+                let mut all_cmp = HashMap::new();
+                all_cmp.insert(7u32, cmp.clone());
+                all_cmp.insert(8u32, cmp.clone());
+                let mut page = Page::from_buf(b.as_mut_ptr(), all_cmp)?;
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
                 assert_eq!(page.transaction(7).unwrap().tree_id(), 7);
                 assert_eq!(page.trees_count(), 1);
@@ -515,10 +515,10 @@ mod tests {
             }
 
             {
-                let mut allCmp = HashMap::new();
-                allCmp.insert(7u32, cmp.clone());
-                allCmp.insert(8u32, cmp.clone());
-                let mut page = Page::from_buf(b.as_mut_ptr(), allCmp)?;
+                let mut all_cmp = HashMap::new();
+                all_cmp.insert(7u32, cmp.clone());
+                all_cmp.insert(8u32, cmp.clone());
+                let mut page = Page::from_buf(b.as_mut_ptr(), all_cmp)?;
                 assert_eq!(page.trees_count(), 2);
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
                 assert_eq!(page.transaction(7).unwrap().tree_id(), 7);
@@ -531,10 +531,10 @@ mod tests {
             }
 
             {
-                let mut allCmp = HashMap::new();
-                allCmp.insert(7u32, cmp.clone());
-                allCmp.insert(8u32, cmp.clone());
-                let page = Page::from_buf(b.as_mut_ptr(), allCmp)?;
+                let mut all_cmp = HashMap::new();
+                all_cmp.insert(7u32, cmp.clone());
+                all_cmp.insert(8u32, cmp.clone());
+                let page = Page::from_buf(b.as_mut_ptr(), all_cmp)?;
                 assert_eq!(page.trees_count(), 2);
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
                 assert_eq!(page.transaction(7).unwrap().tree_id(), 7);
@@ -556,9 +556,9 @@ mod tests {
         let pagedatasize = 1024 * 20;
         let cluster_size = 32;
         let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
-        let mut allCmp = HashMap::new();
+        let mut all_cmp = HashMap::new();
         let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockPageKeyCmp::new()));
-        allCmp.insert(0u32, cmp.clone());
+        all_cmp.insert(0u32, cmp.clone());
 
         let mut b = vec![0u8; bufsize as usize + 10];
 
@@ -572,7 +572,7 @@ mod tests {
                 b.as_mut_ptr(),
                 pagedatasize,
                 cluster_size,
-                allCmp,
+                all_cmp,
                 tparam.clone(),
             )?
         };
@@ -636,9 +636,9 @@ mod tests {
         let pagedatasize = 1024 * 1024 * 1024;
         let cluster_size = 32;
         let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
-        let mut allCmp = HashMap::new();
+        let mut all_cmp = HashMap::new();
         let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockPageKeyCmp::new()));
-        allCmp.insert(0u32, cmp.clone());
+        all_cmp.insert(0u32, cmp.clone());
 
         let mut b = vec![0u8; bufsize as usize + 10];
 
@@ -652,7 +652,7 @@ mod tests {
                 b.as_mut_ptr(),
                 pagedatasize,
                 cluster_size,
-                allCmp,
+                all_cmp,
                 tparam.clone(),
             )?
         };

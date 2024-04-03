@@ -24,7 +24,7 @@ pub struct StorageParams {
     cluster_size: u16,
     page_size: u32,
     freepagelist_len: u32,
-    treeParams: TreeParams,
+    tree_params: TreeParams,
 }
 
 impl StorageParams {
@@ -34,7 +34,7 @@ impl StorageParams {
             cluster_size: 16,
             page_size: 1024,
             freepagelist_len: 16,
-            treeParams: TreeParams::default(),
+            tree_params: TreeParams::default(),
         }
     }
 }
@@ -70,7 +70,7 @@ where
 
     pub fn init(pstore: &'a PS, params: &StorageParams) -> Result<()> {
         let hdr = StorageParams {
-            is_closed_normally: false,
+            is_closed_normally: true,
             ..*params
         };
 
@@ -94,6 +94,11 @@ where
         let mut result = Storage::new(pstore);
         let p = pstore.header_read()?;
         result.params = p;
+        unsafe {
+            if (*result.params.unwrap()).is_closed_normally == false {
+                todo!()
+            }
+        }
         let sparams = result.get_storage_params().unwrap();
         let space = pstore.space_ptr()?;
 
@@ -105,21 +110,30 @@ where
         result.space = unsafe { space.add(dblock.freelist_size as usize) };
 
         unsafe {
-            freelist.set(0, true)?;
+            freelist.set(0, 1)?;
             let page = Page::init_buffer(
                 result.space,
                 sparams.page_size,
                 sparams.cluster_size,
                 cmp,
-                sparams.treeParams,
+                sparams.tree_params,
             )?;
             result.curpage = Some(page)
         };
         result.freelist = Some(freelist);
         result.space = space;
+        result.pstore = pstore;
         Ok(result)
     }
 
+    pub fn close(&self) -> Result<()> {
+        unsafe {
+            let mut params = *(self.params.unwrap());
+            params.is_closed_normally = true;
+            self.pstore.header_write(&params)?;
+        }
+        Ok(())
+    }
     pub fn get_storage_params(&self) -> Option<StorageParams> {
         return match self.params {
             Some(x) => Some(unsafe { (*x).clone() }),
@@ -191,9 +205,9 @@ mod tests {
 
     #[test]
     fn db() -> Result<()> {
-        let mut allCmp = HashMap::new();
+        let mut all_cmp = HashMap::new();
         let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
-        allCmp.insert(0u32, cmp.clone());
+        all_cmp.insert(0u32, cmp.clone());
 
         let fstore = MockPageStorage::new();
         Storage::init(&fstore, &StorageParams::default())?;
@@ -206,11 +220,13 @@ mod tests {
             assert_eq!((*writed_header).page_size, 1024);
         }
 
-        let store = Storage::open(&fstore, allCmp)?;
+        let store = Storage::open(&fstore, all_cmp)?;
         let writed_params = store.get_storage_params();
         assert!(writed_params.is_some());
         assert_eq!(writed_params.unwrap().cluster_size, 16);
         assert_eq!(writed_params.unwrap().page_size, 1024);
+
+        store.close()?;
         Ok(())
     }
 }

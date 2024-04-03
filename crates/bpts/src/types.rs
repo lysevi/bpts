@@ -24,7 +24,7 @@ impl Id {
     }
 }
 
-pub(crate) struct SingleElementStore<T> {
+pub struct SingleElementStore<T> {
     value: Option<T>,
 }
 
@@ -43,7 +43,7 @@ impl<T> SingleElementStore<T> {
 
     pub fn as_ptr(&self) -> *const T {
         match self.value {
-            Some(ref x) => unsafe { x as *const T },
+            Some(ref x) => x as *const T,
             None => std::ptr::null(),
         }
     }

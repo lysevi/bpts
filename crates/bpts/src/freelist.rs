@@ -5,8 +5,6 @@ pub struct FreeListHeader {
     len: u32,
 }
 
-//TODO! bitmap
-
 pub struct FreeList {
     buffer: *mut u8,
     hdr: FreeListHeader,
@@ -43,12 +41,12 @@ impl FreeList {
         };
     }
 
-    pub unsafe fn set(&mut self, i: usize, val: bool) -> Result<()> {
+    pub unsafe fn set(&mut self, i: usize, val: u8) -> Result<()> {
         if i > self.hdr.len as usize {
             return Err(crate::Error::Fail("out of bounds".to_owned()));
         }
-        let f = if val { 1u8 } else { 0u8 };
-        self.buffer.add(i).write(f);
+
+        self.buffer.add(i).write(val);
         Ok(())
     }
 
@@ -56,16 +54,13 @@ impl FreeList {
         (self.hdr.len) as usize
     }
 
-    pub unsafe fn get(&self, i: usize) -> Result<bool> {
+    pub unsafe fn get(&self, i: usize) -> Result<u8> {
         if i > self.hdr.len as usize {
             return Err(crate::Error::Fail("out of bounds".to_owned()));
         }
 
         let f: u8 = self.buffer.add(i).read();
-        if f == 1 {
-            return Ok(true);
-        }
-        return Ok(false);
+        return Ok(f);
     }
 
     pub unsafe fn is_full(&self) -> bool {
@@ -155,20 +150,20 @@ mod tests {
         }
 
         unsafe {
-            assert!(fl.set((buffsize * 2) as usize, true).is_err());
+            assert!(fl.set((buffsize * 2) as usize, 1).is_err());
 
-            assert!(!fl.set(1, true).is_err());
+            assert!(!fl.set(1, 1).is_err());
 
-            assert!(fl.get(1).unwrap());
+            assert!(fl.get(1).unwrap() == 1);
 
-            assert!(!fl.set(2, true).is_err());
-            assert!(!fl.set(6, true).is_err());
+            assert!(!fl.set(2, 1).is_err());
+            assert!(!fl.set(6, 1).is_err());
 
             assert_eq!(fl.get_region_top(3).unwrap(), 3);
 
-            assert!(!fl.set(99, true).is_err());
-            assert!(!fl.set(98, true).is_err());
-            assert!(!fl.set(94, true).is_err());
+            assert!(!fl.set(99, 1).is_err());
+            assert!(!fl.set(98, 1).is_err());
+            assert!(!fl.set(94, 1).is_err());
             assert_eq!(fl.get_region_bottom(3).unwrap(), 95);
         }
         for i in 0..10 {
