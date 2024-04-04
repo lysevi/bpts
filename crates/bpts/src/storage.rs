@@ -179,15 +179,23 @@ where
                         return Ok(page);
                     }
                 }
+                todo!("region is full.");
             },
-            None => panic!(),
+            None => panic!("storeage is not open"),
         }
-        todo!("add new region");
     }
 
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
         let mut target_page = self.get_or_alloc_page()?;
-        target_page.insert(tree_id, key, data)?;
+        let insertion_result = target_page.insert(tree_id, key, data);
+        if insertion_result.is_err() {
+            match insertion_result.unwrap_err() {
+                crate::Error::Fail(_) => panic!(),
+                crate::Error::IsFull => {
+                    todo!("close page for writing, alloc new region and retry.")
+                }
+            }
+        }
         Ok(())
     }
 
@@ -210,8 +218,9 @@ where
                         return Ok(result);
                     }
                 }
+                todo!("try in other datablocks")
             },
-            None => panic!(),
+            None => panic!("storeage is not open"),
         }
         return Ok(None);
     }
