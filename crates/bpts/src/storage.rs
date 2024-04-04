@@ -1,8 +1,8 @@
-use std::{collections::HashMap, mem::offset_of, ptr};
+use std::{collections::HashMap, ptr};
 
 use crate::{
     freelist::FreeList,
-    page::{self, Page, PageKeyCmpRc},
+    page::{Page, PageKeyCmpRc},
     tree::params::TreeParams,
     Result,
 };
@@ -110,7 +110,7 @@ where
                 todo!()
             }
         }
-        //let sparams = result.get_storage_params().unwrap();
+
         let space = pstore.space_ptr()?;
 
         let freelist_space = unsafe { space.add(DATABLOCKHEADERSIZE as usize) };
@@ -139,31 +139,36 @@ where
         };
     }
 
-    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
-        let mut target_page: Option<Page> = None;
+    fn calc_offset_of_page(&self, i: usize) -> u32 {
+        unsafe {
+            let dblock = (self.space as *mut DataBlockHeader).read();
+            let offset =
+                DATABLOCKHEADERSIZE + dblock.freelist_size + (dblock.page_full_size * i as u32);
+            return offset;
+        }
+    }
+
+    fn get_page_instance(&self, i: usize) -> Result<Page> {
+        unsafe {
+            let offset = self.calc_offset_of_page(i);
+            let page = Page::from_buf(self.space.add(offset as usize), self.cmp.unwrap().clone())?;
+            return Ok(page);
+        }
+    }
+
+    fn get_or_alloc_page(&mut self) -> Result<Page> {
         match self.freelist {
             Some(ref mut fl) => unsafe {
                 for i in 0..fl.len() {
                     let page_state = fl.get(i)?;
                     if page_state == 1 {
-                        let dblock = (self.space as *mut DataBlockHeader).read();
-                        let offset = DATABLOCKHEADERSIZE
-                            + dblock.freelist_size
-                            + (dblock.page_full_size * i as u32);
-                        let page = Page::from_buf(
-                            self.space.add(offset as usize),
-                            self.cmp.unwrap().clone(),
-                        )?;
-                        target_page = Some(page);
-                        break;
+                        return self.get_page_instance(i);
                     }
                     if page_state == 0 {
                         fl.set(i, 1)?;
                         let params = (*self.params.unwrap()).clone();
-                        let dblock = (self.space as *mut DataBlockHeader).read();
-                        let offset = DATABLOCKHEADERSIZE
-                            + dblock.freelist_size
-                            + (dblock.page_full_size * i as u32);
+                        let offset = self.calc_offset_of_page(i);
+
                         let page = Page::init_buffer(
                             self.space.add(offset as usize),
                             params.page_size,
@@ -171,60 +176,44 @@ where
                             self.cmp.unwrap().clone(),
                             params.tree_params,
                         )?;
-                        target_page = Some(page);
-                        break;
+                        return Ok(page);
                     }
                 }
             },
             None => panic!(),
         }
+        todo!("add new region");
+    }
 
-        match target_page {
-            Some(ref mut x) => {
-                let res = x.insert(tree_id, key, data);
-                return res;
-            }
-            None => panic!(),
-        }
+    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
+        let mut target_page = self.get_or_alloc_page()?;
+        target_page.insert(tree_id, key, data)?;
+        Ok(())
     }
 
     pub fn find(&self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        let mut target_page: Option<Page> = None;
         match self.freelist {
             Some(ref fl) => unsafe {
                 for i in 0..fl.len() {
                     let page_state = fl.get(i)?;
                     if page_state == 1 {
-                        let params = (*self.params.unwrap()).clone();
-                        let dblock = (self.space as *mut DataBlockHeader).read();
-                        let offset = DATABLOCKHEADERSIZE
-                            + dblock.freelist_size
-                            + (params.page_size + dblock.freelist_size) * i as u32;
+                        let offset = self.calc_offset_of_page(i);
                         let page = Page::from_buf(
                             self.space.add(offset as usize),
                             self.cmp.unwrap().clone(),
                         )?;
-                        target_page = Some(page);
-                        break;
+
+                        let result = match page.find(tree_id, key)? {
+                            Some(x) => Some(x.to_vec()),
+                            None => continue,
+                        };
+                        return Ok(result);
                     }
                 }
             },
             None => panic!(),
         }
-
-        match target_page {
-            Some(ref mut x) => {
-                let res = x.find(tree_id, key)?;
-                return match res {
-                    Some(d) => {
-                        let result = d.to_vec();
-                        Ok(Some(result))
-                    }
-                    None => Ok(None),
-                };
-            }
-            None => panic!(),
-        }
+        return Ok(None);
     }
 }
 
@@ -233,9 +222,7 @@ mod tests {
     use std::{cell::RefCell, rc::Rc};
 
     use super::*;
-    use crate::{
-        page::PageKeyCmp, types::SingleElementStore, utils::any_as_u8_slice, verbose, Result,
-    };
+    use crate::{page::PageKeyCmp, types::SingleElementStore, utils::any_as_u8_slice, Result};
 
     struct MockStorageKeyCmp {}
 
