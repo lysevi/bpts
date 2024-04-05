@@ -222,7 +222,6 @@ where
             },
             None => panic!("storeage is not open"),
         }
-        return Ok(None);
     }
 }
 
