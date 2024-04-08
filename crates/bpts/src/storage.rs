@@ -46,6 +46,9 @@ pub struct DataBlockHeader {
 }
 
 const DATABLOCKHEADERSIZE: u32 = std::mem::size_of::<DataBlockHeader>() as u32;
+// SPACE IS FREE -> ALLOCATED -> IS_FULL
+const PAGE_SPACE_IS_FREE: u8 = 0;
+const PAGE_IS_ALLOCATED: u8 = 1;
 
 pub struct Storage<'a, PS: FlatStorage> {
     pstore: &'a PS,
@@ -161,11 +164,11 @@ where
             Some(ref mut fl) => unsafe {
                 for i in 0..fl.len() {
                     let page_state = fl.get(i)?;
-                    if page_state == 1 {
+                    if page_state == PAGE_IS_ALLOCATED {
                         return self.get_page_instance(i);
                     }
-                    if page_state == 0 {
-                        fl.set(i, 1)?;
+                    if page_state == PAGE_SPACE_IS_FREE {
+                        fl.set(i, PAGE_IS_ALLOCATED)?;
                         let params = (*self.params.unwrap()).clone();
                         let offset = self.calc_offset_of_page(i);
 
@@ -204,7 +207,7 @@ where
             Some(ref fl) => unsafe {
                 for i in 0..fl.len() {
                     let page_state = fl.get(i)?;
-                    if page_state == 1 {
+                    if page_state == PAGE_IS_ALLOCATED {
                         let offset = self.calc_offset_of_page(i);
                         let page = Page::from_buf(
                             self.space.add(offset as usize),
