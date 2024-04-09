@@ -115,6 +115,7 @@ impl Page {
 
         (*h) = Header::default(params, buffsize, cluster_size);
         (*h).params = params;
+        (*h).trans_list_offset = std::u32::MAX;
 
         let flsize = (*h).freelist_fullsize;
         let fl = FreeList::init(buffer.add(HEADER_SIZE), buffsize, (*h).cluster_size);
@@ -141,7 +142,7 @@ impl Page {
         let flsize = (*h).freelist_fullsize;
         let space = buffer.add(HEADER_SIZE).add(flsize as usize);
 
-        let t: HashMap<u32, Transaction> = if (*h).trans_list_offset == 0 {
+        let t: HashMap<u32, Transaction> = if (*h).trans_list_offset == std::u32::MAX {
             HashMap::new()
         } else {
             let mut ptr = space.add((*h).trans_list_offset as usize);
@@ -234,7 +235,7 @@ impl Page {
                 let old_trans_list = (*self.hdr).trans_list_offset;
                 self.header_update_trans_list_offset(trans_list_offset);
 
-                if old_trans_list != 0 {
+                if old_trans_list != std::u32::MAX {
                     self.free_mem(old_trans_list, old_translist_size)?
                 }
             }

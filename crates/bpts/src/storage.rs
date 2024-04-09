@@ -312,8 +312,11 @@ mod tests {
         assert_eq!(writed_params.unwrap().cluster_size, 16);
         assert_eq!(writed_params.unwrap().page_size, 1024);
 
-        for key in 0..3 {
+        for key in 0..100 {
             println!("insert {}", key);
+            if key == 4 {
+                println!("!");
+            }
             let key_sl = unsafe { any_as_u8_slice(&key) };
             store.insert(1, &key_sl, &key_sl)?;
             let find_res = store.find(1, key_sl)?;
