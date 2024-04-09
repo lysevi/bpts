@@ -57,6 +57,28 @@ pub struct Storage<'a, PS: FlatStorage> {
     cmp: Option<&'a HashMap<u32, PageKeyCmpRc>>,
 }
 
+pub struct RegionInfo {
+    pages_info: Vec<u8>,
+}
+
+impl std::fmt::Display for RegionInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "[")?;
+        for i in self.pages_info.iter() {
+            if *i == PAGE_SPACE_IS_FREE {
+                write!(f, ".")?;
+            }
+            if *i == PAGE_IS_FULL {
+                write!(f, "*")?;
+            }
+            if *i == PAGE_IS_ALLOCATED {
+                write!(f, "O")?;
+            }
+        }
+        write!(f, "]")
+    }
+}
+
 impl<'a, PS> Storage<'a, PS>
 where
     PS: FlatStorage,
@@ -122,6 +144,27 @@ where
             self.pstore.header_write(&params)?;
         }
         Ok(())
+    }
+
+    pub fn info(&self) -> Result<Vec<RegionInfo>> {
+        let space = self.pstore.space_ptr().unwrap();
+        let mut result: Vec<RegionInfo> = Vec::new();
+        unsafe {
+            loop {
+                let dblock = (space as *mut DataBlockHeader).read();
+                let mut info = Vec::with_capacity(dblock.freelist_size as usize);
+                let freelist = FreeList::open(space.add(DATABLOCKHEADERSIZE as usize) as *mut u8);
+                for i in 0..freelist.len() {
+                    info.push(freelist.get(i)?);
+                }
+                result.push(RegionInfo { pages_info: info });
+
+                if dblock.next_data_block_offset == 0 {
+                    break;
+                }
+            }
+        }
+        return Ok(result);
     }
 
     fn get_freelist(&self, space: *mut u8) -> FreeList {
@@ -318,8 +361,13 @@ mod tests {
         assert_eq!(writed_params.unwrap().cluster_size, 16);
         assert_eq!(writed_params.unwrap().page_size, 1024);
 
-        for key in 0..100 {
+        for key in 0..400 {
+            let info = store.info()?;
             println!("insert {}", key);
+            for rinfo in info {
+                print!("{}", rinfo);
+            }
+            println!();
             let key_sl = unsafe { any_as_u8_slice(&key) };
             store.insert(1, &key_sl, &key_sl)?;
             let find_res = store.find(1, key_sl)?;
