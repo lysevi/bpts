@@ -1,11 +1,5 @@
 # bpts
 
-- [ ] Storage
-  - [ ] open
-    - [ ] open last free page
-  - [ ] insert
-    - [ ] alloc page
-      - [ ] mark as free page
 - [ ] Page is full.
   - [ ] test: many trees, many transactions:     
     - [ ] insert
