@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ptr};
+use std::collections::HashMap;
 
 use crate::{
     freelist::FreeList,
@@ -49,12 +49,11 @@ const DATABLOCKHEADERSIZE: u32 = std::mem::size_of::<DataBlockHeader>() as u32;
 // SPACE IS FREE -> ALLOCATED -> IS_FULL
 const PAGE_SPACE_IS_FREE: u8 = 0;
 const PAGE_IS_ALLOCATED: u8 = 1;
+const PAGE_IS_FULL: u8 = 2;
 
 pub struct Storage<'a, PS: FlatStorage> {
     pstore: &'a PS,
     params: Option<*const StorageParams>,
-    freelist: Option<FreeList>,
-    space: *mut u8,
     cmp: Option<&'a HashMap<u32, PageKeyCmpRc>>,
 }
 
@@ -66,9 +65,7 @@ where
         Storage {
             pstore: pstore,
             params: None,
-            freelist: None,
             cmp: None,
-            space: ptr::null_mut(),
         }
     }
 
@@ -89,7 +86,7 @@ where
             next_data_block_offset: 0,
         };
 
-        pstore.alloc_region(DATABLOCKHEADERSIZE + page_free_list_size + page_full_size)?;
+        pstore.alloc_region(DATABLOCKHEADERSIZE + page_free_list_size)?;
         let space = pstore.space_ptr()?;
         unsafe {
             (space as *mut DataBlockHeader).write(dblock);
@@ -114,15 +111,6 @@ where
             }
         }
 
-        let space = pstore.space_ptr()?;
-
-        let freelist_space = unsafe { space.add(DATABLOCKHEADERSIZE as usize) };
-
-        let freelist = unsafe { FreeList::open(freelist_space) };
-        result.space = space;
-
-        result.freelist = Some(freelist);
-        result.space = space;
         result.pstore = pstore;
         Ok(result)
     }
@@ -135,6 +123,14 @@ where
         }
         Ok(())
     }
+
+    fn get_freelist(&self, space: *mut u8) -> FreeList {
+        let freelist_space = unsafe { space.add(DATABLOCKHEADERSIZE as usize) };
+
+        let freelist = unsafe { FreeList::open(freelist_space) };
+        return freelist;
+    }
+
     pub fn get_storage_params(&self) -> Option<StorageParams> {
         return match self.params {
             Some(x) => Some(unsafe { (*x).clone() }),
@@ -144,7 +140,8 @@ where
 
     fn calc_offset_of_page(&self, i: usize) -> u32 {
         unsafe {
-            let dblock = (self.space as *mut DataBlockHeader).read();
+            let space = self.pstore.space_ptr().unwrap();
+            let dblock = (space as *mut DataBlockHeader).read();
             let offset =
                 DATABLOCKHEADERSIZE + dblock.freelist_size + (dblock.page_full_size * i as u32);
             return offset;
@@ -153,49 +150,60 @@ where
 
     fn get_page_instance(&self, i: usize) -> Result<Page> {
         unsafe {
+            let space = self.pstore.space_ptr()?;
             let offset = self.calc_offset_of_page(i);
-            let page = Page::from_buf(self.space.add(offset as usize), self.cmp.unwrap().clone())?;
+            let page = Page::from_buf(space.add(offset as usize), self.cmp.unwrap().clone())?;
             return Ok(page);
         }
     }
 
-    fn get_or_alloc_page(&mut self) -> Result<Page> {
-        match self.freelist {
-            Some(ref mut fl) => unsafe {
-                for i in 0..fl.len() {
-                    let page_state = fl.get(i)?;
-                    if page_state == PAGE_IS_ALLOCATED {
-                        return self.get_page_instance(i);
-                    }
-                    if page_state == PAGE_SPACE_IS_FREE {
-                        fl.set(i, PAGE_IS_ALLOCATED)?;
-                        let params = (*self.params.unwrap()).clone();
-                        let offset = self.calc_offset_of_page(i);
-
-                        let page = Page::init_buffer(
-                            self.space.add(offset as usize),
-                            params.page_size,
-                            params.cluster_size,
-                            self.cmp.unwrap().clone(),
-                            params.tree_params,
-                        )?;
-                        return Ok(page);
-                    }
+    fn get_or_alloc_page(&mut self) -> Result<(Page, usize)> {
+        let mut space = self.pstore.space_ptr()?;
+        let mut fl = self.get_freelist(space);
+        unsafe {
+            for i in 0..fl.len() {
+                let page_state = fl.get(i)?;
+                if page_state == PAGE_IS_ALLOCATED {
+                    return Ok((self.get_page_instance(i)?, i));
                 }
-                todo!("region is full.");
-            },
-            None => panic!("storeage is not open"),
+                if page_state == PAGE_SPACE_IS_FREE {
+                    fl.set(i, PAGE_IS_ALLOCATED)?;
+                    let dblock = (space as *mut DataBlockHeader).read();
+                    self.pstore.alloc_region(dblock.page_full_size)?;
+                    space = self.pstore.space_ptr()?;
+                    let params = (*self.params.unwrap()).clone();
+                    let offset = self.calc_offset_of_page(i);
+
+                    let page = Page::init_buffer(
+                        space.add(offset as usize),
+                        params.page_size,
+                        params.cluster_size,
+                        self.cmp.unwrap().clone(),
+                        params.tree_params,
+                    )?;
+                    return Ok((page, i));
+                }
+                if page_state == PAGE_IS_FULL {
+                    continue;
+                }
+
+                todo!("state: {}  not implemented.", page_state);
+            }
+            todo!("region is full.");
         }
     }
 
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
         let mut target_page = self.get_or_alloc_page()?;
-        let insertion_result = target_page.insert(tree_id, key, data);
+        let insertion_result = target_page.0.insert(tree_id, key, data);
         if insertion_result.is_err() {
             match insertion_result.unwrap_err() {
                 crate::Error::Fail(_) => panic!(),
                 crate::Error::IsFull => {
-                    todo!("close page for writing, alloc new region and retry.")
+                    let space = self.pstore.space_ptr()?;
+                    let mut fl = self.get_freelist(space);
+                    unsafe { fl.set(target_page.1, PAGE_IS_FULL)? };
+                    return self.insert(tree_id, key, data);
                 }
             }
         }
@@ -203,27 +211,25 @@ where
     }
 
     pub fn find(&self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        match self.freelist {
-            Some(ref fl) => unsafe {
-                for i in 0..fl.len() {
-                    let page_state = fl.get(i)?;
-                    if page_state == PAGE_IS_ALLOCATED {
-                        let offset = self.calc_offset_of_page(i);
-                        let page = Page::from_buf(
-                            self.space.add(offset as usize),
-                            self.cmp.unwrap().clone(),
-                        )?;
+        let space = self.pstore.space_ptr()?;
+        let fl = self.get_freelist(space);
+        unsafe {
+            for i in 0..fl.len() {
+                let page_state = fl.get(i)?;
+                if page_state != PAGE_SPACE_IS_FREE {
+                    let space = self.pstore.space_ptr()?;
+                    let offset = self.calc_offset_of_page(i);
+                    let page =
+                        Page::from_buf(space.add(offset as usize), self.cmp.unwrap().clone())?;
 
-                        let result = match page.find(tree_id, key)? {
-                            Some(x) => Some(x.to_vec()),
-                            None => continue,
-                        };
-                        return Ok(result);
-                    }
+                    let result = match page.find(tree_id, key)? {
+                        Some(x) => Some(x.to_vec()),
+                        None => continue,
+                    };
+                    return Ok(result);
                 }
-                todo!("try in other datablocks")
-            },
-            None => panic!("storeage is not open"),
+            }
+            todo!("try in other datablocks")
         }
     }
 }
@@ -314,9 +320,6 @@ mod tests {
 
         for key in 0..100 {
             println!("insert {}", key);
-            if key == 4 {
-                println!("!");
-            }
             let key_sl = unsafe { any_as_u8_slice(&key) };
             store.insert(1, &key_sl, &key_sl)?;
             let find_res = store.find(1, key_sl)?;
