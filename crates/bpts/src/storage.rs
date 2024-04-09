@@ -361,7 +361,8 @@ mod tests {
         assert_eq!(writed_params.unwrap().cluster_size, 16);
         assert_eq!(writed_params.unwrap().page_size, 1024);
 
-        for key in 0..400 {
+        let max_key = 400;
+        for key in 0..max_key {
             println!("insert {}", key);
             let info = store.info()?;
             for rinfo in info {
@@ -376,16 +377,15 @@ mod tests {
                 let value = &find_res.unwrap()[..];
                 assert_eq!(value, cur_key_sl)
             }
+        }
 
-            {
-                for i in 0..key {
-                    let key_sl = unsafe { any_as_u8_slice(&i) };
-                    let find_res = store.find(1, key_sl)?;
-                    assert!(find_res.is_some());
-                    let value = &find_res.unwrap()[..];
-                    assert_eq!(value, key_sl)
-                }
-            }
+        for key in 0..max_key {
+            println!("insert {}", key);
+            let key_sl = unsafe { any_as_u8_slice(&key) };
+            let find_res = store.find(1, key_sl)?;
+            assert!(find_res.is_some());
+            let value = &find_res.unwrap()[..];
+            assert_eq!(value, key_sl)
         }
 
         store.close()?;
