@@ -362,18 +362,30 @@ mod tests {
         assert_eq!(writed_params.unwrap().page_size, 1024);
 
         for key in 0..400 {
-            let info = store.info()?;
             println!("insert {}", key);
+            let info = store.info()?;
             for rinfo in info {
                 print!("{}", rinfo);
             }
             println!();
-            let key_sl = unsafe { any_as_u8_slice(&key) };
-            store.insert(1, &key_sl, &key_sl)?;
-            let find_res = store.find(1, key_sl)?;
-            assert!(find_res.is_some());
-            let value = &find_res.unwrap()[..];
-            assert_eq!(value, key_sl)
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            store.insert(1, &cur_key_sl, &cur_key_sl)?;
+            {
+                let find_res = store.find(1, cur_key_sl)?;
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, cur_key_sl)
+            }
+
+            {
+                for i in 0..key {
+                    let key_sl = unsafe { any_as_u8_slice(&i) };
+                    let find_res = store.find(1, key_sl)?;
+                    assert!(find_res.is_some());
+                    let value = &find_res.unwrap()[..];
+                    assert_eq!(value, key_sl)
+                }
+            }
         }
 
         store.close()?;
