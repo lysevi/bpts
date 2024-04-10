@@ -167,7 +167,7 @@ where
         return Ok(result);
     }
 
-    fn get_freelist(&self, space: *mut u8) -> FreeList {
+    fn get_freelist(space: *mut u8) -> FreeList {
         let freelist_space = unsafe { space.add(DATABLOCKHEADERSIZE as usize) };
 
         let freelist = unsafe { FreeList::open(freelist_space) };
@@ -181,9 +181,8 @@ where
         };
     }
 
-    fn calc_offset_of_page(&self, i: usize) -> u32 {
+    fn calc_offset_of_page(space: *mut u8, i: usize) -> u32 {
         unsafe {
-            let space = self.pstore.space_ptr().unwrap();
             let dblock = (space as *mut DataBlockHeader).read();
             let offset =
                 DATABLOCKHEADERSIZE + dblock.freelist_size + (dblock.page_full_size * i as u32);
@@ -191,23 +190,22 @@ where
         }
     }
 
-    fn get_page_instance(&self, i: usize) -> Result<Page> {
+    fn get_page_instance(&self, space: *mut u8, i: usize) -> Result<Page> {
         unsafe {
-            let space = self.pstore.space_ptr()?;
-            let offset = self.calc_offset_of_page(i);
+            let offset = Self::calc_offset_of_page(space, i);
             let page = Page::from_buf(space.add(offset as usize), self.cmp.unwrap().clone())?;
             return Ok(page);
         }
     }
 
-    fn get_or_alloc_page(&mut self) -> Result<(Page, usize)> {
+    fn get_or_alloc_page(&mut self) -> Result<(Page, usize, *mut u8)> {
         let mut space = self.pstore.space_ptr()?;
-        let mut fl = self.get_freelist(space);
+        let mut fl = Self::get_freelist(space);
         unsafe {
             for i in 0..fl.len() {
                 let page_state = fl.get(i)?;
                 if page_state == PAGE_IS_ALLOCATED {
-                    return Ok((self.get_page_instance(i)?, i));
+                    return Ok((self.get_page_instance(space, i)?, i, space));
                 }
                 if page_state == PAGE_SPACE_IS_FREE {
                     fl.set(i, PAGE_IS_ALLOCATED)?;
@@ -215,7 +213,7 @@ where
                     self.pstore.alloc_region(dblock.page_full_size)?;
                     space = self.pstore.space_ptr()?;
                     let params = (*self.params.unwrap()).clone();
-                    let offset = self.calc_offset_of_page(i);
+                    let offset = Self::calc_offset_of_page(space, i);
 
                     let page = Page::init_buffer(
                         space.add(offset as usize),
@@ -224,7 +222,7 @@ where
                         self.cmp.unwrap().clone(),
                         params.tree_params,
                     )?;
-                    return Ok((page, i));
+                    return Ok((page, i, space));
                 }
                 if page_state == PAGE_IS_FULL {
                     continue;
@@ -243,8 +241,8 @@ where
             match insertion_result.unwrap_err() {
                 crate::Error::Fail(_) => panic!(),
                 crate::Error::IsFull => {
-                    let space = self.pstore.space_ptr()?;
-                    let mut fl = self.get_freelist(space);
+                    let space = target_page.2;
+                    let mut fl = Self::get_freelist(space);
                     unsafe { fl.set(target_page.1, PAGE_IS_FULL)? };
                     return self.insert(tree_id, key, data);
                 }
@@ -255,13 +253,12 @@ where
 
     pub fn find(&self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
         let space = self.pstore.space_ptr()?;
-        let fl = self.get_freelist(space);
+        let fl = Self::get_freelist(space);
         unsafe {
             for i in 0..fl.len() {
                 let page_state = fl.get(i)?;
                 if page_state != PAGE_SPACE_IS_FREE {
-                    let space = self.pstore.space_ptr()?;
-                    let offset = self.calc_offset_of_page(i);
+                    let offset = Self::calc_offset_of_page(space, i);
                     let page =
                         Page::from_buf(space.add(offset as usize), self.cmp.unwrap().clone())?;
 
