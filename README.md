@@ -8,7 +8,10 @@
   - [ ] crc
 - [ ] Storage
   - [ ] datablockheader.is_full
-- [ ] benchmark on memory sorage.
+- [ ] benchmark on memory sorage
+  - [ ] median time
+  - [ ] mean time
+  - [ ] 99 percentile time
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
 - [ ] - binary search in nodes.
