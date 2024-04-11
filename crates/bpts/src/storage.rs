@@ -203,6 +203,60 @@ where
         }
     }
 
+    unsafe fn allocate_page(&self, cur_block_space: *mut u8, num: usize) -> Result<Page> {
+        let mut fl = Self::get_freelist(cur_block_space);
+        fl.set(num, PAGE_IS_ALLOCATED)?;
+
+        let params = (*self.params.unwrap()).clone();
+        let offset = Self::calc_offset_of_page(cur_block_space, num);
+
+        let page = Page::init_buffer(
+            cur_block_space.add(offset as usize),
+            params.page_size,
+            params.cluster_size,
+            self.cmp.unwrap().clone(),
+            params.tree_params,
+        )?;
+        Ok(page)
+    }
+
+    unsafe fn allocate_datablock(
+        &mut self,
+        block_space: *mut u8,
+        dblock_offset: u32,
+        blkhdr: &DataBlockHeader,
+        fl_len: usize,
+    ) -> Result<(Page, usize, *mut u8)> {
+        let cur_dblock_offset = dblock_offset
+            + DATABLOCKHEADERSIZE
+            + blkhdr.freelist_size
+            + blkhdr.page_full_size * (fl_len as u32);
+
+        //update next_data_block_offset
+        let fieldoffset = std::mem::offset_of!(DataBlockHeader, next_data_block_offset);
+        (block_space.add(fieldoffset) as *mut u32).write(cur_dblock_offset);
+
+        let dblock_with_page_size =
+            DATABLOCKHEADERSIZE + blkhdr.freelist_size + blkhdr.page_full_size;
+        self.pstore.alloc_region(dblock_with_page_size)?;
+        let cur_block_space = (self.pstore.space_ptr()?).add(cur_dblock_offset as usize);
+
+        let hdr = self.pstore.header_read()?.unwrap();
+        let dblock = DataBlockHeader {
+            next_data_block_offset: 0,
+            ..*blkhdr
+        };
+
+        (cur_block_space as *mut DataBlockHeader).write(dblock);
+        FreeList::init(
+            cur_block_space.add(DATABLOCKHEADERSIZE as usize),
+            (*hdr).freepagelist_len,
+            1,
+        );
+        let page = self.allocate_page(cur_block_space, 0)?;
+        return Ok((page, 0, cur_block_space));
+    }
+
     fn get_or_alloc_page(&mut self) -> Result<(Page, usize, *mut u8)> {
         let mut cur_block_space = self.pstore.space_ptr()?;
         unsafe {
@@ -219,20 +273,11 @@ where
                         ));
                     }
                     if page_state == PAGE_SPACE_IS_FREE {
-                        fl.set(i, PAGE_IS_ALLOCATED)?;
                         let dblock = (cur_block_space as *mut DataBlockHeader).read();
                         self.pstore.alloc_region(dblock.page_full_size)?;
                         cur_block_space = self.pstore.space_ptr()?.add(cur_dblock_offset as usize);
-                        let params = (*self.params.unwrap()).clone();
-                        let offset = Self::calc_offset_of_page(cur_block_space, i);
 
-                        let page = Page::init_buffer(
-                            cur_block_space.add(offset as usize),
-                            params.page_size,
-                            params.cluster_size,
-                            self.cmp.unwrap().clone(),
-                            params.tree_params,
-                        )?;
+                        let page = self.allocate_page(cur_block_space, i)?;
                         return Ok((page, i, cur_block_space));
                     }
                     if page_state == PAGE_IS_FULL {
@@ -241,7 +286,7 @@ where
 
                     todo!("state: {}  not implemented.", page_state);
                 }
-                let mut blkhdr = (cur_block_space as *mut DataBlockHeader).read();
+                let blkhdr = (cur_block_space as *mut DataBlockHeader).read();
 
                 if blkhdr.next_data_block_offset != 0 {
                     cur_block_space = self
@@ -251,48 +296,13 @@ where
                     fl = Self::get_freelist(cur_block_space);
                     cur_dblock_offset = blkhdr.next_data_block_offset;
                 } else {
-                    // new datablock allocation
-                    cur_dblock_offset = cur_dblock_offset
-                        + DATABLOCKHEADERSIZE
-                        + blkhdr.freelist_size
-                        + blkhdr.page_full_size * (fl.len() as u32);
-                    blkhdr.next_data_block_offset = cur_dblock_offset;
-                    let fieldoffset = std::mem::offset_of!(DataBlockHeader, next_data_block_offset);
-
-                    (cur_block_space.add(fieldoffset) as *mut u32).write(cur_dblock_offset);
-                    let dblock_full_size =
-                        DATABLOCKHEADERSIZE + blkhdr.freelist_size + blkhdr.page_full_size;
-                    self.pstore.alloc_region(dblock_full_size)?;
-                    cur_block_space = (self.pstore.space_ptr()?).add(cur_dblock_offset as usize);
-
-                    let hdr = self.pstore.header_read()?.unwrap();
-                    let dblock = DataBlockHeader {
-                        next_data_block_offset: 0,
-                        ..blkhdr
-                    };
-
-                    (cur_block_space as *mut DataBlockHeader).write(dblock);
-                    FreeList::init(
-                        cur_block_space.add(DATABLOCKHEADERSIZE as usize),
-                        (*hdr).freepagelist_len,
-                        1,
+                    let blkhdr = (cur_block_space as *mut DataBlockHeader).read();
+                    return self.allocate_datablock(
+                        cur_block_space,
+                        cur_dblock_offset,
+                        &blkhdr,
+                        fl.len(),
                     );
-                    fl = Self::get_freelist(cur_block_space);
-
-                    //TODO refact. duplicated with ''if page_state == PAGE_SPACE_IS_FREE {''
-                    fl.set(0, PAGE_IS_ALLOCATED)?;
-
-                    let params = (*self.params.unwrap()).clone();
-                    let offset = Self::calc_offset_of_page(cur_block_space, 0);
-
-                    let page = Page::init_buffer(
-                        cur_block_space.add(offset as usize),
-                        params.page_size,
-                        params.cluster_size,
-                        self.cmp.unwrap().clone(),
-                        params.tree_params,
-                    )?;
-                    return Ok((page, 0, cur_block_space));
                 }
             }
         }
