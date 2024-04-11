@@ -6,6 +6,9 @@
     - [ ] find
     - [ ] remove
   - [ ] crc
+- [ ] Storage
+  - [ ] datablockheader.is_full
+- [ ] benchmark on memory sorage.
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
 - [ ] - binary search in nodes.
