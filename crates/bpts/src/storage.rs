@@ -260,7 +260,8 @@ where
                     let fieldoffset = std::mem::offset_of!(DataBlockHeader, next_data_block_offset);
 
                     (cur_block_space.add(fieldoffset) as *mut u32).write(cur_dblock_offset);
-                    let dblock_full_size = DATABLOCKHEADERSIZE + blkhdr.freelist_size;
+                    let dblock_full_size =
+                        DATABLOCKHEADERSIZE + blkhdr.freelist_size + blkhdr.page_full_size;
                     self.pstore.alloc_region(dblock_full_size)?;
                     cur_block_space = (self.pstore.space_ptr()?).add(cur_dblock_offset as usize);
 
@@ -277,6 +278,21 @@ where
                         1,
                     );
                     fl = Self::get_freelist(cur_block_space);
+
+                    //TODO refact. duplicated with ''if page_state == PAGE_SPACE_IS_FREE {''
+                    fl.set(0, PAGE_IS_ALLOCATED)?;
+
+                    let params = (*self.params.unwrap()).clone();
+                    let offset = Self::calc_offset_of_page(cur_block_space, 0);
+
+                    let page = Page::init_buffer(
+                        cur_block_space.add(offset as usize),
+                        params.page_size,
+                        params.cluster_size,
+                        self.cmp.unwrap().clone(),
+                        params.tree_params,
+                    )?;
+                    return Ok((page, 0, cur_block_space));
                 }
             }
         }
