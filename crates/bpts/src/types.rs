@@ -24,11 +24,15 @@ impl Id {
     }
 }
 
-pub struct SingleElementStore<T> {
+pub struct SingleElementStore<T: Clone> {
     value: Option<T>,
 }
 
-impl<T> SingleElementStore<T> {
+impl<T: Clone> SingleElementStore<T> {
+    pub fn new_with(t: T) -> SingleElementStore<T> {
+        SingleElementStore { value: Some(t) }
+    }
+
     pub fn new() -> SingleElementStore<T> {
         SingleElementStore { value: None }
     }
@@ -45,6 +49,23 @@ impl<T> SingleElementStore<T> {
         match self.value {
             Some(ref x) => x as *const T,
             None => std::ptr::null(),
+        }
+    }
+
+    pub fn as_value(&self) -> T {
+        match self.value {
+            Some(ref x) => x.clone(),
+            None => panic!(),
+        }
+    }
+
+    pub fn apply<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut T),
+    {
+        match self.value {
+            Some(ref mut x) => f(x),
+            None => return,
         }
     }
 }

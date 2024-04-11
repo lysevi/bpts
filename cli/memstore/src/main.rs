@@ -8,6 +8,17 @@ use bpts::{
     utils::any_as_u8_slice,
 };
 
+#[derive(Clone)]
+struct TestStorageInfo {
+    allocations: usize,
+}
+
+impl TestStorageInfo {
+    pub fn get_allocation(&self) -> usize {
+        self.allocations
+    }
+}
+
 struct MockStorageKeyCmp {}
 
 impl MockStorageKeyCmp {
@@ -24,15 +35,22 @@ impl PageKeyCmp for MockStorageKeyCmp {
 
 struct MockPageStorage {
     hdr: RefCell<SingleElementStore<StorageParams>>,
+    info: RefCell<SingleElementStore<TestStorageInfo>>,
     space: RefCell<Vec<u8>>,
 }
 
 impl MockPageStorage {
     pub fn new() -> MockPageStorage {
+        let info = TestStorageInfo { allocations: 0 };
         MockPageStorage {
             hdr: RefCell::new(SingleElementStore::new()),
+            info: RefCell::new(SingleElementStore::new_with(info)),
             space: RefCell::new(Vec::new()),
         }
+    }
+
+    pub fn get_info(&self) -> TestStorageInfo {
+        self.info.borrow().as_value()
     }
 }
 
@@ -52,6 +70,10 @@ impl FlatStorage for MockPageStorage {
     }
 
     fn alloc_region(&self, size: u32) -> Result<()> {
+        let mut info_ref = self.info.borrow_mut();
+        let mut f = |info: &mut TestStorageInfo| info.allocations += 1;
+        info_ref.apply(&mut f);
+
         let old_len = self.space.borrow().len();
         self.space.borrow_mut().resize(old_len + size as usize, 0u8);
         return Ok(());
@@ -100,6 +122,11 @@ fn main() -> Result<()> {
         let _ = std::io::stdout().flush();
     }
     let duration = full_time_begin.elapsed();
-    println!("\nwrite:{:?}", duration);
+    let info = fstore.get_info();
+    println!(
+        "\n allocations:{} write:{:?}",
+        info.get_allocation(),
+        duration
+    );
     Ok(())
 }
