@@ -147,7 +147,7 @@ where
     }
 
     pub fn info(&self) -> Result<Vec<RegionInfo>> {
-        let space = self.pstore.space_ptr().unwrap();
+        let mut space = self.pstore.space_ptr()?;
         let mut result: Vec<RegionInfo> = Vec::new();
         unsafe {
             loop {
@@ -162,6 +162,11 @@ where
                 if dblock.next_data_block_offset == 0 {
                     break;
                 }
+
+                space = self
+                    .pstore
+                    .space_ptr()?
+                    .add(dblock.next_data_block_offset as usize);
             }
         }
         return Ok(result);
@@ -199,38 +204,81 @@ where
     }
 
     fn get_or_alloc_page(&mut self) -> Result<(Page, usize, *mut u8)> {
-        let mut space = self.pstore.space_ptr()?;
-        let mut fl = Self::get_freelist(space);
+        let mut cur_block_space = self.pstore.space_ptr()?;
         unsafe {
-            for i in 0..fl.len() {
-                let page_state = fl.get(i)?;
-                if page_state == PAGE_IS_ALLOCATED {
-                    return Ok((self.get_page_instance(space, i)?, i, space));
-                }
-                if page_state == PAGE_SPACE_IS_FREE {
-                    fl.set(i, PAGE_IS_ALLOCATED)?;
-                    let dblock = (space as *mut DataBlockHeader).read();
-                    self.pstore.alloc_region(dblock.page_full_size)?;
-                    space = self.pstore.space_ptr()?;
-                    let params = (*self.params.unwrap()).clone();
-                    let offset = Self::calc_offset_of_page(space, i);
+            let mut cur_dblock_offset: u32 = 0;
+            let mut fl = Self::get_freelist(cur_block_space);
+            loop {
+                for i in 0..fl.len() {
+                    let page_state = fl.get(i)?;
+                    if page_state == PAGE_IS_ALLOCATED {
+                        return Ok((
+                            self.get_page_instance(cur_block_space, i)?,
+                            i,
+                            cur_block_space,
+                        ));
+                    }
+                    if page_state == PAGE_SPACE_IS_FREE {
+                        fl.set(i, PAGE_IS_ALLOCATED)?;
+                        let dblock = (cur_block_space as *mut DataBlockHeader).read();
+                        self.pstore.alloc_region(dblock.page_full_size)?;
+                        cur_block_space = self.pstore.space_ptr()?.add(cur_dblock_offset as usize);
+                        let params = (*self.params.unwrap()).clone();
+                        let offset = Self::calc_offset_of_page(cur_block_space, i);
 
-                    let page = Page::init_buffer(
-                        space.add(offset as usize),
-                        params.page_size,
-                        params.cluster_size,
-                        self.cmp.unwrap().clone(),
-                        params.tree_params,
-                    )?;
-                    return Ok((page, i, space));
-                }
-                if page_state == PAGE_IS_FULL {
-                    continue;
-                }
+                        let page = Page::init_buffer(
+                            cur_block_space.add(offset as usize),
+                            params.page_size,
+                            params.cluster_size,
+                            self.cmp.unwrap().clone(),
+                            params.tree_params,
+                        )?;
+                        return Ok((page, i, cur_block_space));
+                    }
+                    if page_state == PAGE_IS_FULL {
+                        continue;
+                    }
 
-                todo!("state: {}  not implemented.", page_state);
+                    todo!("state: {}  not implemented.", page_state);
+                }
+                let mut blkhdr = (cur_block_space as *mut DataBlockHeader).read();
+
+                if blkhdr.next_data_block_offset != 0 {
+                    cur_block_space = self
+                        .pstore
+                        .space_ptr()?
+                        .add(blkhdr.next_data_block_offset as usize);
+                    fl = Self::get_freelist(cur_block_space);
+                    cur_dblock_offset = blkhdr.next_data_block_offset;
+                } else {
+                    // new datablock allocation
+                    cur_dblock_offset = cur_dblock_offset
+                        + DATABLOCKHEADERSIZE
+                        + blkhdr.freelist_size
+                        + blkhdr.page_full_size * (fl.len() as u32);
+                    blkhdr.next_data_block_offset = cur_dblock_offset;
+                    let fieldoffset = std::mem::offset_of!(DataBlockHeader, next_data_block_offset);
+
+                    (cur_block_space.add(fieldoffset) as *mut u32).write(cur_dblock_offset);
+                    let dblock_full_size = DATABLOCKHEADERSIZE + blkhdr.freelist_size;
+                    self.pstore.alloc_region(dblock_full_size)?;
+                    cur_block_space = (self.pstore.space_ptr()?).add(cur_dblock_offset as usize);
+
+                    let hdr = self.pstore.header_read()?.unwrap();
+                    let dblock = DataBlockHeader {
+                        next_data_block_offset: 0,
+                        ..blkhdr
+                    };
+
+                    (cur_block_space as *mut DataBlockHeader).write(dblock);
+                    FreeList::init(
+                        cur_block_space.add(DATABLOCKHEADERSIZE as usize),
+                        (*hdr).freepagelist_len,
+                        1,
+                    );
+                    fl = Self::get_freelist(cur_block_space);
+                }
             }
-            todo!("region is full.");
         }
     }
 
@@ -252,24 +300,36 @@ where
     }
 
     pub fn find(&self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        let space = self.pstore.space_ptr()?;
-        let fl = Self::get_freelist(space);
-        unsafe {
-            for i in 0..fl.len() {
-                let page_state = fl.get(i)?;
-                if page_state != PAGE_SPACE_IS_FREE {
-                    let offset = Self::calc_offset_of_page(space, i);
-                    let page =
-                        Page::from_buf(space.add(offset as usize), self.cmp.unwrap().clone())?;
+        let mut cur_space = self.pstore.space_ptr()?;
+        loop {
+            let fl = Self::get_freelist(cur_space);
+            unsafe {
+                for i in 0..fl.len() {
+                    let page_state = fl.get(i)?;
+                    if page_state != PAGE_SPACE_IS_FREE {
+                        let offset = Self::calc_offset_of_page(cur_space, i);
+                        let page = Page::from_buf(
+                            cur_space.add(offset as usize),
+                            self.cmp.unwrap().clone(),
+                        )?;
 
-                    let result = match page.find(tree_id, key)? {
-                        Some(x) => Some(x.to_vec()),
-                        None => continue,
-                    };
-                    return Ok(result);
+                        let result = match page.find(tree_id, key)? {
+                            Some(x) => Some(x.to_vec()),
+                            None => continue,
+                        };
+                        return Ok(result);
+                    }
                 }
+                let dblock = (cur_space as *const DataBlockHeader).read();
+                if dblock.next_data_block_offset == 0 {
+                    return Ok(None);
+                }
+
+                cur_space = self
+                    .pstore
+                    .space_ptr()?
+                    .add(dblock.next_data_block_offset as usize);
             }
-            todo!("try in other datablocks")
         }
     }
 }
@@ -377,7 +437,7 @@ mod tests {
         }
 
         for key in 0..max_key {
-            println!("insert {}", key);
+            println!("read {}", key);
             let key_sl = unsafe { any_as_u8_slice(&key) };
             let find_res = store.find(1, key_sl)?;
             assert!(find_res.is_some());
