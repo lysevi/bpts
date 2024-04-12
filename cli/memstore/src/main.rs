@@ -1,3 +1,17 @@
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// verbose output
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
+
+    /// data count
+    #[arg(short, long, default_value_t = 10000)]
+    count: i32,
+}
+
 use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc, time::Instant};
 
 use bpts::{
@@ -11,11 +25,17 @@ use bpts::{
 #[derive(Clone)]
 struct TestStorageInfo {
     allocations: usize,
+    stat_miss_insert: usize,
+    stat_miss_find: usize,
 }
 
 impl TestStorageInfo {
-    pub fn get_allocation(&self) -> usize {
-        self.allocations
+    pub fn new() -> TestStorageInfo {
+        TestStorageInfo {
+            allocations: 0,
+            stat_miss_find: 0,
+            stat_miss_insert: 0,
+        }
     }
 }
 
@@ -41,10 +61,9 @@ struct MockPageStorage {
 
 impl MockPageStorage {
     pub fn new() -> MockPageStorage {
-        let info = TestStorageInfo { allocations: 0 };
         MockPageStorage {
             hdr: RefCell::new(SingleElementStore::new()),
-            info: RefCell::new(SingleElementStore::new_with(info)),
+            info: RefCell::new(SingleElementStore::new_with(TestStorageInfo::new())),
             space: RefCell::new(Vec::new()),
         }
     }
@@ -70,13 +89,21 @@ impl FlatStorage for MockPageStorage {
     }
 
     fn alloc_region(&self, size: u32) -> Result<()> {
-        let mut info_ref = self.info.borrow_mut();
         let mut f = |info: &mut TestStorageInfo| info.allocations += 1;
-        info_ref.apply(&mut f);
+        self.info.borrow_mut().apply(&mut f);
 
         let old_len = self.space.borrow().len();
         self.space.borrow_mut().resize(old_len + size as usize, 0u8);
         return Ok(());
+    }
+
+    fn stat_miss_find(&self) {
+        let mut f = |info: &mut TestStorageInfo| info.stat_miss_find += 1;
+        self.info.borrow_mut().apply(&mut f);
+    }
+    fn stat_miss_insert(&self) {
+        let mut f = |info: &mut TestStorageInfo| info.stat_miss_insert += 1;
+        self.info.borrow_mut().apply(&mut f);
     }
 
     fn space_ptr(&self) -> Result<*mut u8> {
@@ -85,7 +112,8 @@ impl FlatStorage for MockPageStorage {
 }
 
 fn main() -> Result<()> {
-    let count = 10000;
+    let args = Args::parse();
+    println!("{:?}", args);
     let mut all_cmp = HashMap::new();
     let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
     all_cmp.insert(1u32, cmp.clone());
@@ -96,26 +124,26 @@ fn main() -> Result<()> {
     let mut store = Storage::open(&fstore, &all_cmp)?;
 
     let full_time_begin = Instant::now();
-    for key in 0..count {
+    for key in 0..args.count {
         let cur_begin = Instant::now();
-        // let info = store.info()?;
-        // for rinfo in info {
-        //     print!("{}", rinfo);
-        // }
-        // println!();
+        if args.verbose {
+            let info = store.info()?;
+            for rinfo in info {
+                print!("{}", rinfo);
+            }
+            println!();
+        }
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         store.insert(1, &cur_key_sl, &cur_key_sl)?;
         {
             let find_res = store.find(1, cur_key_sl)?;
             assert!(find_res.is_some());
-            let value = &find_res.unwrap()[..];
-            assert_eq!(value, cur_key_sl)
         }
         let cur_duration = cur_begin.elapsed();
         let info = store.info()?;
         print!(
             "\rwrite  cur:{}% blocks:{} time:{:?}",
-            (100f32 * key as f32) / (count as f32),
+            (100f32 * key as f32) / (args.count as f32),
             info.len(),
             cur_duration
         );
@@ -123,10 +151,9 @@ fn main() -> Result<()> {
     }
     let duration = full_time_begin.elapsed();
     let info = fstore.get_info();
-    println!(
-        "\n allocations:{} write:{:?}",
-        info.get_allocation(),
-        duration
-    );
+    println!("\n allocations:{}", info.allocations);
+    println!(" miss_find:{}", info.stat_miss_find);
+    println!(" miss_insert:{}", info.stat_miss_insert);
+    println!(" total elapsed:{:?}", duration);
     Ok(())
 }

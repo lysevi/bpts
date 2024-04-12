@@ -17,6 +17,9 @@ pub trait FlatStorage {
 
     fn alloc_region(&self, size: u32) -> Result<()>;
     fn space_ptr(&self) -> Result<*mut u8>;
+
+    fn stat_miss_find(&self);
+    fn stat_miss_insert(&self);
 }
 #[derive(Clone, Copy)]
 pub struct StorageParams {
@@ -315,6 +318,7 @@ where
             match insertion_result.unwrap_err() {
                 crate::Error::Fail(_) => panic!(),
                 crate::Error::IsFull => {
+                    self.pstore.stat_miss_insert();
                     let space = target_page.2;
                     let mut fl = Self::get_freelist(space);
                     unsafe { fl.set(target_page.1, PAGE_IS_FULL)? };
@@ -341,7 +345,10 @@ where
 
                         let result = match page.find(tree_id, key)? {
                             Some(x) => Some(x.to_vec()),
-                            None => continue,
+                            None => {
+                                self.pstore.stat_miss_find();
+                                continue;
+                            }
                         };
                         return Ok(result);
                     }
@@ -419,6 +426,9 @@ mod tests {
         fn space_ptr(&self) -> Result<*mut u8> {
             Ok(self.space.borrow_mut().as_mut_ptr())
         }
+
+        fn stat_miss_find(&self) {}
+        fn stat_miss_insert(&self) {}
     }
 
     #[test]
