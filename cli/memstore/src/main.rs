@@ -126,13 +126,7 @@ fn main() -> Result<()> {
     let full_time_begin = Instant::now();
     for key in 0..args.count {
         let cur_begin = Instant::now();
-        if args.verbose {
-            let info = store.info()?;
-            for rinfo in info {
-                print!("{}", rinfo);
-            }
-            println!();
-        }
+
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         store.insert(1, &cur_key_sl, &cur_key_sl)?;
         {
@@ -148,12 +142,29 @@ fn main() -> Result<()> {
             cur_duration
         );
         let _ = std::io::stdout().flush();
+        if args.verbose {
+            for rinfo in info {
+                print!("{}", rinfo);
+            }
+            println!();
+        }
     }
     let duration = full_time_begin.elapsed();
-    let info = fstore.get_info();
-    println!("\n allocations:{}", info.allocations);
-    println!(" miss_find:{}", info.stat_miss_find);
-    println!(" miss_insert:{}", info.stat_miss_insert);
+    let logic_storage_info = store.info()?;
+    let flat_storage_info = fstore.get_info();
+    let mut allocated_pages = 0usize;
+    for region in logic_storage_info.iter() {
+        for p in region.pages_info.iter() {
+            if *p != 0 {
+                allocated_pages += 1;
+            }
+        }
+    }
+    println!("\n allocations:{}", flat_storage_info.allocations);
+    println!(" data blocks:{}", allocated_pages);
+    println!(" total pages:{}", allocated_pages);
+    println!(" miss_find:{}", flat_storage_info.stat_miss_find);
+    println!(" miss_insert:{}", flat_storage_info.stat_miss_insert);
     println!(" total elapsed:{:?}", duration);
     Ok(())
 }

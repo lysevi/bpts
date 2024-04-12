@@ -61,7 +61,7 @@ pub struct Storage<'a, PS: FlatStorage> {
 }
 
 pub struct RegionInfo {
-    pages_info: Vec<u8>,
+    pub pages_info: Vec<u8>,
 }
 
 impl std::fmt::Display for RegionInfo {
