@@ -9,6 +9,7 @@
   - [ ] median time
   - [ ] mean time
   - [ ] 99 percentile time
+- [ ] begin transaction
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
 - [ ] - binary search in nodes.
