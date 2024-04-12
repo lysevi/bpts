@@ -1,4 +1,5 @@
 use std::fmt::Display;
+pub mod bloom;
 pub mod datalist;
 pub mod freelist;
 pub mod mfile;
