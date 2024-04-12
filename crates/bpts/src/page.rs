@@ -175,10 +175,14 @@ impl Page {
             all_buffer: buffer,
             space: space,
             cmp: cmp,
-            freelist: FreeList::open(buffer.add(HEADER_SIZE)),
+            freelist: Self::read_free_list(buffer)?,
         };
 
         return Ok(result);
+    }
+
+    pub unsafe fn read_free_list(buffer: *mut u8) -> Result<FreeList> {
+        return Ok(FreeList::open(buffer.add(HEADER_SIZE)));
     }
 
     pub fn calc_size(params: TreeParams, buffsize: u32, cluster_size: u16) -> u32 {

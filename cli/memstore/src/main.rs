@@ -7,6 +7,10 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     verbose: bool,
 
+    /// pages free-list info
+    #[arg(short, long, default_value_t = false)]
+    more_info: bool,
+
     /// data count
     #[arg(short, long, default_value_t = 10000)]
     count: i32,
@@ -134,7 +138,7 @@ fn main() -> Result<()> {
             assert!(find_res.is_some());
         }
         let cur_duration = cur_begin.elapsed();
-        let info = store.info()?;
+        let info = store.info(false)?;
         print!(
             "\rwrite  cur:{}% blocks:{} time:{:?}",
             (100f32 * key as f32) / (args.count as f32),
@@ -150,19 +154,34 @@ fn main() -> Result<()> {
         }
     }
     let duration = full_time_begin.elapsed();
-    let logic_storage_info = store.info()?;
+
+    let logic_storage_info = store.info(args.more_info)?;
     let flat_storage_info = fstore.get_info();
     let mut allocated_pages = 0usize;
+    let mut free_clusters = 0usize;
+    let mut total_clusters = 0usize;
     for region in logic_storage_info.iter() {
         for p in region.pages_info.iter() {
-            if *p != 0 {
+            if !p.is_free() {
                 allocated_pages += 1;
+                for c in p.clusters.iter() {
+                    if *c == 0 {
+                        free_clusters += 1;
+                    }
+                }
+                total_clusters += p.clusters.len();
             }
         }
     }
     println!("\n allocations:{}", flat_storage_info.allocations);
-    println!(" data blocks:{}", allocated_pages);
+    println!(" data blocks:{}", logic_storage_info.len());
     println!(" total pages:{}", allocated_pages);
+    println!(
+        " free clusters: {}% ({}/{})",
+        (free_clusters as f32 * 100f32 / total_clusters as f32),
+        free_clusters,
+        total_clusters,
+    );
     println!(" miss_find:{}", flat_storage_info.stat_miss_find);
     println!(" miss_insert:{}", flat_storage_info.stat_miss_insert);
     println!(" total elapsed:{:?}", duration);

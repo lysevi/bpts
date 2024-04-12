@@ -60,21 +60,40 @@ pub struct Storage<'a, PS: FlatStorage> {
     cmp: Option<&'a HashMap<u32, PageKeyCmpRc>>,
 }
 
+pub struct PageInfo {
+    pub state: u8,
+    pub clusters: Vec<u8>,
+}
+
+impl PageInfo {
+    pub fn is_free(&self) -> bool {
+        self.state == PAGE_SPACE_IS_FREE
+    }
+
+    pub fn is_allocated(&self) -> bool {
+        self.state == PAGE_IS_ALLOCATED
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.state == PAGE_IS_FULL
+    }
+}
+
 pub struct RegionInfo {
-    pub pages_info: Vec<u8>,
+    pub pages_info: Vec<PageInfo>,
 }
 
 impl std::fmt::Display for RegionInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "[")?;
         for i in self.pages_info.iter() {
-            if *i == PAGE_SPACE_IS_FREE {
+            if i.state == PAGE_SPACE_IS_FREE {
                 write!(f, ".")?;
             }
-            if *i == PAGE_IS_FULL {
+            if i.state == PAGE_IS_FULL {
                 write!(f, "*")?;
             }
-            if *i == PAGE_IS_ALLOCATED {
+            if i.state == PAGE_IS_ALLOCATED {
                 write!(f, "O")?;
             }
         }
@@ -149,7 +168,7 @@ where
         Ok(())
     }
 
-    pub fn info(&self) -> Result<Vec<RegionInfo>> {
+    pub fn info(&self, verbose: bool) -> Result<Vec<RegionInfo>> {
         let mut space = self.pstore.space_ptr()?;
         let mut result: Vec<RegionInfo> = Vec::new();
         unsafe {
@@ -158,7 +177,22 @@ where
                 let mut info = Vec::with_capacity(dblock.freelist_size as usize);
                 let freelist = FreeList::open(space.add(DATABLOCKHEADERSIZE as usize) as *mut u8);
                 for i in 0..freelist.len() {
-                    info.push(freelist.get(i)?);
+                    let state = freelist.get(i)?;
+                    let mut clusters_state: Vec<u8> = Vec::new();
+                    if verbose {
+                        if state != PAGE_SPACE_IS_FREE {
+                            let page_offset = Self::calc_offset_of_page(space, i);
+                            let page_fl = Page::read_free_list(space.add(page_offset as usize))?;
+                            clusters_state.reserve(page_fl.len());
+                            for cl_num in 0..page_fl.len() {
+                                clusters_state.push(page_fl.get(cl_num)?);
+                            }
+                        }
+                    }
+                    info.push(PageInfo {
+                        state: state,
+                        clusters: clusters_state,
+                    });
                 }
                 result.push(RegionInfo { pages_info: info });
 
@@ -457,7 +491,7 @@ mod tests {
         let max_key = 400;
         for key in 0..max_key {
             println!("insert {}", key);
-            let info = store.info()?;
+            let info = store.info(false)?;
             for rinfo in info {
                 print!("{}", rinfo);
             }
