@@ -1,11 +1,8 @@
 # bpts
 
 - [ ] Page is full.
-  - [ ] test: many trees, many transactions:     
-    - [ ] insert
-    - [ ] find
-    - [ ] remove
   - [ ] crc
+  - [ ] bloom
 - [ ] Storage
   - [ ] datablockheader.is_full
 - [ ] benchmark on memory sorage

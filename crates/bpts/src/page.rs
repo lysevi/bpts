@@ -717,4 +717,79 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn insert_find_many_trees() -> Result<()> {
+        let tparam = TreeParams::default();
+        let pagedatasize = 1024 * 1024 * 1024;
+        let cluster_size = 32;
+        let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
+        let mut all_cmp = HashMap::new();
+        let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockPageKeyCmp::new()));
+        all_cmp.insert(1u32, cmp.clone());
+        all_cmp.insert(3u32, cmp.clone());
+
+        let mut b = vec![0u8; bufsize as usize];
+
+        let mut page = unsafe {
+            Page::init_buffer(
+                b.as_mut_ptr(),
+                pagedatasize,
+                cluster_size,
+                all_cmp,
+                tparam.clone(),
+            )?
+        };
+
+        let mut key = 1;
+        let mut all_keys = Vec::new();
+
+        for _i in 0..(page.tree_params().t * 2) {
+            {
+                let tree_id = if key % 2 == 0 { 1u32 } else { 3u32 };
+                let key_sl = unsafe { any_as_u8_slice(&key) };
+                println!("insert: {} to {}", key, tree_id);
+                // if key == 200 {
+                //     println!("!");
+                // }
+                let write_res = page.insert(tree_id, key_sl, key_sl);
+
+                if write_res.is_err() {
+                    break;
+                }
+
+                all_keys.push(key);
+                key += 1;
+            }
+            for item in all_keys.iter() {
+                //println!("find: {}", item);
+                let tree_id = if item % 2 == 0 { 1u32 } else { 3u32 };
+                let key_sl = unsafe { any_as_u8_slice(item) };
+                let result = page.find(tree_id, key_sl)?;
+                assert!(result.is_some());
+                assert_eq!(key_sl, result.unwrap());
+            }
+        }
+
+        assert!(all_keys.len() > 1);
+        let free_clusters = page.free_clusters_count();
+
+        while all_keys.len() > 0 {
+            let item = all_keys.first().unwrap();
+            let tree_id = if item % 2 == 0 { 1u32 } else { 3u32 };
+            println!("remove: {} from {}", item, tree_id);
+            // if *item == 102 {
+            //     println!("!");
+            // }
+            let key_sl = unsafe { any_as_u8_slice(item) };
+            page.remove(tree_id, key_sl)?;
+            let result = page.find(tree_id, key_sl)?;
+            assert!(result.is_none());
+
+            all_keys.remove(0);
+        }
+
+        assert!(free_clusters < page.free_clusters_count());
+        Ok(())
+    }
 }
