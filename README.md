@@ -3,6 +3,7 @@
 - [ ] Page is full.
   - [ ] crc
   - [ ] bloom
+  - [ ] page memory usage.
 - [ ] Storage
   - [ ] datablockheader.is_full
 - [ ] benchmark on memory sorage
