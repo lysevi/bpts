@@ -113,6 +113,10 @@ impl FlatStorage for MockPageStorage {
     fn space_ptr(&self) -> Result<*mut u8> {
         Ok(self.space.borrow_mut().as_mut_ptr())
     }
+
+    fn size(&self) -> usize {
+        self.space.borrow().len()
+    }
 }
 
 fn main() -> Result<()> {
@@ -173,17 +177,18 @@ fn main() -> Result<()> {
             }
         }
     }
-    println!("\n allocations:{}", flat_storage_info.allocations);
-    println!(" data blocks:{}", logic_storage_info.len());
-    println!(" total pages:{}", allocated_pages);
+    println!("\n allocations: {}", flat_storage_info.allocations);
+    println!(" data blocks: {}", logic_storage_info.len());
+    println!(" total pages: {}", allocated_pages);
     println!(
         " free clusters: {}% ({}/{})",
         (free_clusters as f32 * 100f32 / total_clusters as f32),
         free_clusters,
         total_clusters,
     );
-    println!(" miss_find:{}", flat_storage_info.stat_miss_find);
-    println!(" miss_insert:{}", flat_storage_info.stat_miss_insert);
-    println!(" total elapsed:{:?}", duration);
+    println!(" size: {}", fstore.size() as f32 / 1024f32);
+    println!(" miss_find: {}", flat_storage_info.stat_miss_find);
+    println!(" miss_insert: {}", flat_storage_info.stat_miss_insert);
+    println!(" total elapsed: {:?}", duration);
     Ok(())
 }

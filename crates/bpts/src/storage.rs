@@ -20,6 +20,8 @@ pub trait FlatStorage {
 
     fn stat_miss_find(&self);
     fn stat_miss_insert(&self);
+
+    fn size(&self) -> usize;
 }
 #[derive(Clone, Copy)]
 pub struct StorageParams {
@@ -463,6 +465,10 @@ mod tests {
 
         fn stat_miss_find(&self) {}
         fn stat_miss_insert(&self) {}
+
+        fn size(&self) -> usize {
+            self.space.borrow().len()
+        }
     }
 
     #[test]
