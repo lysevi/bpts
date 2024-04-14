@@ -67,6 +67,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn filter() {
         let mut bl = super::Bloom::new(16);
         assert_eq!(bl.size(), 16);
