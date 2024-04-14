@@ -1,5 +1,15 @@
 use clap::Parser;
 
+use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc, time::Instant};
+
+use bpts::{
+    page::{PageKeyCmp, PageKeyCmpRc},
+    prelude::Result,
+    storage::{FlatStorage, Storage, StorageParams},
+    types::SingleElementStore,
+    utils::any_as_u8_slice,
+};
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -19,16 +29,6 @@ struct Args {
     #[arg(short, long, default_value_t = 10000)]
     count: i32,
 }
-
-use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc, time::Instant};
-
-use bpts::{
-    page::{PageKeyCmp, PageKeyCmpRc},
-    prelude::Result,
-    storage::{FlatStorage, Storage, StorageParams},
-    types::SingleElementStore,
-    utils::any_as_u8_slice,
-};
 
 #[derive(Clone)]
 struct TestStorageInfo {
@@ -141,10 +141,7 @@ fn main() -> Result<()> {
 
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         store.insert(1, &cur_key_sl, &cur_key_sl)?;
-        {
-            let find_res = store.find(1, cur_key_sl)?;
-            assert!(find_res.is_some());
-        }
+
         let cur_duration = cur_begin.elapsed();
         let info = store.info(false)?;
         print!(
@@ -161,6 +158,31 @@ fn main() -> Result<()> {
             println!();
         }
     }
+    println!("");
+    for key in 0..args.count {
+        let cur_begin = Instant::now();
+
+        let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+
+        let find_res = store.find(1, cur_key_sl)?;
+        assert!(find_res.is_some());
+
+        let cur_duration = cur_begin.elapsed();
+        let info = store.info(false)?;
+        print!(
+            "\rread  cur:{}%  time:{:?}",
+            (100f32 * key as f32) / (args.count as f32),
+            cur_duration
+        );
+        let _ = std::io::stdout().flush();
+        if args.verbose {
+            for rinfo in info {
+                print!("{}", rinfo);
+            }
+            println!();
+        }
+    }
+
     let duration = full_time_begin.elapsed();
 
     let logic_storage_info = store.info(args.more_info)?;
