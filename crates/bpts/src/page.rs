@@ -202,13 +202,13 @@ impl Page {
         cluster as u32 * (*self.hdr).cluster_size as u32
     }
 
-    pub fn save_trans(&mut self, t: Transaction) -> Result<()> {
+    pub fn save_trans(&mut self, with_reserve: bool, t: Transaction) -> Result<()> {
         //TODO! status enum
         let neeed_bytes = t.size();
         let old_translist_size = std::mem::size_of::<u32>() * (self.trans.len() + 1);
         unsafe {
             {
-                let offset = self.get_mem(neeed_bytes as usize, true)?;
+                let offset = self.get_mem(neeed_bytes as usize, true, with_reserve)?;
 
                 let mut target = t;
 
@@ -222,7 +222,7 @@ impl Page {
             {
                 let neeed_bytes = (std::mem::size_of::<u32>() * (self.trans.len() + 1)) as u32;
 
-                let trans_list_offset = self.get_mem(neeed_bytes as usize, true)?;
+                let trans_list_offset = self.get_mem(neeed_bytes as usize, true, with_reserve)?;
 
                 let mut ptr = self.space.add(trans_list_offset as usize);
 
@@ -301,7 +301,7 @@ impl Page {
         let tparams = self.tree_params();
 
         let data_size = datalist::get_pack_size(key, data);
-        let data_offset = self.get_mem(data_size, false)?;
+        let data_offset = self.get_mem(data_size, false, false)?;
 
         let key_offset = unsafe { datalist::insert(self.space, data_offset, key, data) };
 
@@ -330,7 +330,7 @@ impl Page {
             &crate::tree::record::Record::from_u32(key_offset),
         )?;
 
-        self.save_trans(trans)?;
+        self.save_trans(true, trans)?;
         if old_trans_offset.is_some() {
             self.free_mem(old_trans_offset.unwrap(), old_trans_size)?;
         }
@@ -380,7 +380,7 @@ impl Page {
                     &root.clone(),
                     std::u32::MAX,
                 )?;
-                self.save_trans(trans)?;
+                self.save_trans(false, trans)?;
 
                 let removed_data = res.0;
 
@@ -394,10 +394,10 @@ impl Page {
         return Ok(());
     }
 
-    fn get_mem(&mut self, data_size: usize, from_top: bool) -> Result<u32> {
+    fn get_mem(&mut self, data_size: usize, from_top: bool, with_reserve: bool) -> Result<u32> {
         let clusters_need = self.clusters_for_bytes(data_size);
         let data_cluster = if from_top {
-            unsafe { self.freelist.get_region_top(clusters_need) }
+            unsafe { self.freelist.get_region_top(clusters_need, with_reserve) }
         } else {
             unsafe { self.freelist.get_region_bottom(clusters_need) }
         };
@@ -498,7 +498,7 @@ mod tests {
                 let mut page = Page::from_buf(b.as_mut_ptr(), all_cmp)?;
                 let t = Transaction::new(3, 7, page.tree_params(), page.get_cmp(7));
                 assert!(page.transaction(7).is_none());
-                page.save_trans(t)?;
+                page.save_trans(false, t)?;
                 assert_eq!(page.transaction(7).unwrap().rev(), 3);
             }
             {
@@ -512,7 +512,7 @@ mod tests {
 
                 let t = Transaction::new(1, 8, page.tree_params(), page.get_cmp(8));
                 assert!(!t.is_readonly());
-                page.save_trans(t)?;
+                page.save_trans(false, t)?;
                 assert_eq!(page.transaction(8).unwrap().rev(), 1);
                 assert!(page.transaction(8).unwrap().is_readonly());
                 assert_eq!(page.transaction(8).unwrap().tree_id(), 8);
@@ -532,7 +532,7 @@ mod tests {
                 assert_eq!(page.transaction(8).unwrap().tree_id(), 8);
 
                 let t = Transaction::new(2, 8, page.tree_params(), page.get_cmp(8));
-                page.save_trans(t)?;
+                page.save_trans(false, t)?;
             }
 
             {
@@ -674,6 +674,92 @@ mod tests {
             let write_res = page.insert(0u32, key_sl, key_sl);
 
             if write_res.is_err() {
+                println!("{:?}", write_res);
+                break;
+            }
+
+            all_keys.push(key);
+            key += 1;
+
+            for item in all_keys.iter() {
+                //println!("find: {}", item);
+                let key_sl = unsafe { any_as_u8_slice(item) };
+                let result = page.find(0u32, key_sl)?;
+                assert!(result.is_some());
+                assert_eq!(key_sl, result.unwrap());
+            }
+        }
+
+        assert!(all_keys.len() > 1);
+        let free_clusters = page.free_clusters_count();
+
+        while all_keys.len() > 0 {
+            {
+                let item = all_keys.first().unwrap();
+                println!("remove: {}", item);
+                // if *item == 102 {
+                //     println!("!");
+                // }
+                let key_sl = unsafe { any_as_u8_slice(item) };
+                page.remove(0u32, key_sl)?;
+                let result = page.find(0u32, key_sl)?;
+                assert!(result.is_none());
+            }
+            all_keys.remove(0);
+            for i in all_keys.iter() {
+                let key_sl = unsafe { any_as_u8_slice(i) };
+                let result = page.find(0u32, key_sl)?;
+                assert!(result.is_some());
+                assert_eq!(key_sl, result.unwrap());
+            }
+        }
+
+        assert!(free_clusters < page.free_clusters_count());
+
+        for i in 0..10 {
+            let pos = b.len() - 1 - i;
+            b[pos] = i as u8;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn insert_delete_full_page() -> Result<()> {
+        let tparam = TreeParams::default();
+        let pagedatasize = 1024 * 10;
+        let cluster_size = 32;
+        let bufsize = Page::calc_size(tparam, pagedatasize, cluster_size);
+        let mut all_cmp = HashMap::new();
+        let cmp: PageKeyCmpRc = Rc::new(RefCell::new(MockPageKeyCmp::new()));
+        all_cmp.insert(0u32, cmp.clone());
+
+        let mut b = vec![0u8; bufsize as usize + 10];
+
+        for i in 0..10 {
+            let pos = b.len() - 1 - i;
+            b[pos] = i as u8;
+        }
+
+        let mut page = unsafe {
+            Page::init_buffer(
+                b.as_mut_ptr(),
+                pagedatasize,
+                cluster_size,
+                all_cmp,
+                tparam.clone(),
+            )?
+        };
+
+        let mut key = 1;
+        let mut all_keys = Vec::new();
+
+        loop {
+            let key_sl = unsafe { any_as_u8_slice(&key) };
+            println!("insert: {}", key);
+            let write_res = page.insert(0u32, key_sl, key_sl);
+
+            if write_res.is_err() {
+                println!("{:?}", write_res);
                 break;
             }
 

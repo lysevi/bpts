@@ -84,10 +84,18 @@ impl FreeList {
         res
     }
 
-    pub unsafe fn get_region_top(&self, i: usize) -> Option<usize> {
+    unsafe fn get_region_top_fltr(&self, i: usize, exclude: Option<Vec<usize>>) -> Option<usize> {
         for index in 0..(self.hdr.len as usize) {
             let v: u8 = self.buffer.add(index).read();
             if v == 0 {
+                match exclude {
+                    Some(ref x) => {
+                        if x.contains(&index) {
+                            continue;
+                        }
+                    }
+                    None => {}
+                }
                 let mut all_is_free = true;
                 for j in index..(index + i) {
                     let v: u8 = self.buffer.add(j).read();
@@ -102,6 +110,28 @@ impl FreeList {
             }
         }
         None
+    }
+
+    pub unsafe fn get_region_top(&self, i: usize, with_reserve: bool) -> Option<usize> {
+        let first_take = self.get_region_top_fltr(i, None);
+        if first_take.is_none() {
+            return None;
+        }
+        if !with_reserve {
+            return first_take;
+        } else {
+            let mut fltr = Vec::new();
+            let first_cluster = first_take.unwrap();
+            for p in 0..i {
+                fltr.push(first_cluster + p);
+            }
+            let second_take = self.get_region_top_fltr(i, Some(fltr));
+            if second_take.is_none() {
+                return None;
+            } else {
+                return Some(first_cluster);
+            }
+        }
     }
 
     pub unsafe fn get_region_bottom(&self, i: usize) -> Option<usize> {
@@ -159,7 +189,7 @@ mod tests {
             assert!(!fl.set(2, 1).is_err());
             assert!(!fl.set(6, 1).is_err());
 
-            assert_eq!(fl.get_region_top(3).unwrap(), 3);
+            assert_eq!(fl.get_region_top(3, false).unwrap(), 3);
 
             assert!(!fl.set(99, 1).is_err());
             assert!(!fl.set(98, 1).is_err());
