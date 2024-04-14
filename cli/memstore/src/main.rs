@@ -25,6 +25,10 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     show_clusters_state: bool,
 
+    /// show progress
+    #[arg(short, long, default_value_t = false)]
+    progress: bool,
+
     /// data count
     #[arg(short, long, default_value_t = 10000)]
     count: i32,
@@ -137,26 +141,50 @@ fn main() -> Result<()> {
 
     let full_time_begin = Instant::now();
     for key in 0..args.count {
+        if args.progress {
+            let ten_millis = std::time::Duration::from_millis(500);
+            std::thread::sleep(ten_millis);
+        }
         let cur_begin = Instant::now();
 
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         store.insert(1, &cur_key_sl, &cur_key_sl)?;
 
         let cur_duration = cur_begin.elapsed();
-        let info = store.info(false)?;
+        let info = store.info(true)?;
         print!(
             "\rwrite  cur:{}% blocks:{} time:{:?}",
             (100f32 * key as f32) / (args.count as f32),
             info.len(),
             cur_duration
         );
-        let _ = std::io::stdout().flush();
+
         if args.verbose {
-            for rinfo in info {
-                print!("{}", rinfo);
+            for rinfo in info.iter() {
+                print!("{}", *rinfo);
             }
             println!();
         }
+        if args.progress {
+            let region = info.last().unwrap();
+            //let last_page = region.pages_info.last().unwrap();
+            for last_page in region.pages_info.iter().rev() {
+                if !last_page.is_free() {
+                    print!("\t [");
+                    for c in last_page.clusters.iter() {
+                        if *c == 0 {
+                            print!(".");
+                        } else {
+                            print!("*");
+                        }
+                    }
+                    print!("]");
+                    break;
+                }
+            }
+        }
+
+        let _ = std::io::stdout().flush();
     }
     println!("");
     for key in 0..args.count {
