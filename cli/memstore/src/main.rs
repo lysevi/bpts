@@ -11,6 +11,10 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     more_info: bool,
 
+    /// show clusters state in page
+    #[arg(short, long, default_value_t = false)]
+    show_clusters_state: bool,
+
     /// data count
     #[arg(short, long, default_value_t = 10000)]
     count: i32,
@@ -171,9 +175,32 @@ fn main() -> Result<()> {
                 for c in p.clusters.iter() {
                     if *c == 0 {
                         free_clusters += 1;
+                    } else {
                     }
                 }
                 total_clusters += p.clusters.len();
+            }
+        }
+    }
+    if args.show_clusters_state {
+        for region in logic_storage_info.iter() {
+            for p in region.pages_info.iter() {
+                if !p.is_free() {
+                    for c in p.clusters.iter() {
+                        if *c == 0 {
+                            if args.show_clusters_state {
+                                print!(".");
+                            }
+                        } else {
+                            if args.show_clusters_state {
+                                print!("*");
+                            }
+                        }
+                    }
+                    if args.show_clusters_state {
+                        println!("");
+                    }
+                }
             }
         }
     }
