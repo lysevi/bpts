@@ -112,21 +112,46 @@ impl FreeList {
         None
     }
 
-    pub unsafe fn get_region_top(&self, i: usize, with_reserve: bool) -> Option<usize> {
-        let first_take = self.get_region_top_fltr(i, None);
+    #[allow(dead_code)]
+    unsafe fn show_free_mem_info(&self, need_clusters: usize, with_reserve: bool) {
+        let mut free_cls = Vec::new();
+        let mut count = 0;
+        for index in 0..(self.hdr.len as usize) {
+            let v: u8 = self.buffer.add(index).read();
+            if v == 0 {
+                count += 1;
+            } else {
+                if count != 0 {
+                    free_cls.push(count);
+                    count = 0;
+                }
+            }
+        }
+        if count != 0 {
+            free_cls.push(count);
+        }
+        dbg!(free_cls, need_clusters, with_reserve);
+    }
+
+    pub unsafe fn get_region_top(&self, need_clusters: usize, with_reserve: bool) -> Option<usize> {
+        let first_take = self.get_region_top_fltr(need_clusters, None);
         if first_take.is_none() {
+            //self.show_free_mem_info(need_clusters, with_reserve);
             return None;
         }
+
         if !with_reserve {
             return first_take;
         } else {
             let mut fltr = Vec::new();
             let first_cluster = first_take.unwrap();
-            for p in 0..i {
+            for p in 0..need_clusters {
                 fltr.push(first_cluster + p);
             }
-            let second_take = self.get_region_top_fltr(i, Some(fltr));
+
+            let second_take = self.get_region_top_fltr(need_clusters, Some(fltr));
             if second_take.is_none() {
+                //self.show_free_mem_info(need_clusters, with_reserve);
                 return None;
             } else {
                 return Some(first_cluster);

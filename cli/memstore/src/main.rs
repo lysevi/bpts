@@ -141,6 +141,9 @@ fn main() -> Result<()> {
 
     let full_time_begin = Instant::now();
     for key in 0..args.count {
+        // if key == 16 {
+        //     println!("");
+        // }
         if args.progress {
             let ten_millis = std::time::Duration::from_millis(500);
             std::thread::sleep(ten_millis);
@@ -182,11 +185,14 @@ fn main() -> Result<()> {
                     break;
                 }
             }
+            println!("");
         }
 
         let _ = std::io::stdout().flush();
     }
+
     println!("");
+
     for key in 0..args.count {
         let cur_begin = Instant::now();
 
