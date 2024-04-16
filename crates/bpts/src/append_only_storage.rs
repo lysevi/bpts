@@ -1,8 +1,14 @@
 use std::collections::HashMap;
+use std::fs::File;
 
 use crate::page::PageKeyCmpRc;
 use crate::tree::params::{self, TreeParams};
 use crate::Result;
+
+/*
+params:.... MAGIC_NUMBERkey+data...tree...MAGIC_NUMBERtransaction_list
+transaction_list - set links to trees.
+ */
 
 pub trait AppendOnlyStruct {
     fn header_write(&self, h: &AOStorageParams) -> Result<()>;
@@ -36,6 +42,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
         cmp: &'a HashMap<u32, PageKeyCmpRc>,
     ) -> Result<Self> {
         s.header_write(&params)?;
+
         Ok(AOStorage {
             store: s,
             params: params.clone(),
@@ -51,6 +58,18 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
             params: params,
         })
     }
+
+    pub fn close(&mut self) -> Result<()> {
+        todo!();
+    }
+
+    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
+        todo!();
+    }
+
+    pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        todo!();
+    }
 }
 
 #[cfg(test)]
@@ -58,7 +77,7 @@ mod tests {
     use std::{cell::RefCell, rc::Rc};
 
     use super::*;
-    use crate::{page::PageKeyCmp, Result};
+    use crate::{page::PageKeyCmp, utils::any_as_u8_slice, Result};
 
     struct MockStorageKeyCmp {}
 
@@ -108,7 +127,30 @@ mod tests {
 
         let fstore = MockPageStorage::new();
         let params = AOStorageParams::default();
-        let storage = AOStorage::new(&fstore, &params, &all_cmp)?;
+        let mut storage = AOStorage::new(&fstore, &params, &all_cmp)?;
+        let max_key = 400;
+        for key in 0..max_key {
+            println!("insert {}", key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            storage.insert(1, &cur_key_sl, &cur_key_sl)?;
+            {
+                let find_res = storage.find(1, cur_key_sl)?;
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, cur_key_sl)
+            }
+        }
+
+        for key in 0..max_key {
+            println!("read {}", key);
+            let key_sl = unsafe { any_as_u8_slice(&key) };
+            let find_res = storage.find(1, key_sl)?;
+            assert!(find_res.is_some());
+            let value = &find_res.unwrap()[..];
+            assert_eq!(value, key_sl)
+        }
+
+        storage.close()?;
         Ok(())
     }
 }
