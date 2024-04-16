@@ -6,7 +6,7 @@ use crate::tree::params::{self, TreeParams};
 use crate::Result;
 
 /*
-params:.... MAGIC_NUMBERkey+data...tree...MAGIC_NUMBERtransaction_list
+params:.... MAGIC_NUMBERkey+data...transaction...MAGIC_NUMBERtransaction_list
 transaction_list - set links to trees.
  */
 
