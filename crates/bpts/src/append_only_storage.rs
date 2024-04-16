@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::File;
 
 use crate::page::PageKeyCmpRc;
+use crate::transaction::Transaction;
 use crate::tree::params::{self, TreeParams};
 use crate::Result;
 
@@ -33,6 +34,7 @@ pub struct AOStorage<'a, Store: AppendOnlyStruct> {
     store: &'a Store,
     params: AOStorageParams,
     cmp: &'a HashMap<u32, PageKeyCmpRc>,
+    trans: HashMap<u32, Transaction>,
 }
 
 impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
@@ -47,6 +49,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
             store: s,
             params: params.clone(),
             cmp: cmp,
+            trans: HashMap::new(),
         })
     }
 
@@ -56,6 +59,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
             store: s,
             cmp: cmp,
             params: params,
+            trans: HashMap::new(),
         })
     }
 
@@ -63,7 +67,44 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
         todo!();
     }
 
+    fn insert_kv(&self, key: &[u8], data: &[u8]) -> Result<u32> {
+        // datalist::insert(self.space, data_offset, key, data);
+        todo!()
+    }
+
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
+        let tparams = self.params.tree_params.clone();
+        let data_size = datalist::get_pack_size(key, data);
+        let data_offset = self.get_mem(data_size, false, false)?;
+
+        let key_offset = self.insert_kv(key, data)?;
+        let mut trans = if let Some(t) = self.trans.get(&tree_id) {
+            old_trans_offset = Some(t.offset());
+            old_trans_size = t.size() as usize;
+            Transaction::from_transaction(t)
+        } else {
+            Transaction::new(0, tree_id, tparams.clone(), self.get_cmp(tree_id))
+        };
+        let root = if let Some(r) = trans.get_root() {
+            r.clone()
+        } else {
+            let res = Node::new_leaf_with_size(Id(1), tparams.t);
+            trans.add_node(&res);
+            res
+        };
+
+        let _insert_res = crate::tree::insert::insert(
+            &mut trans,
+            &root,
+            key_offset,
+            &crate::tree::record::Record::from_u32(key_offset),
+        )?;
+
+        self.save_trans(true, trans)?;
+        if old_trans_offset.is_some() {
+            self.free_mem(old_trans_offset.unwrap(), old_trans_size)?;
+        }
+
         todo!();
     }
 
