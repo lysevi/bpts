@@ -16,6 +16,16 @@ pub trait AppendOnlyStruct {
     fn header_read(&self) -> Result<AOStorageParams>;
 
     fn size(&self) -> usize;
+
+    fn write_u8(&self, v: u8) -> Result<()>;
+    fn write_u16(&self, v: u16) -> Result<()>;
+    fn write_u32(&self, v: u32) -> Result<()>;
+    fn write_u64(&self, v: u64) -> Result<()>;
+
+    fn read_u8(&self, seek: usize) -> Result<u8>;
+    fn read_u16(&self, seek: usize) -> Result<u16>;
+    fn read_u32(&self, seek: usize) -> Result<u32>;
+    fn read_u64(&self, seek: usize) -> Result<u64>;
 }
 #[derive(Clone, Copy)]
 pub struct AOStorageParams {
@@ -156,6 +166,38 @@ mod tests {
         }
 
         fn size(&self) -> usize {
+            todo!()
+        }
+
+        fn write_u8(&self, v: u8) -> Result<()> {
+            todo!()
+        }
+
+        fn write_u16(&self, v: u16) -> Result<()> {
+            todo!()
+        }
+
+        fn write_u32(&self, v: u32) -> Result<()> {
+            todo!()
+        }
+
+        fn write_u64(&self, v: u64) -> Result<()> {
+            todo!()
+        }
+
+        fn read_u8(&self, seek: usize) -> Result<u8> {
+            todo!()
+        }
+
+        fn read_u16(&self, seek: usize) -> Result<u16> {
+            todo!()
+        }
+
+        fn read_u32(&self, seek: usize) -> Result<u32> {
+            todo!()
+        }
+
+        fn read_u64(&self, seek: usize) -> Result<u64> {
             todo!()
         }
     }
