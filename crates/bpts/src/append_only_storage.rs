@@ -83,37 +83,37 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
     }
 
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
-        let tparams = self.params.tree_params.clone();
-        let data_size = datalist::get_pack_size(key, data);
-        let data_offset = self.get_mem(data_size, false, false)?;
+        // let tparams = self.params.tree_params.clone();
+        // let data_size = datalist::get_pack_size(key, data);
+        // let data_offset = self.get_mem(data_size, false, false)?;
 
-        let key_offset = self.insert_kv(key, data)?;
-        let mut trans = if let Some(t) = self.trans.get(&tree_id) {
-            old_trans_offset = Some(t.offset());
-            old_trans_size = t.size() as usize;
-            Transaction::from_transaction(t)
-        } else {
-            Transaction::new(0, tree_id, tparams.clone(), self.get_cmp(tree_id))
-        };
-        let root = if let Some(r) = trans.get_root() {
-            r.clone()
-        } else {
-            let res = Node::new_leaf_with_size(Id(1), tparams.t);
-            trans.add_node(&res);
-            res
-        };
+        // let key_offset = self.insert_kv(key, data)?;
+        // let mut trans = if let Some(t) = self.trans.get(&tree_id) {
+        //     old_trans_offset = Some(t.offset());
+        //     old_trans_size = t.size() as usize;
+        //     Transaction::from_transaction(t)
+        // } else {
+        //     Transaction::new(0, tree_id, tparams.clone(), self.get_cmp(tree_id))
+        // };
+        // let root = if let Some(r) = trans.get_root() {
+        //     r.clone()
+        // } else {
+        //     let res = Node::new_leaf_with_size(Id(1), tparams.t);
+        //     trans.add_node(&res);
+        //     res
+        // };
 
-        let _insert_res = crate::tree::insert::insert(
-            &mut trans,
-            &root,
-            key_offset,
-            &crate::tree::record::Record::from_u32(key_offset),
-        )?;
+        // let _insert_res = crate::tree::insert::insert(
+        //     &mut trans,
+        //     &root,
+        //     key_offset,
+        //     &crate::tree::record::Record::from_u32(key_offset),
+        // )?;
 
-        self.save_trans(true, trans)?;
-        if old_trans_offset.is_some() {
-            self.free_mem(old_trans_offset.unwrap(), old_trans_size)?;
-        }
+        // self.save_trans(true, trans)?;
+        // if old_trans_offset.is_some() {
+        //     self.free_mem(old_trans_offset.unwrap(), old_trans_size)?;
+        // }
 
         todo!();
     }
@@ -128,7 +128,7 @@ mod tests {
     use std::{cell::RefCell, rc::Rc};
 
     use super::*;
-    use crate::{page::PageKeyCmp, utils::any_as_u8_slice, Result};
+    use crate::{page::PageKeyCmp, types::SingleElementStore, utils::any_as_u8_slice, Result};
 
     struct MockStorageKeyCmp {}
 
@@ -145,12 +145,14 @@ mod tests {
     }
 
     struct MockPageStorage {
+        hdr: RefCell<SingleElementStore<AOStorageParams>>,
         space: RefCell<Vec<u8>>,
     }
 
     impl MockPageStorage {
         pub fn new() -> MockPageStorage {
             MockPageStorage {
+                hdr: RefCell::new(SingleElementStore::new()),
                 space: RefCell::new(Vec::new()),
             }
         }
@@ -158,11 +160,17 @@ mod tests {
 
     impl AppendOnlyStruct for MockPageStorage {
         fn header_write(&self, h: &AOStorageParams) -> Result<()> {
-            todo!()
+            self.hdr.borrow_mut().replace(h.clone());
+            Ok(())
         }
 
         fn header_read(&self) -> Result<AOStorageParams> {
-            todo!()
+            if !self.hdr.borrow().is_empty() {
+                let rf = self.hdr.borrow_mut();
+                let value = rf.as_value();
+                return Ok(value);
+            }
+            panic!();
         }
 
         fn size(&self) -> usize {
