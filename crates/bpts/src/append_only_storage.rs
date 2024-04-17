@@ -174,39 +174,55 @@ mod tests {
         }
 
         fn size(&self) -> usize {
-            todo!()
+            self.space.borrow_mut().len()
         }
 
         fn write_u8(&self, v: u8) -> Result<()> {
-            todo!()
+            self.space.borrow_mut().push(v);
+            Ok(())
         }
 
         fn write_u16(&self, v: u16) -> Result<()> {
-            todo!()
+            let sl = unsafe { any_as_u8_slice(&v) };
+            for i in sl.iter() {
+                self.write_u8(*i)?;
+            }
+            Ok(())
         }
 
         fn write_u32(&self, v: u32) -> Result<()> {
-            todo!()
+            let sl = unsafe { any_as_u8_slice(&v) };
+            for i in sl.iter() {
+                self.write_u8(*i)?;
+            }
+            Ok(())
         }
 
         fn write_u64(&self, v: u64) -> Result<()> {
-            todo!()
+            let sl = unsafe { any_as_u8_slice(&v) };
+            for i in sl.iter() {
+                self.write_u8(*i)?;
+            }
+            Ok(())
         }
 
         fn read_u8(&self, seek: usize) -> Result<u8> {
-            todo!()
+            Ok(self.space.borrow()[seek])
         }
 
         fn read_u16(&self, seek: usize) -> Result<u16> {
-            todo!()
+            let readed = unsafe { (self.space.borrow().as_ptr().add(seek) as *const u16).read() };
+            Ok(readed)
         }
 
         fn read_u32(&self, seek: usize) -> Result<u32> {
-            todo!()
+            let readed = unsafe { (self.space.borrow().as_ptr().add(seek) as *const u32).read() };
+            Ok(readed)
         }
 
         fn read_u64(&self, seek: usize) -> Result<u64> {
-            todo!()
+            let readed = unsafe { (self.space.borrow().as_ptr().add(seek) as *const u64).read() };
+            Ok(readed)
         }
     }
 
