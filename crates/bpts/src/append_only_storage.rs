@@ -73,11 +73,14 @@ impl AOStorageParams {
 
 pub struct AOStorageCmp {
     store: Rc<RefCell<dyn AppendOnlyStruct>>,
+    cmp: Rc<RefCell<dyn AOSKeyCmp>>,
 }
 
 impl KeyCmp for AOStorageCmp {
     fn compare(&self, _key1: u32, _key2: u32) -> std::cmp::Ordering {
-        todo!()
+        let c1 = self.store.read_key(_key1);
+        let c2 = self.store.read_key(_key2);
+        return self.cmp.borrow().compare(c1, c2);
     }
 }
 
@@ -282,6 +285,7 @@ impl AOStorage {
             } else {
                 let cmp = Rc::new(RefCell::new(AOStorageCmp {
                     store: self.store.clone(),
+                    cmp: self.cmp.get(&tree_id).unwrap().clone(),
                 }));
                 let s = Rc::new(RefCell::new(AOStorageNodeStorage {
                     offset: 0,
@@ -295,6 +299,7 @@ impl AOStorage {
             };
             let cmp = Rc::new(RefCell::new(AOStorageCmp {
                 store: self.store.clone(),
+                cmp: self.cmp.get(&tree_id).unwrap().clone(),
             }));
             target_storage.borrow_mut().set_cmp(cmp);
             let mut storage_ref = (*target_storage).borrow_mut();
@@ -405,6 +410,7 @@ impl AOStorage {
 
             let cmp = Rc::new(RefCell::new(AOStorageCmp {
                 store: self.store.clone(),
+                cmp: self.cmp.get(&tree_id).unwrap().clone(),
             }));
             let s = Rc::new(RefCell::new(AOStorageNodeStorage {
                 offset: offset as u32,
@@ -483,6 +489,7 @@ impl AOStorage {
             user_key: key.to_vec(),
             cmp: AOStorageCmp {
                 store: self.store.clone(),
+                cmp: self.cmp.get(&tree_id).unwrap().clone(),
             },
         }));
         storage.borrow_mut().set_cmp(cmp);
