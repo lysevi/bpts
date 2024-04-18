@@ -1,7 +1,8 @@
 # bpts
 
 
-- [ ] tree_id
+- [*] tree_id
+- [ ] comparator.
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
