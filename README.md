@@ -3,6 +3,7 @@
 
 - [*] tree_id
 - [ ] comparator.
+- [ ] test - many trees.
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time

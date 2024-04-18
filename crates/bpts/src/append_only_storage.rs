@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::storage::Storage;
 use crate::tree::node::{KeyCmp, Node, RcNode};
 use crate::tree::nodestorage::NodeStorage;
 use crate::tree::params::TreeParams;
@@ -51,6 +50,7 @@ pub struct AOStorageParams {
 pub type StorageKeyCmp = Rc<RefCell<dyn KeyCmp>>;
 
 pub struct AOStorageNodeStorage {
+    offset: u32,
     cmp: Option<StorageKeyCmp>,
     pub nodes: HashMap<u32, RcNode>,
     pub tree_params: TreeParams,
@@ -276,12 +276,15 @@ impl AOStorage {
         let key_offset = Self::insert_kv(&*self.store.borrow_mut(), key, data)?;
         {
             let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
-                t.clone()
+                let c = t.clone();
+                c.borrow_mut().offset = 0;
+                c
             } else {
                 let cmp = Rc::new(RefCell::new(AOStorageCmp {
                     store: self.store.clone(),
                 }));
                 let s = Rc::new(RefCell::new(AOStorageNodeStorage {
+                    offset: 0,
                     cmp: Some(cmp.clone()),
                     nodes: HashMap::new(),
                     tree_params: self.params.tree_params,
@@ -312,13 +315,19 @@ impl AOStorage {
             )?;
         }
 
+        let mut trans_list = Vec::new();
         let flat_store = self.store.borrow_mut();
 
         let offset = flat_store.size();
 
-        flat_store.write_u32(MAGIC_TRANSACTION_LIST)?;
-        flat_store.write_u32(self.tree_storages.len() as u32)?;
         for ns in self.tree_storages.iter() {
+            if ns.1.borrow().offset != 0 {
+                trans_list.push(ns.1.borrow().offset);
+                continue;
+            }
+            trans_list.push(offset as u32);
+            ns.1.borrow_mut().offset = offset as u32;
+
             flat_store.write_u32(MAGIC_TRANSACTION)?;
             flat_store.write_u32(*ns.0)?;
             let cur_store = ns.1.borrow();
@@ -344,9 +353,17 @@ impl AOStorage {
                     }
                 }
             }
-            self.params.offset = offset as u32;
-            flat_store.header_write(&self.params)?;
         }
+
+        self.params.offset = flat_store.size() as u32;
+
+        flat_store.write_u32(MAGIC_TRANSACTION_LIST)?;
+        flat_store.write_u32(trans_list.len() as u32)?;
+        for i in trans_list {
+            flat_store.write_u32(i)?;
+        }
+
+        flat_store.header_write(&self.params)?;
         Ok(())
     }
 
@@ -358,15 +375,26 @@ impl AOStorage {
             panic!();
         }
 
-        let mut offset = hdr.offset as usize;
-        let magic_lst = store.read_u32(offset)?;
-        offset += std::mem::size_of::<u32>();
-        if magic_lst != MAGIC_TRANSACTION_LIST {
-            panic!();
+        let mut offsets = Vec::new();
+        {
+            let mut offset = hdr.offset as usize;
+            let magic_lst = store.read_u32(offset)?;
+            offset += std::mem::size_of::<u32>();
+            if magic_lst != MAGIC_TRANSACTION_LIST {
+                panic!();
+            }
+            let storages_count = store.read_u32(offset)?;
+            offset += std::mem::size_of::<u32>();
+
+            for _i in 0..storages_count {
+                let v = store.read_u32(offset)?;
+                offset += std::mem::size_of::<u32>();
+                offsets.push(v);
+            }
         }
-        let storages_count = store.read_u32(offset)?;
-        offset += std::mem::size_of::<u32>();
-        for _tree_store in 0..storages_count {
+
+        for start in offsets {
+            let mut offset = start as usize;
             let magic = store.read_u32(offset)?;
             if magic != MAGIC_TRANSACTION {
                 panic!();
@@ -374,10 +402,12 @@ impl AOStorage {
             offset += std::mem::size_of::<u32>();
 
             let tree_id = store.read_u32(offset)?;
+
             let cmp = Rc::new(RefCell::new(AOStorageCmp {
                 store: self.store.clone(),
             }));
             let s = Rc::new(RefCell::new(AOStorageNodeStorage {
+                offset: offset as u32,
                 cmp: Some(cmp),
                 nodes: HashMap::new(),
                 tree_params: self.params.tree_params,
