@@ -360,20 +360,25 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
 
     pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
         self.load_trans()?;
-        todo!()
-        // let root = self.get_root();
-        // if root.is_none() {
-        //     return Ok(None);
-        // }
+        let storage_res = self.tree_storages.get(&tree_id);
+        if storage_res.is_none() {
+            return Ok(None);
+        }
+        let storage = storage_res.unwrap().clone();
+        let root = storage.borrow().get_root();
+        if root.is_none() {
+            return Ok(None);
+        }
 
-        // let find_res = crate::tree::read::find(self, &root.unwrap().clone(), std::u32::MAX)?;
-        // if find_res.is_none() {
-        //     return Ok(None);
-        // }
+        let mut a = storage.borrow_mut();
+        let find_res = crate::tree::read::find(&mut *a, &root.unwrap().clone(), std::u32::MAX)?;
+        if find_res.is_none() {
+            return Ok(None);
+        }
 
-        // let offset = find_res.unwrap().into_u32();
-        // let kv = self.read_kv(offset as usize)?;
-        // return Ok(Some(kv.1));
+        let offset = find_res.unwrap().into_u32();
+        let kv = self.read_kv(offset as usize)?;
+        return Ok(Some(kv.1));
     }
 }
 
