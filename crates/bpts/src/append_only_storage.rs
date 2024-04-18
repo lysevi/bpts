@@ -1,12 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::thread::panicking;
 
 use crate::tree::node::{KeyCmp, Node, RcNode};
 use crate::tree::nodestorage::NodeStorage;
 use crate::tree::params::TreeParams;
-use crate::tree::read;
 use crate::tree::record::Record;
 use crate::types::Id;
 use crate::Result;
@@ -49,6 +47,12 @@ pub struct AOStorageParams {
     tree_params: TreeParams,
 }
 
+pub struct AOStorageNodeStorage<Cmp: KeyCmp> {
+    cmp: Cmp,
+    pub nodes: HashMap<u32, RcNode>,
+    pub tree_params: TreeParams,
+}
+
 impl AOStorageParams {
     pub fn default() -> Self {
         Self {
@@ -58,20 +62,24 @@ impl AOStorageParams {
     }
 }
 
-pub struct AOStorage<'a, Store: AppendOnlyStruct> {
+pub struct AOStorageCmp<'a, Store: AppendOnlyStruct> {
     store: &'a Store,
-    params: AOStorageParams,
-    cmp: &'a HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>>,
-    nodes: HashMap<u32, RcNode>,
 }
 
-impl<'a, Store: AppendOnlyStruct> KeyCmp for AOStorage<'a, Store> {
-    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
+impl<'a, Store: AppendOnlyStruct> KeyCmp for AOStorageCmp<'a, Store> {
+    fn compare(&self, _key1: u32, _key2: u32) -> std::cmp::Ordering {
         todo!()
     }
 }
 
-impl<'a, Store: AppendOnlyStruct> NodeStorage for AOStorage<'a, Store> {
+pub struct AOStorage<'a, Store: AppendOnlyStruct> {
+    store: &'a Store,
+    params: AOStorageParams,
+    cmp: &'a HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>>,
+    tree_storages: HashMap<u32, Rc<RefCell<AOStorageNodeStorage<AOStorageCmp<'a, Store>>>>>,
+}
+
+impl<Cmp: KeyCmp> NodeStorage for AOStorageNodeStorage<Cmp> {
     fn get_root(&self) -> Option<RcNode> {
         if self.nodes.len() == 1 {
             let res = self.nodes.iter().next();
@@ -117,11 +125,11 @@ impl<'a, Store: AppendOnlyStruct> NodeStorage for AOStorage<'a, Store> {
     }
 
     fn get_params(&self) -> &TreeParams {
-        &self.params.tree_params
+        &self.tree_params
     }
 
     fn get_cmp(&self) -> &dyn KeyCmp {
-        self
+        &self.cmp
     }
 }
 
@@ -137,7 +145,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
             store: s,
             params: params.clone(),
             cmp: cmp,
-            nodes: HashMap::new(),
+            tree_storages: HashMap::new(),
         })
     }
 
@@ -147,7 +155,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
             store: s,
             cmp: cmp,
             params: params,
-            nodes: HashMap::new(),
+            tree_storages: HashMap::new(),
         })
     }
 
@@ -177,7 +185,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
         read_offset += std::mem::size_of::<u32>();
         let mut key = Vec::new();
         let mut data = Vec::new();
-        for i in 0..key_len {
+        for _i in 0..key_len {
             let val = self.store.read_u8(read_offset)?;
             read_offset += std::mem::size_of::<u8>();
             key.push(val);
@@ -185,7 +193,7 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
 
         let data_len = self.store.read_u32(read_offset)?;
         read_offset += std::mem::size_of::<u32>();
-        for i in 0..data_len {
+        for _i in 0..data_len {
             let val = self.store.read_u8(read_offset)?;
             read_offset += std::mem::size_of::<u8>();
             data.push(val);
@@ -197,51 +205,76 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
         let tparams = self.params.tree_params.clone();
 
         let key_offset = self.insert_kv(key, data)?;
-        let root = if let Some(t) = self.nodes.get(&tree_id) {
-            t.clone()
-        } else {
-            let root_node = Node::new_leaf_with_size(Id(tree_id), tparams.t);
-            self.add_node(&root_node);
-            root_node
-        };
-        let _insert_res = crate::tree::insert::insert(
-            self,
-            &root,
-            key_offset,
-            &crate::tree::record::Record::from_u32(key_offset),
-        )?;
+        {
+            let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
+                t.clone()
+            } else {
+                let cmp = AOStorageCmp { store: self.store };
+                let s = Rc::new(RefCell::new(AOStorageNodeStorage {
+                    cmp: cmp,
+                    nodes: HashMap::new(),
+                    tree_params: self.params.tree_params,
+                }));
+
+                self.tree_storages.insert(tree_id, s.clone());
+                s.clone()
+            };
+
+            let mut storage_ref = (*target_storage).borrow_mut();
+
+            let root = if let Some(t) = storage_ref.nodes.get(&tree_id) {
+                t.clone()
+            } else {
+                let root_node = Node::new_leaf_with_size(Id(tree_id), tparams.t);
+                storage_ref.add_node(&root_node);
+                root_node
+            };
+
+            let _insert_res = crate::tree::insert::insert(
+                &mut *storage_ref,
+                &root,
+                key_offset,
+                &crate::tree::record::Record::from_u32(key_offset),
+            )?;
+        }
 
         let offset = self.store.size();
-        self.store.write_u32(MAGIC_TRANSACTION)?;
-        self.store.write_u32(self.nodes.len() as u32)?;
+        self.store.write_u32(MAGIC_TRANSACTION_LIST)?;
+        self.store.write_u32(self.tree_storages.len() as u32)?;
+        for ns in self.tree_storages.iter() {
+            self.store.write_u32(MAGIC_TRANSACTION)?;
+            self.store.write_u32(*ns.0)?;
+            let cur_store = ns.1.borrow();
+            self.store.write_u32(cur_store.nodes.len() as u32)?;
 
-        for node in self.nodes.values() {
-            let node_ref = node.borrow();
-            self.store.write_id(node_ref.id)?;
-            self.store.write_bool(node_ref.is_leaf)?;
-            self.store.write_id(node_ref.parent)?;
-            self.store.write_id(node_ref.left)?;
-            self.store.write_id(node_ref.right)?;
-            self.store.write_u32(node_ref.keys_count as u32)?;
-            self.store.write_u32(node_ref.data_count as u32)?;
-            for k in node_ref.key_iter() {
-                self.store.write_u32(*k)?;
-            }
-            for d in node_ref.data_iter() {
-                match *d {
-                    Record::Value(v) => self.store.write_u32(v)?,
-                    Record::Ptr(ptr) => self.store.write_id(ptr)?,
-                    Record::Empty => todo!(),
+            for node in cur_store.nodes.values() {
+                let node_ref = node.borrow();
+                self.store.write_id(node_ref.id)?;
+                self.store.write_bool(node_ref.is_leaf)?;
+                self.store.write_id(node_ref.parent)?;
+                self.store.write_id(node_ref.left)?;
+                self.store.write_id(node_ref.right)?;
+                self.store.write_u32(node_ref.keys_count as u32)?;
+                self.store.write_u32(node_ref.data_count as u32)?;
+                for k in node_ref.key_iter() {
+                    self.store.write_u32(*k)?;
+                }
+                for d in node_ref.data_iter() {
+                    match *d {
+                        Record::Value(v) => self.store.write_u32(v)?,
+                        Record::Ptr(ptr) => self.store.write_id(ptr)?,
+                        Record::Empty => todo!(),
+                    }
                 }
             }
+            self.params.offset = offset as u32;
+            self.store.header_write(&self.params)?;
         }
-        self.params.offset = offset as u32;
-        self.store.header_write(&self.params)?;
         Ok(())
     }
 
     fn load_trans(&mut self) -> Result<()> {
-        self.nodes.clear();
+        self.tree_storages.clear();
 
         let hdr = self.store.header_read()?;
         if hdr.offset == 0 {
@@ -249,77 +282,98 @@ impl<'a, Store: AppendOnlyStruct> AOStorage<'a, Store> {
         }
 
         let mut offset = hdr.offset as usize;
-        let magic = self.store.read_u32(offset)?;
-        if magic != MAGIC_TRANSACTION {
+        let magic_lst = self.store.read_u32(offset)?;
+        offset += std::mem::size_of::<u32>();
+        if magic_lst != MAGIC_TRANSACTION_LIST {
             panic!();
         }
+        let storages_count = self.store.read_u32(offset)?;
         offset += std::mem::size_of::<u32>();
-        let count: u32 = self.store.read_u32(offset)?;
-        offset += std::mem::size_of::<u32>();
-        for i in 0..count {
-            let id = self.store.read_id(offset)?;
-            offset += std::mem::size_of::<u32>();
-            let is_leaf = self.store.read_bool(offset)?;
-            offset += std::mem::size_of::<u8>();
-            let parent = self.store.read_id(offset)?;
-            offset += std::mem::size_of::<u32>();
-            let left = self.store.read_id(offset)?;
-            offset += std::mem::size_of::<u32>();
-            let right = self.store.read_id(offset)?;
-            offset += std::mem::size_of::<u32>();
-            let keys_count = self.store.read_u32(offset)?;
-            offset += std::mem::size_of::<u32>();
-            let data_count = self.store.read_u32(offset)?;
-            offset += std::mem::size_of::<u32>();
-            let mut keys = Vec::with_capacity(keys_count as usize);
-            let mut data = Vec::with_capacity(keys_count as usize);
-            for i in 0..keys_count {
-                let key = self.store.read_u32(offset)?;
-                offset += std::mem::size_of::<u32>();
-                keys.push(key);
+        for _tree_store in 0..storages_count {
+            let magic = self.store.read_u32(offset)?;
+            if magic != MAGIC_TRANSACTION {
+                panic!();
             }
+            offset += std::mem::size_of::<u32>();
 
-            for i in 0..data_count {
-                let d = self.store.read_u32(offset)?;
+            let tree_id = self.store.read_u32(offset)?;
+            let cmp = AOStorageCmp { store: self.store };
+            let s = Rc::new(RefCell::new(AOStorageNodeStorage {
+                cmp: cmp,
+                nodes: HashMap::new(),
+                tree_params: self.params.tree_params,
+            }));
+            self.tree_storages.insert(tree_id, s.clone());
+
+            offset += std::mem::size_of::<u32>();
+            let count: u32 = self.store.read_u32(offset)?;
+            offset += std::mem::size_of::<u32>();
+            for i in 0..count {
+                let id = self.store.read_id(offset)?;
                 offset += std::mem::size_of::<u32>();
-                if is_leaf {
-                    data.push(Record::Value(d));
-                } else {
-                    data.push(Record::Ptr(Id(d)));
+                let is_leaf = self.store.read_bool(offset)?;
+                offset += std::mem::size_of::<u8>();
+                let parent = self.store.read_id(offset)?;
+                offset += std::mem::size_of::<u32>();
+                let left = self.store.read_id(offset)?;
+                offset += std::mem::size_of::<u32>();
+                let right = self.store.read_id(offset)?;
+                offset += std::mem::size_of::<u32>();
+                let keys_count = self.store.read_u32(offset)?;
+                offset += std::mem::size_of::<u32>();
+                let data_count = self.store.read_u32(offset)?;
+                offset += std::mem::size_of::<u32>();
+                let mut keys = Vec::with_capacity(keys_count as usize);
+                let mut data = Vec::with_capacity(keys_count as usize);
+                for _i in 0..keys_count {
+                    let key = self.store.read_u32(offset)?;
+                    offset += std::mem::size_of::<u32>();
+                    keys.push(key);
                 }
-            }
-            let node = Node::new(
-                id,
-                is_leaf,
-                keys,
-                data,
-                keys_count as usize,
-                data_count as usize,
-            );
-            node.borrow_mut().parent = parent;
-            node.borrow_mut().left = left;
-            node.borrow_mut().right = right;
-            self.nodes.insert(id.0, node);
-        }
 
+                for _i in 0..data_count {
+                    let d = self.store.read_u32(offset)?;
+                    offset += std::mem::size_of::<u32>();
+                    if is_leaf {
+                        data.push(Record::Value(d));
+                    } else {
+                        data.push(Record::Ptr(Id(d)));
+                    }
+                }
+                let node = Node::new(
+                    id,
+                    is_leaf,
+                    keys,
+                    data,
+                    keys_count as usize,
+                    data_count as usize,
+                );
+                node.borrow_mut().parent = parent;
+                node.borrow_mut().left = left;
+                node.borrow_mut().right = right;
+                s.borrow_mut().add_node(&node);
+                //self.nodes.insert(id.0, node);
+            }
+        }
         Ok(())
     }
 
     pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
         self.load_trans()?;
-        let root = self.get_root();
-        if root.is_none() {
-            return Ok(None);
-        }
+        todo!()
+        // let root = self.get_root();
+        // if root.is_none() {
+        //     return Ok(None);
+        // }
 
-        let find_res = crate::tree::read::find(self, &root.unwrap().clone(), std::u32::MAX)?;
-        if find_res.is_none() {
-            return Ok(None);
-        }
+        // let find_res = crate::tree::read::find(self, &root.unwrap().clone(), std::u32::MAX)?;
+        // if find_res.is_none() {
+        //     return Ok(None);
+        // }
 
-        let offset = find_res.unwrap().into_u32();
-        let kv = self.read_kv(offset as usize)?;
-        return Ok(Some(kv.1));
+        // let offset = find_res.unwrap().into_u32();
+        // let kv = self.read_kv(offset as usize)?;
+        // return Ok(Some(kv.1));
     }
 }
 
