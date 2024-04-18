@@ -1,11 +1,7 @@
 # bpts
 
-- [ ] Page is full.
-  - [ ] crc
-  - [ ] bloom
-  - [ ] page memory usage.
-- [ ] Storage
-  - [ ] datablockheader.is_full
+
+- [ ] tree_id
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
