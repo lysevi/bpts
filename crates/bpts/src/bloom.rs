@@ -43,7 +43,7 @@ impl Bloom {
     }
 
     pub fn insert(&mut self, key: &[u8]) {
-        let jh = jenkins_hash(key);
+        let _jh = jenkins_hash(key);
 
         todo!()
     }
