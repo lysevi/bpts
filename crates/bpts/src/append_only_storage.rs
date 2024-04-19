@@ -78,9 +78,10 @@ pub struct AOStorageCmp {
 
 impl KeyCmp for AOStorageCmp {
     fn compare(&self, _key1: u32, _key2: u32) -> std::cmp::Ordering {
-        let c1 = self.store.read_key(_key1);
-        let c2 = self.store.read_key(_key2);
-        return self.cmp.borrow().compare(c1, c2);
+        todo!();
+        // let c1 = self.store.read_key(_key1);
+        // let c2 = self.store.read_key(_key2);
+        // return self.cmp.borrow().compare(c1, c2);
     }
 }
 
@@ -250,8 +251,6 @@ impl AOStorage {
     }
 
     fn read_kv(store: &dyn AppendOnlyStruct, offset: usize) -> Result<(Vec<u8>, Vec<u8>)> {
-        //TODO Result<u32> => Result<u64>
-
         let mut read_offset = offset;
         let key_len = store.read_u32(read_offset)?;
         read_offset += std::mem::size_of::<u32>();
@@ -273,6 +272,14 @@ impl AOStorage {
         return Ok((key, data));
     }
 
+    fn get_tree_cmp(&self, tree_id: u32) -> Rc<RefCell<AOStorageCmp>> {
+        let cmp = Rc::new(RefCell::new(AOStorageCmp {
+            store: self.store.clone(),
+            cmp: self.cmp.get(&tree_id).unwrap().clone(),
+        }));
+        return cmp;
+    }
+
     pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
         let tparams = self.params.tree_params.clone();
 
@@ -283,13 +290,9 @@ impl AOStorage {
                 c.borrow_mut().offset = 0;
                 c
             } else {
-                let cmp = Rc::new(RefCell::new(AOStorageCmp {
-                    store: self.store.clone(),
-                    cmp: self.cmp.get(&tree_id).unwrap().clone(),
-                }));
                 let s = Rc::new(RefCell::new(AOStorageNodeStorage {
                     offset: 0,
-                    cmp: Some(cmp.clone()),
+                    cmp: Some(self.get_tree_cmp(tree_id)),
                     nodes: HashMap::new(),
                     tree_params: self.params.tree_params,
                 }));
@@ -297,11 +300,9 @@ impl AOStorage {
                 self.tree_storages.insert(tree_id, s.clone());
                 s.clone()
             };
-            let cmp = Rc::new(RefCell::new(AOStorageCmp {
-                store: self.store.clone(),
-                cmp: self.cmp.get(&tree_id).unwrap().clone(),
-            }));
-            target_storage.borrow_mut().set_cmp(cmp);
+            target_storage
+                .borrow_mut()
+                .set_cmp(self.get_tree_cmp(tree_id));
             let mut storage_ref = (*target_storage).borrow_mut();
 
             let root = if let Some(t) = storage_ref.nodes.get(&tree_id) {
@@ -408,13 +409,9 @@ impl AOStorage {
 
             let tree_id = store.read_u32(offset)?;
 
-            let cmp = Rc::new(RefCell::new(AOStorageCmp {
-                store: self.store.clone(),
-                cmp: self.cmp.get(&tree_id).unwrap().clone(),
-            }));
             let s = Rc::new(RefCell::new(AOStorageNodeStorage {
                 offset: offset as u32,
-                cmp: Some(cmp),
+                cmp: Some(self.get_tree_cmp(tree_id)),
                 nodes: HashMap::new(),
                 tree_params: self.params.tree_params,
             }));
