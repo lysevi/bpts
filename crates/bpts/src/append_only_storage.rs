@@ -124,7 +124,7 @@ impl KeyCmp for AOSStorageKeyCmpRef {
             return self.cmp.borrow().compare(&kv1.0, &kv2.0);
         }
 
-        if key1 == std::u32::MAX {
+        if key1 == std::u32::MAX && key2 != std::u32::MAX {
             return self.cmp_with_left(key2);
         }
 
@@ -235,7 +235,7 @@ impl AOStorage {
     }
 
     pub fn close(&mut self) -> Result<()> {
-        todo!();
+        Ok(())
     }
 
     fn insert_kv(store: &dyn AppendOnlyStruct, key: &[u8], data: &[u8]) -> Result<u32> {
@@ -307,7 +307,7 @@ impl AOStorage {
                 .set_cmp(self.get_tree_cmp(tree_id));
             let mut storage_ref = (*target_storage).borrow_mut();
 
-            let root = if let Some(t) = storage_ref.nodes.get(&tree_id) {
+            let root = if let Some(t) = storage_ref.get_root() {
                 t.clone()
             } else {
                 let root_node = Node::new_leaf_with_size(Id(tree_id), tparams.t);
@@ -523,7 +523,6 @@ mod tests {
 
     impl AOSKeyCmp for MockStorageKeyCmp {
         fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
-            println!("cmp: {:?} = {:?}", key1, key2);
             key1.cmp(key2)
         }
     }
@@ -539,6 +538,10 @@ mod tests {
                 hdr: RefCell::new(SingleElementStore::new()),
                 space: RefCell::new(Vec::new()),
             }
+        }
+
+        pub fn size(&self) -> usize {
+            self.space.borrow().len()
         }
     }
 
@@ -641,7 +644,7 @@ mod tests {
 
         let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
         let params = AOStorageParams::default();
-        let mut storage = AOStorage::new(fstore, &params, all_cmp)?;
+        let mut storage = AOStorage::new(fstore.clone(), &params, all_cmp)?;
         let max_key = 400;
         for key in 0..max_key {
             if key == 200 {
@@ -656,6 +659,15 @@ mod tests {
                 let value = &find_res.unwrap()[..];
                 assert_eq!(value, cur_key_sl)
             }
+
+            for search_key in 0..key {
+                println!("read {}", search_key);
+                let key_sl = unsafe { any_as_u8_slice(&search_key) };
+                let find_res = storage.find(1, key_sl)?;
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, key_sl)
+            }
         }
 
         for key in 0..max_key {
@@ -668,6 +680,7 @@ mod tests {
         }
 
         storage.close()?;
+        println!("size: {}kb", fstore.borrow().size() as f32 / 1024f32);
         Ok(())
     }
 }
