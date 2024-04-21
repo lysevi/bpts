@@ -77,37 +77,37 @@ pub struct AOStorageCmp {
 }
 
 impl KeyCmp for AOStorageCmp {
-    fn compare(&self, _key1: u32, _key2: u32) -> std::cmp::Ordering {
-        todo!();
-        // let c1 = self.store.read_key(_key1);
-        // let c2 = self.store.read_key(_key2);
-        // return self.cmp.borrow().compare(c1, c2);
+    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
+        let store = self.store.borrow();
+        let kv1 = AOStorage::read_kv(&*store, key1 as usize).unwrap();
+        let kv2 = AOStorage::read_kv(&*store, key2 as usize).unwrap();
+        return self.cmp.borrow().compare(&kv1.0, &kv2.0);
     }
 }
 
 struct AOSStorageKeyCmpRef {
     user_key: Vec<u8>,
     store: Rc<RefCell<dyn AppendOnlyStruct>>,
-    cmp: AOStorageCmp,
+    cmp: Rc<RefCell<dyn AOSKeyCmp>>,
 }
 
 impl AOSStorageKeyCmpRef {
     fn cmp_with_left(&self, key2: u32) -> std::cmp::Ordering {
-        todo!()
-        // let other = unsafe { datalist::load_key(self.buffer, key2) };
-        // if let Some(x) = &self.user_key {
-        //     return self.cmp.borrow().compare(x.as_slice(), other);
-        // }
-        // panic!();
+        let store = self.store.borrow();
+        let kv2 = AOStorage::read_kv(&*store, key2 as usize).unwrap();
+        return self
+            .cmp
+            .borrow()
+            .compare(self.user_key.as_slice(), kv2.0.as_slice());
     }
 
     fn cmp_with_right(&self, key1: u32) -> std::cmp::Ordering {
-        todo!()
-        // let other = unsafe { datalist::load_key(self.buffer, key1) };
-        // if let Some(x) = &self.user_key {
-        //     return self.cmp.borrow().compare(other, x.as_slice());
-        // }
-        // panic!();
+        let store = self.store.borrow();
+        let kv1 = AOStorage::read_kv(&*store, key1 as usize).unwrap();
+        return self
+            .cmp
+            .borrow()
+            .compare(kv1.0.as_slice(), self.user_key.as_slice());
     }
 }
 
@@ -116,17 +116,19 @@ impl KeyCmp for AOSStorageKeyCmpRef {
         if key1 == std::u32::MAX && key2 == std::u32::MAX {
             return std::cmp::Ordering::Equal;
         }
+
+        if key1 != std::u32::MAX && key2 != std::u32::MAX {
+            let store = self.store.borrow();
+            let kv1 = AOStorage::read_kv(&*store, key1 as usize).unwrap();
+            let kv2 = AOStorage::read_kv(&*store, key2 as usize).unwrap();
+            return self.cmp.borrow().compare(&kv1.0, &kv2.0);
+        }
+
         if key1 == std::u32::MAX {
             return self.cmp_with_left(key2);
         }
-        todo!();
-        // if key1 != std::u32::MAX && key2 != std::u32::MAX {
-        //     let k1 = unsafe { datalist::load_key(self.buffer, key1) };
-        //     let k2 = unsafe { datalist::load_key(self.buffer, key2) };
-        //     return self.cmp.borrow().compare(k1, k2);
-        // }
 
-        // return self.cmp_with_right(key1);
+        return self.cmp_with_right(key1);
     }
 }
 
@@ -435,22 +437,26 @@ impl AOStorage {
                 offset += std::mem::size_of::<u32>();
                 let data_count = store.read_u32(offset)?;
                 offset += std::mem::size_of::<u32>();
+
                 let mut keys = Vec::with_capacity(keys_count as usize);
+                keys.resize(self.params.tree_params.get_keys_count(), 0u32);
+
                 let mut data = Vec::with_capacity(keys_count as usize);
-                for _i in 0..keys_count {
+                data.resize(self.params.tree_params.get_keys_count(), Record::Empty);
+                for i in 0..keys_count {
                     let key = store.read_u32(offset)?;
                     offset += std::mem::size_of::<u32>();
-                    keys.push(key);
+                    keys[i as usize] = key;
                 }
 
-                for _i in 0..data_count {
+                for i in 0..data_count {
                     let d = store.read_u32(offset)?;
                     offset += std::mem::size_of::<u32>();
-                    if is_leaf {
-                        data.push(Record::Value(d));
+                    data[i as usize] = if is_leaf {
+                        Record::Value(d)
                     } else {
-                        data.push(Record::Ptr(Id(d)));
-                    }
+                        Record::Ptr(Id(d))
+                    };
                 }
                 let node = Node::new(
                     id,
@@ -484,10 +490,7 @@ impl AOStorage {
         let cmp = Rc::new(RefCell::new(AOSStorageKeyCmpRef {
             store: self.store.clone(),
             user_key: key.to_vec(),
-            cmp: AOStorageCmp {
-                store: self.store.clone(),
-                cmp: self.cmp.get(&tree_id).unwrap().clone(),
-            },
+            cmp: self.cmp.get(&tree_id).unwrap().clone(),
         }));
         storage.borrow_mut().set_cmp(cmp);
 
@@ -520,6 +523,7 @@ mod tests {
 
     impl AOSKeyCmp for MockStorageKeyCmp {
         fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
+            println!("cmp: {:?} = {:?}", key1, key2);
             key1.cmp(key2)
         }
     }
@@ -640,6 +644,9 @@ mod tests {
         let mut storage = AOStorage::new(fstore, &params, all_cmp)?;
         let max_key = 400;
         for key in 0..max_key {
+            if key == 200 {
+                println!("");
+            };
             println!("insert {}", key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             storage.insert(1, &cur_key_sl, &cur_key_sl)?;
