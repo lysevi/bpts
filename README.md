@@ -1,14 +1,16 @@
 # bpts
 
-
-- [*] tree_id
-- [ ] comparator.
+- [ ] write changed nodes only.
+- [ ] read refact:
+   - [ ] don't load the full tree when reading.
+- [ ] begin transaction
+  - [ ] astore - allocate block.
+  - [ ] astore - commit.
 - [ ] test - many trees.
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
   - [ ] 99 percentile time
-- [ ] begin transaction
 - [ ] transaction is NodeStorage. 
   - [ ] Lazy load - method "load" to load data from buffer.
 - [ ] - binary search in nodes.
