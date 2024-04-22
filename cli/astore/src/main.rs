@@ -13,16 +13,8 @@ use bpts::{
 #[command(version, about, long_about = None)]
 struct Args {
     /// verbose output
-    #[arg(short, long, default_value_t = false)]
-    verbose: bool,
-
-    /// pages free-list info
-    #[arg(short, long, default_value_t = false)]
-    more_info: bool,
-
-    /// show progress
-    #[arg(short, long, default_value_t = false)]
-    progress: bool,
+    #[arg(long, default_value_t = false)]
+    quiet: bool,
 
     /// data count
     #[arg(short, long, default_value_t = 10000)]
@@ -165,13 +157,6 @@ fn main() -> Result<()> {
 
     let full_time_begin = Instant::now();
     for key in 0..args.count {
-        // if key == 16 {
-        //     println!("");
-        // }
-        if args.progress {
-            let ten_millis = std::time::Duration::from_millis(500);
-            std::thread::sleep(ten_millis);
-        }
         let cur_begin = Instant::now();
 
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
@@ -179,17 +164,20 @@ fn main() -> Result<()> {
 
         let cur_duration = cur_begin.elapsed();
 
-        print!(
-            "\rwrite  cur:{}% size:{} time:{:?}",
-            (100f32 * key as f32) / (args.count as f32),
-            fstore.borrow().size(),
-            cur_duration
-        );
-
-        let _ = std::io::stdout().flush();
+        if !args.quiet {
+            print!(
+                "\rwrite cur:{}% size:{} time:{:?}",
+                (100f32 * key as f32) / (args.count as f32),
+                fstore.borrow().size(),
+                cur_duration
+            );
+            let _ = std::io::stdout().flush();
+        }
     }
 
-    println!("");
+    if !args.quiet {
+        println!("");
+    }
 
     for key in 0..args.count {
         let cur_begin = Instant::now();
@@ -200,13 +188,14 @@ fn main() -> Result<()> {
         assert!(find_res.is_some());
 
         let cur_duration = cur_begin.elapsed();
-
-        print!(
-            "\rread  cur:{}%  time:{:?}",
-            (100f32 * key as f32) / (args.count as f32),
-            cur_duration
-        );
-        let _ = std::io::stdout().flush();
+        if !args.quiet {
+            print!(
+                "\rread cur:{}% time:{:?}",
+                (100f32 * key as f32) / (args.count as f32),
+                cur_duration
+            );
+            let _ = std::io::stdout().flush();
+        }
     }
 
     let duration = full_time_begin.elapsed();
