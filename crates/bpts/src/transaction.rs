@@ -295,6 +295,8 @@ impl NodeStorage for Transaction {
     fn get_cmp(&self) -> &dyn KeyCmp {
         self
     }
+
+    fn mark_as_changed(&mut self, id: Id) {}
 }
 
 #[cfg(test)]

@@ -107,4 +107,6 @@ impl NodeStorage for MockNodeStorage {
     fn get_cmp(&self) -> &dyn KeyCmp {
         return &self.cmp;
     }
+
+    fn mark_as_changed(&mut self, id: Id) {}
 }

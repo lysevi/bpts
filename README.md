@@ -1,7 +1,7 @@
 # bpts
 
 - [ ] write changed nodes only.
-  - [ ] mark changed nodes
+  - [ ] mark changed nodes (mark_as_changed)
   - [ ] write only changed nodes.
 - [ ] read refact:
    - [ ] don't load the full tree when reading.

@@ -196,6 +196,10 @@ impl NodeStorage for AOStorageNodeStorage {
     fn get_cmp(&self) -> &dyn KeyCmp {
         self
     }
+
+    fn mark_as_changed(&mut self, id: Id) {
+        self.nodes_to_offset.remove(&id.0);
+    }
 }
 
 impl KeyCmp for AOStorageNodeStorage {

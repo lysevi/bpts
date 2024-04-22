@@ -14,4 +14,5 @@ pub trait NodeStorage {
     fn erase_node(&mut self, id: &Id);
     fn get_params(&self) -> &TreeParams;
     fn get_cmp(&self) -> &dyn KeyCmp;
+    fn mark_as_changed(&mut self, id: Id);
 }
