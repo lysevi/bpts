@@ -10,8 +10,7 @@ use crate::types::Id;
 use crate::Result;
 
 /*
-params:.... MAGIC_NUMBERkey+data...transaction...MAGIC_NUMBERtransaction_list
-transaction_list - set links to trees.
+params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
  */
 
 const MAGIC_TRANSACTION: u32 = 0x66996699;
@@ -53,12 +52,18 @@ pub struct AOStorageNodeStorage {
     offset: u32,
     cmp: Option<StorageKeyCmp>,
     pub nodes: HashMap<u32, RcNode>,
+    nodes_to_offset: HashMap<u32, usize>,
     pub tree_params: TreeParams,
 }
 
 impl AOStorageNodeStorage {
     pub fn set_cmp(&mut self, c: StorageKeyCmp) {
         self.cmp = Some(c);
+    }
+
+    fn add_node_with_offset(&mut self, node: &RcNode, offset: usize) {
+        self.add_node(node);
+        self.nodes_to_offset.insert(node.borrow().id.0, offset);
     }
 }
 
@@ -296,6 +301,7 @@ impl AOStorage {
                     offset: 0,
                     cmp: Some(self.get_tree_cmp(tree_id)),
                     nodes: HashMap::new(),
+                    nodes_to_offset: HashMap::new(),
                     tree_params: self.params.tree_params,
                 }));
 
@@ -326,40 +332,45 @@ impl AOStorage {
         let mut trans_list = Vec::new();
         let flat_store = self.store.borrow_mut();
 
-        let offset = flat_store.size();
-
         for ns in self.tree_storages.iter() {
             if ns.1.borrow().offset != 0 {
                 trans_list.push(ns.1.borrow().offset);
                 continue;
             }
-            trans_list.push(offset as u32);
-            ns.1.borrow_mut().offset = offset as u32;
+            let mut nodes_offsets = Vec::new();
+            {
+                let cur_store = ns.1.borrow();
 
-            flat_store.write_u32(MAGIC_TRANSACTION)?;
-            flat_store.write_u32(*ns.0)?;
-            let cur_store = ns.1.borrow();
-            flat_store.write_u32(cur_store.nodes.len() as u32)?;
-
-            for node in cur_store.nodes.values() {
-                let node_ref = node.borrow();
-                flat_store.write_id(node_ref.id)?;
-                flat_store.write_bool(node_ref.is_leaf)?;
-                flat_store.write_id(node_ref.parent)?;
-                flat_store.write_id(node_ref.left)?;
-                flat_store.write_id(node_ref.right)?;
-                flat_store.write_u32(node_ref.keys_count as u32)?;
-                flat_store.write_u32(node_ref.data_count as u32)?;
-                for k in node_ref.key_iter() {
-                    flat_store.write_u32(*k)?;
-                }
-                for d in node_ref.data_iter() {
-                    match *d {
-                        Record::Value(v) => flat_store.write_u32(v)?,
-                        Record::Ptr(ptr) => flat_store.write_id(ptr)?,
-                        Record::Empty => todo!(),
+                for node in cur_store.nodes.values() {
+                    nodes_offsets.push(flat_store.size());
+                    let node_ref = node.borrow();
+                    flat_store.write_id(node_ref.id)?;
+                    flat_store.write_bool(node_ref.is_leaf)?;
+                    flat_store.write_id(node_ref.parent)?;
+                    flat_store.write_id(node_ref.left)?;
+                    flat_store.write_id(node_ref.right)?;
+                    flat_store.write_u32(node_ref.keys_count as u32)?;
+                    flat_store.write_u32(node_ref.data_count as u32)?;
+                    for k in node_ref.key_iter() {
+                        flat_store.write_u32(*k)?;
+                    }
+                    for d in node_ref.data_iter() {
+                        match *d {
+                            Record::Value(v) => flat_store.write_u32(v)?,
+                            Record::Ptr(ptr) => flat_store.write_id(ptr)?,
+                            Record::Empty => todo!(),
+                        }
                     }
                 }
+            }
+
+            ns.1.borrow_mut().offset = flat_store.size() as u32;
+            trans_list.push(flat_store.size() as u32);
+            flat_store.write_u32(MAGIC_TRANSACTION)?;
+            flat_store.write_u32(*ns.0)?;
+            flat_store.write_u32(nodes_offsets.len() as u32)?;
+            for i in nodes_offsets {
+                flat_store.write_u32(i as u32)?;
             }
         }
 
@@ -383,7 +394,7 @@ impl AOStorage {
             panic!();
         }
 
-        let mut offsets = Vec::new();
+        let mut trees_offsets = Vec::new();
         {
             let mut offset = hdr.offset as usize;
             let magic_lst = store.read_u32(offset)?;
@@ -397,11 +408,11 @@ impl AOStorage {
             for _i in 0..storages_count {
                 let v = store.read_u32(offset)?;
                 offset += std::mem::size_of::<u32>();
-                offsets.push(v);
+                trees_offsets.push(v);
             }
         }
 
-        for start in offsets {
+        for start in trees_offsets {
             let mut offset = start as usize;
             let magic = store.read_u32(offset)?;
             if magic != MAGIC_TRANSACTION {
@@ -415,6 +426,7 @@ impl AOStorage {
                 offset: offset as u32,
                 cmp: Some(self.get_tree_cmp(tree_id)),
                 nodes: HashMap::new(),
+                nodes_to_offset: HashMap::new(),
                 tree_params: self.params.tree_params,
             }));
             self.tree_storages.insert(tree_id, s.clone());
@@ -422,7 +434,14 @@ impl AOStorage {
             offset += std::mem::size_of::<u32>();
             let count: u32 = store.read_u32(offset)?;
             offset += std::mem::size_of::<u32>();
+            let mut nodes_offsets = Vec::new();
             for _i in 0..count {
+                let node_pos: u32 = store.read_u32(offset)?;
+                offset += std::mem::size_of::<u32>();
+                nodes_offsets.push(node_pos);
+            }
+            for node_offset in nodes_offsets {
+                offset = node_offset as usize;
                 let id = store.read_id(offset)?;
                 offset += std::mem::size_of::<u32>();
                 let is_leaf = store.read_bool(offset)?;
@@ -469,7 +488,8 @@ impl AOStorage {
                 node.borrow_mut().parent = parent;
                 node.borrow_mut().left = left;
                 node.borrow_mut().right = right;
-                s.borrow_mut().add_node(&node);
+                s.borrow_mut()
+                    .add_node_with_offset(&node, node_offset as usize);
                 //self.nodes.insert(id.0, node);
             }
         }

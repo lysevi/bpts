@@ -1,6 +1,8 @@
 # bpts
 
 - [ ] write changed nodes only.
+  - [ ] mark changed nodes
+  - [ ] write only changed nodes.
 - [ ] read refact:
    - [ ] don't load the full tree when reading.
 - [ ] begin transaction
