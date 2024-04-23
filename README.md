@@ -27,4 +27,3 @@
 - [ ] tables
    - [ ] indexes
 - [ ] - bloom in transaction
-- [ ] remove over insert special flag.
