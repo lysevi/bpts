@@ -20,7 +20,8 @@ params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
 
 const MAGIC_TRANSACTION: u32 = 0x66996699;
 const MAGIC_TRANSACTION_LIST: u32 = 0xDDDBDDDB;
-
+const U8SZ: usize = std::mem::size_of::<u8>();
+const U32SZ: usize = std::mem::size_of::<u32>();
 pub struct Storage {
     store: Rc<RefCell<dyn FlatStorage>>,
     params: StorageParams,
@@ -34,11 +35,13 @@ impl Storage {
         params: &StorageParams,
         cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     ) -> Result<Self> {
-        s.borrow_mut().header_write(&params)?;
+        let mut p = params.clone();
+        p.is_closed = 0;
+        s.borrow_mut().header_write(&p)?;
 
         Ok(Storage {
             store: s,
-            params: params.clone(),
+            params: p,
             cmp: cmp,
             tree_storages: HashMap::new(),
         })
@@ -77,26 +80,58 @@ impl Storage {
         return Ok(offset as u32);
     }
 
-    pub(super) fn read_kv(store: &dyn FlatStorage, offset: usize) -> Result<(Vec<u8>, Vec<u8>)> {
+    // pub(super) fn read_kv(store: &dyn FlatStorage, offset: usize) -> Result<(Vec<u8>, Vec<u8>)> {
+    //     let mut read_offset = offset;
+    //     let key_len = store.read_u32(read_offset)?;
+    //     read_offset += U32SZ;
+    //     let mut key = Vec::new();
+    //     let mut data = Vec::new();
+    //     for _i in 0..key_len {
+    //         let val = store.read_u8(read_offset)?;
+    //         read_offset += U8SZ;
+    //         key.push(val);
+    //     }
+
+    //     let data_len = store.read_u32(read_offset)?;
+    //     read_offset += U32SZ;
+    //     for _i in 0..data_len {
+    //         let val = store.read_u8(read_offset)?;
+    //         read_offset += U8SZ;
+    //         data.push(val);
+    //     }
+    //     return Ok((key, data));
+    // }
+
+    pub(super) fn read_key(store: &dyn FlatStorage, offset: usize) -> Result<Vec<u8>> {
         let mut read_offset = offset;
         let key_len = store.read_u32(read_offset)?;
-        read_offset += std::mem::size_of::<u32>();
+        read_offset += U32SZ;
         let mut key = Vec::new();
-        let mut data = Vec::new();
         for _i in 0..key_len {
             let val = store.read_u8(read_offset)?;
-            read_offset += std::mem::size_of::<u8>();
+            read_offset += U8SZ;
             key.push(val);
         }
 
+        return Ok(key);
+    }
+
+    pub(super) fn read_kdata(store: &dyn FlatStorage, offset: usize) -> Result<Vec<u8>> {
+        let mut read_offset = offset;
+        let key_len = store.read_u32(read_offset)?;
+        read_offset += U32SZ;
+
+        read_offset += U8SZ * key_len as usize;
+
         let data_len = store.read_u32(read_offset)?;
-        read_offset += std::mem::size_of::<u32>();
+        let mut data = Vec::with_capacity(data_len as usize);
+        read_offset += U32SZ;
         for _i in 0..data_len {
             let val = store.read_u8(read_offset)?;
-            read_offset += std::mem::size_of::<u8>();
+            read_offset += U8SZ;
             data.push(val);
         }
-        return Ok((key, data));
+        return Ok(data);
     }
 
     fn get_tree_cmp(&self, tree_id: u32) -> Rc<RefCell<StorageNodeCmp>> {
@@ -123,23 +158,21 @@ impl Storage {
         {
             let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
                 let c = t.clone();
-                c.borrow_mut().offset = 0;
+                c.borrow_mut()
+                    .set_offset(0)
+                    .set_cmp(self.get_tree_cmp(tree_id));
                 c
             } else {
-                let s = Rc::new(RefCell::new(StorageNodeStorage {
-                    offset: 0,
-                    cmp: Some(self.get_tree_cmp(tree_id)),
-                    nodes: HashMap::new(),
-                    nodes_to_offset: HashMap::new(),
-                    tree_params: self.params.tree_params,
-                }));
+                let s = StorageNodeStorage::new(
+                    0u32,
+                    self.get_tree_cmp(tree_id),
+                    self.params.tree_params,
+                );
 
                 self.tree_storages.insert(tree_id, s.clone());
                 s.clone()
             };
-            target_storage
-                .borrow_mut()
-                .set_cmp(self.get_tree_cmp(tree_id));
+
             let mut storage_ref = (*target_storage).borrow_mut();
 
             let root = if let Some(t) = storage_ref.get_root() {
@@ -167,48 +200,33 @@ impl Storage {
         let flat_store = self.store.borrow_mut();
 
         for ns in self.tree_storages.iter() {
-            if ns.1.borrow().offset != 0 {
-                trans_list.push(ns.1.borrow().offset);
+            let mut cur_store = ns.1.borrow_mut();
+            if cur_store.offset != 0 {
+                trans_list.push(cur_store.offset);
                 continue;
             }
             let mut nodes_offsets = Vec::new();
-            {
-                let mut cur_store = ns.1.borrow_mut();
-                let mut new_offsets = HashMap::new();
 
-                for node in cur_store.nodes.values() {
-                    if let Some(exists_offset) = cur_store.get_node_offset(node.borrow().id) {
-                        nodes_offsets.push(exists_offset);
-                        continue;
-                    }
-                    let cur_node_offset = flat_store.size();
-                    let node_ref = node.borrow();
-                    nodes_offsets.push(cur_node_offset);
-                    new_offsets.insert(node.borrow().id, cur_node_offset);
-                    flat_store.write_id(node_ref.id)?;
-                    flat_store.write_bool(node_ref.is_leaf)?;
-                    flat_store.write_id(node_ref.parent)?;
-                    flat_store.write_id(node_ref.left)?;
-                    flat_store.write_id(node_ref.right)?;
-                    flat_store.write_u32(node_ref.keys_count as u32)?;
-                    flat_store.write_u32(node_ref.data_count as u32)?;
-                    for k in node_ref.key_iter() {
-                        flat_store.write_u32(*k)?;
-                    }
-                    for d in node_ref.data_iter() {
-                        match *d {
-                            Record::Value(v) => flat_store.write_u32(v)?,
-                            Record::Ptr(ptr) => flat_store.write_id(ptr)?,
-                            Record::Empty => todo!(),
-                        }
-                    }
+            let mut new_offsets = HashMap::new();
+
+            for node in cur_store.nodes.values() {
+                let node_ref = node.borrow();
+                if let Some(exists_offset) = cur_store.get_node_offset(node_ref.id) {
+                    nodes_offsets.push(exists_offset);
+                    continue;
                 }
-                for o in new_offsets {
-                    cur_store.set_node_offset(o.0, o.1);
-                }
+                let cur_write_offset = flat_store.size();
+
+                nodes_offsets.push(cur_write_offset);
+                new_offsets.insert(node_ref.id, cur_write_offset);
+
+                Self::save_node(&*flat_store, &node_ref)?;
+            }
+            for o in new_offsets {
+                cur_store.set_node_offset(o.0, o.1);
             }
 
-            ns.1.borrow_mut().offset = flat_store.size() as u32;
+            cur_store.offset = flat_store.size() as u32;
             trans_list.push(flat_store.size() as u32);
             flat_store.write_u32(MAGIC_TRANSACTION)?;
             flat_store.write_u32(*ns.0)?;
@@ -230,6 +248,29 @@ impl Storage {
         Ok(())
     }
 
+    fn save_node(flat_store: &dyn FlatStorage, n: &Node) -> Result<()> {
+        flat_store.write_id(n.id)?;
+        flat_store.write_bool(n.is_leaf)?;
+        flat_store.write_id(n.parent)?;
+        flat_store.write_id(n.left)?;
+        flat_store.write_id(n.right)?;
+        flat_store.write_u32(n.keys_count as u32)?;
+        flat_store.write_u32(n.data_count as u32)?;
+
+        for k in n.key_iter() {
+            flat_store.write_u32(*k)?;
+        }
+
+        for d in n.data_iter() {
+            match *d {
+                Record::Value(v) => flat_store.write_u32(v)?,
+                Record::Ptr(ptr) => flat_store.write_id(ptr)?,
+                Record::Empty => todo!(),
+            }
+        }
+        Ok(())
+    }
+
     fn load_trans(&mut self) -> Result<()> {
         self.tree_storages.clear();
         let store = self.store.borrow();
@@ -242,16 +283,16 @@ impl Storage {
         {
             let mut offset = hdr.offset as usize;
             let magic_lst = store.read_u32(offset)?;
-            offset += std::mem::size_of::<u32>();
+            offset += U32SZ;
             if magic_lst != MAGIC_TRANSACTION_LIST {
                 panic!();
             }
             let storages_count = store.read_u32(offset)?;
-            offset += std::mem::size_of::<u32>();
+            offset += U32SZ;
 
             for _i in 0..storages_count {
                 let v = store.read_u32(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 trees_offsets.push(v);
             }
         }
@@ -262,44 +303,43 @@ impl Storage {
             if magic != MAGIC_TRANSACTION {
                 panic!();
             }
-            offset += std::mem::size_of::<u32>();
+            offset += U32SZ;
 
             let tree_id = store.read_u32(offset)?;
 
-            let s = Rc::new(RefCell::new(StorageNodeStorage {
-                offset: offset as u32,
-                cmp: Some(self.get_tree_cmp(tree_id)),
-                nodes: HashMap::new(),
-                nodes_to_offset: HashMap::new(),
-                tree_params: self.params.tree_params,
-            }));
+            let s = StorageNodeStorage::new(
+                offset as u32,
+                self.get_tree_cmp(tree_id),
+                self.params.tree_params,
+            );
             self.tree_storages.insert(tree_id, s.clone());
 
-            offset += std::mem::size_of::<u32>();
+            offset += U32SZ;
             let count: u32 = store.read_u32(offset)?;
-            offset += std::mem::size_of::<u32>();
+            offset += U32SZ;
             let mut nodes_offsets = Vec::new();
             for _i in 0..count {
                 let node_pos: u32 = store.read_u32(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 nodes_offsets.push(node_pos);
             }
+
             for node_offset in nodes_offsets {
                 offset = node_offset as usize;
                 let id = store.read_id(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 let is_leaf = store.read_bool(offset)?;
-                offset += std::mem::size_of::<u8>();
+                offset += U8SZ;
                 let parent = store.read_id(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 let left = store.read_id(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 let right = store.read_id(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 let keys_count = store.read_u32(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
                 let data_count = store.read_u32(offset)?;
-                offset += std::mem::size_of::<u32>();
+                offset += U32SZ;
 
                 let mut keys = Vec::with_capacity(keys_count as usize);
                 keys.resize(self.params.tree_params.get_keys_count(), 0u32);
@@ -308,13 +348,13 @@ impl Storage {
                 data.resize(self.params.tree_params.get_keys_count(), Record::Empty);
                 for i in 0..keys_count {
                     let key = store.read_u32(offset)?;
-                    offset += std::mem::size_of::<u32>();
+                    offset += U32SZ;
                     keys[i as usize] = key;
                 }
 
                 for i in 0..data_count {
                     let d = store.read_u32(offset)?;
-                    offset += std::mem::size_of::<u32>();
+                    offset += U32SZ;
                     data[i as usize] = if is_leaf {
                         Record::Value(d)
                     } else {
@@ -372,8 +412,8 @@ impl Storage {
         }
 
         let offset = find_res.unwrap().into_u32();
-        let kv = Self::read_kv(&*self.store.borrow(), offset as usize)?;
-        return Ok(Some(kv.1));
+        let d = Self::read_kdata(&*self.store.borrow(), offset as usize)?;
+        return Ok(Some(d));
     }
 }
 
@@ -550,7 +590,11 @@ mod tests {
             assert_eq!(value, key_sl)
         }
 
+        let mut hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 0);
         storage.close()?;
+        hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 1);
         println!("size: {}kb", fstore.borrow().size() as f32 / 1024f32);
         Ok(())
     }

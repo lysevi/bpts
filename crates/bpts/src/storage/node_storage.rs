@@ -22,8 +22,27 @@ pub struct StorageNodeStorage {
 }
 
 impl StorageNodeStorage {
-    pub(super) fn set_cmp(&mut self, c: KeyCmpRc) {
+    pub(super) fn new(
+        offset: u32,
+        cmp: KeyCmpRc,
+        params: TreeParams,
+    ) -> Rc<RefCell<StorageNodeStorage>> {
+        Rc::new(RefCell::new(StorageNodeStorage {
+            offset: offset as u32,
+            cmp: Some(cmp),
+            nodes: HashMap::new(),
+            nodes_to_offset: HashMap::new(),
+            tree_params: params,
+        }))
+    }
+    pub(super) fn set_cmp(&mut self, c: KeyCmpRc) -> &mut Self {
         self.cmp = Some(c);
+        self
+    }
+
+    pub(super) fn set_offset(&mut self, v: u32) -> &mut Self {
+        self.offset = v;
+        self
     }
 
     pub(super) fn add_node_with_offset(&mut self, node: &RcNode, offset: usize) {
