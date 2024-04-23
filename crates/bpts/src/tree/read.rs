@@ -128,7 +128,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tree::{mocks::MockNodeStorage, node::Node, params::TreeParams};
+    use crate::tree::{mocks::MockNodeStorage, node::Node, TreeParams};
 
     #[test]
     fn find_in_tree() -> Result<()> {

@@ -3,8 +3,7 @@ use clap::Parser;
 use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc, time::Instant};
 
 use bpts::{
-    append_only_storage::{AOSKeyCmp, AOStorage, AOStorageParams, AppendOnlyStruct},
-    prelude::Result,
+    prelude::*,
     types::{Id, SingleElementStore},
     utils::any_as_u8_slice,
 };
@@ -29,14 +28,14 @@ impl MockStorageKeyCmp {
     }
 }
 
-impl AOSKeyCmp for MockStorageKeyCmp {
+impl KeyCmp for MockStorageKeyCmp {
     fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
         key1.cmp(key2)
     }
 }
 
 struct MockPageStorage {
-    hdr: RefCell<SingleElementStore<AOStorageParams>>,
+    hdr: RefCell<SingleElementStore<StorageParams>>,
     space: RefCell<Vec<u8>>,
 }
 
@@ -53,13 +52,13 @@ impl MockPageStorage {
     }
 }
 
-impl AppendOnlyStruct for MockPageStorage {
-    fn header_write(&self, h: &AOStorageParams) -> Result<()> {
+impl FlatStorage for MockPageStorage {
+    fn header_write(&self, h: &StorageParams) -> Result<()> {
         self.hdr.borrow_mut().replace(h.clone());
         Ok(())
     }
 
-    fn header_read(&self) -> Result<AOStorageParams> {
+    fn header_read(&self) -> Result<StorageParams> {
         if !self.hdr.borrow().is_empty() {
             let rf = self.hdr.borrow_mut();
             let value = rf.as_value();
@@ -147,21 +146,18 @@ impl AppendOnlyStruct for MockPageStorage {
 fn main() -> Result<()> {
     let args = Args::parse();
     println!("{:?}", args);
-    let mut all_cmp: HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>> = HashMap::new();
+    let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
     let cmp = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
     all_cmp.insert(1u32, cmp);
 
     let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
-    let params = AOStorageParams::default();
+    let params = StorageParams::default();
     println!("{:?}", params.tree_params);
-    let mut storage = AOStorage::new(fstore.clone(), &params, all_cmp)?;
+    let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
 
     let full_time_begin = Instant::now();
     for key in 0..args.count {
         let cur_begin = Instant::now();
-        if key == 500 {
-            println!("");
-        }
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         storage.insert(1, &cur_key_sl, &cur_key_sl)?;
 

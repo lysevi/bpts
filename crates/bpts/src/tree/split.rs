@@ -147,7 +147,7 @@ pub fn split_node<Storage: NodeStorage>(
 
 fn insert_key_to_parent(
     target_node: &mut Node,
-    cmp: &dyn crate::tree::node::KeyCmp,
+    cmp: &dyn crate::tree::node::NodeKeyCmp,
     key: u32,
     id: Id,
 ) {
@@ -167,8 +167,8 @@ fn insert_key_to_parent(
 mod tests {
     use super::*;
     use crate::tree::mocks::{MockKeyCmp, MockNodeStorage};
-    use crate::tree::params::TreeParams;
     use crate::tree::read::{self, find};
+    use crate::tree::TreeParams;
     use crate::types;
     fn check_link_to_brother(storage: &MockNodeStorage) {
         let all_links_exists = storage.all(|n| {

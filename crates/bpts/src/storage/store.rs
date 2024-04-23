@@ -2,12 +2,17 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::tree::node::{KeyCmp, Node, RcNode};
+use crate::tree::node::Node;
 use crate::tree::nodestorage::NodeStorage;
-use crate::tree::params::TreeParams;
 use crate::tree::record::Record;
 use crate::types::Id;
 use crate::Result;
+
+use super::cmp::StorageKeyCmpRef;
+use super::cmp::StorageNodeCmp;
+use super::flat_storage::FlatStorage;
+use super::node_storage::{StorageNodeStorage, StorageNodeStorageRc};
+use super::{KeyCmp, StorageParams};
 
 /*
 params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
@@ -16,226 +21,22 @@ params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
 const MAGIC_TRANSACTION: u32 = 0x66996699;
 const MAGIC_TRANSACTION_LIST: u32 = 0xDDDBDDDB;
 
-pub trait AppendOnlyStruct {
-    fn header_write(&self, h: &AOStorageParams) -> Result<()>;
-    fn header_read(&self) -> Result<AOStorageParams>;
-
-    fn size(&self) -> usize;
-    fn write_id(&self, v: Id) -> Result<()>;
-    fn write_bool(&self, v: bool) -> Result<()>;
-    fn write_u8(&self, v: u8) -> Result<()>;
-    fn write_u16(&self, v: u16) -> Result<()>;
-    fn write_u32(&self, v: u32) -> Result<()>;
-    fn write_u64(&self, v: u64) -> Result<()>;
-
-    fn read_id(&self, seek: usize) -> Result<Id>;
-    fn read_bool(&self, seek: usize) -> Result<bool>;
-    fn read_u8(&self, seek: usize) -> Result<u8>;
-    fn read_u16(&self, seek: usize) -> Result<u16>;
-    fn read_u32(&self, seek: usize) -> Result<u32>;
-    fn read_u64(&self, seek: usize) -> Result<u64>;
+pub struct Storage {
+    store: Rc<RefCell<dyn FlatStorage>>,
+    params: StorageParams,
+    cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
+    tree_storages: HashMap<u32, StorageNodeStorageRc>,
 }
 
-pub trait AOSKeyCmp {
-    fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering;
-}
-
-#[derive(Clone, Copy)]
-pub struct AOStorageParams {
-    offset: u32,
-    is_closed: u8,
-    pub tree_params: TreeParams,
-}
-
-pub type StorageKeyCmp = Rc<RefCell<dyn KeyCmp>>;
-
-pub struct AOStorageNodeStorage {
-    offset: u32,
-    cmp: Option<StorageKeyCmp>,
-    pub nodes: HashMap<u32, RcNode>,
-    nodes_to_offset: HashMap<u32, usize>,
-    pub tree_params: TreeParams,
-}
-
-impl AOStorageNodeStorage {
-    pub fn set_cmp(&mut self, c: StorageKeyCmp) {
-        self.cmp = Some(c);
-    }
-
-    fn add_node_with_offset(&mut self, node: &RcNode, offset: usize) {
-        self.add_node(node);
-        self.nodes_to_offset.insert(node.borrow().id.0, offset);
-    }
-
-    fn get_node_offset(&self, id: Id) -> Option<usize> {
-        if let Some(v) = self.nodes_to_offset.get(&id.0) {
-            return Some(*v);
-        }
-        return None;
-    }
-
-    fn set_node_offset(&mut self, id: Id, offset: usize) {
-        self.nodes_to_offset.insert(id.0, offset);
-    }
-}
-
-impl AOStorageParams {
-    pub fn default() -> Self {
-        Self {
-            offset: 0,
-            is_closed: 1,
-            tree_params: TreeParams::default(),
-        }
-    }
-}
-
-pub struct AOStorageCmp {
-    store: Rc<RefCell<dyn AppendOnlyStruct>>,
-    cmp: Rc<RefCell<dyn AOSKeyCmp>>,
-}
-
-impl KeyCmp for AOStorageCmp {
-    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        let store = self.store.borrow();
-        let kv1 = AOStorage::read_kv(&*store, key1 as usize).unwrap();
-        let kv2 = AOStorage::read_kv(&*store, key2 as usize).unwrap();
-        return self.cmp.borrow().compare(&kv1.0, &kv2.0);
-    }
-}
-
-struct AOSStorageKeyCmpRef {
-    user_key: Vec<u8>,
-    store: Rc<RefCell<dyn AppendOnlyStruct>>,
-    cmp: Rc<RefCell<dyn AOSKeyCmp>>,
-}
-
-impl AOSStorageKeyCmpRef {
-    fn cmp_with_left(&self, key2: u32) -> std::cmp::Ordering {
-        let store = self.store.borrow();
-        let kv2 = AOStorage::read_kv(&*store, key2 as usize).unwrap();
-        return self
-            .cmp
-            .borrow()
-            .compare(self.user_key.as_slice(), kv2.0.as_slice());
-    }
-
-    fn cmp_with_right(&self, key1: u32) -> std::cmp::Ordering {
-        let store = self.store.borrow();
-        let kv1 = AOStorage::read_kv(&*store, key1 as usize).unwrap();
-        return self
-            .cmp
-            .borrow()
-            .compare(kv1.0.as_slice(), self.user_key.as_slice());
-    }
-}
-
-impl KeyCmp for AOSStorageKeyCmpRef {
-    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        if key1 == std::u32::MAX && key2 == std::u32::MAX {
-            return std::cmp::Ordering::Equal;
-        }
-
-        if key1 != std::u32::MAX && key2 != std::u32::MAX {
-            let store = self.store.borrow();
-            let kv1 = AOStorage::read_kv(&*store, key1 as usize).unwrap();
-            let kv2 = AOStorage::read_kv(&*store, key2 as usize).unwrap();
-            return self.cmp.borrow().compare(&kv1.0, &kv2.0);
-        }
-
-        if key1 == std::u32::MAX && key2 != std::u32::MAX {
-            return self.cmp_with_left(key2);
-        }
-
-        return self.cmp_with_right(key1);
-    }
-}
-
-pub struct AOStorage {
-    store: Rc<RefCell<dyn AppendOnlyStruct>>,
-    params: AOStorageParams,
-    cmp: HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>>,
-    tree_storages: HashMap<u32, Rc<RefCell<AOStorageNodeStorage>>>,
-}
-
-impl NodeStorage for AOStorageNodeStorage {
-    fn get_root(&self) -> Option<RcNode> {
-        if self.nodes.len() == 1 {
-            let res = self.nodes.iter().next();
-            let res = res.unwrap();
-            let res = res.1;
-            return Some(res.clone());
-        }
-        for i in &self.nodes {
-            let node = i.1;
-            if !node.borrow().is_leaf && node.borrow().parent.is_empty() {
-                return Some(node.clone());
-            }
-        }
-        None
-    }
-    fn get_new_id(&self) -> Id {
-        let max = self.nodes.keys().into_iter().max_by(|x, y| x.cmp(y));
-        match max {
-            Some(x) => {
-                let n = x + 1;
-                Id(n)
-            }
-            None => Id(1),
-        }
-    }
-
-    fn get_node(&self, id: Id) -> crate::Result<RcNode> {
-        let res = self.nodes.get(&id.unwrap());
-        if let Some(r) = res {
-            Ok(r.clone())
-        } else {
-            Err(crate::Error::Fail(format!("not found Id={}", id.0)))
-        }
-    }
-
-    fn add_node(&mut self, node: &RcNode) {
-        let ref_node = node.borrow();
-        self.nodes.insert(ref_node.id.unwrap(), node.clone());
-    }
-
-    fn erase_node(&mut self, id: &Id) {
-        self.nodes.remove(&id.0);
-    }
-
-    fn get_params(&self) -> &TreeParams {
-        &self.tree_params
-    }
-
-    fn get_cmp(&self) -> &dyn KeyCmp {
-        self
-    }
-
-    fn mark_as_changed(&mut self, id: Id) {
-        self.nodes_to_offset.remove(&id.0);
-    }
-}
-
-impl KeyCmp for AOStorageNodeStorage {
-    fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
-        match &self.cmp {
-            Some(c) => {
-                let r = c.borrow();
-                return r.compare(key1, key2);
-            }
-            None => panic!(),
-        }
-    }
-}
-
-impl AOStorage {
+impl Storage {
     pub fn new(
-        s: Rc<RefCell<dyn AppendOnlyStruct>>,
-        params: &AOStorageParams,
-        cmp: HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>>,
+        s: Rc<RefCell<dyn FlatStorage>>,
+        params: &StorageParams,
+        cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     ) -> Result<Self> {
         s.borrow_mut().header_write(&params)?;
 
-        Ok(AOStorage {
+        Ok(Storage {
             store: s,
             params: params.clone(),
             cmp: cmp,
@@ -244,11 +45,11 @@ impl AOStorage {
     }
 
     pub fn open(
-        s: Rc<RefCell<dyn AppendOnlyStruct>>,
-        cmp: HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>>,
+        s: Rc<RefCell<dyn FlatStorage>>,
+        cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     ) -> Result<Self> {
         let params = s.borrow().header_read()?;
-        Ok(AOStorage {
+        Ok(Storage {
             store: s,
             cmp: cmp,
             params: params,
@@ -262,7 +63,7 @@ impl AOStorage {
         Ok(())
     }
 
-    fn insert_kv(store: &dyn AppendOnlyStruct, key: &[u8], data: &[u8]) -> Result<u32> {
+    pub(super) fn insert_kv(store: &dyn FlatStorage, key: &[u8], data: &[u8]) -> Result<u32> {
         //TODO Result<u32> => Result<u64>
         let offset = store.size();
         store.write_u32(key.len() as u32)?;
@@ -276,7 +77,7 @@ impl AOStorage {
         return Ok(offset as u32);
     }
 
-    fn read_kv(store: &dyn AppendOnlyStruct, offset: usize) -> Result<(Vec<u8>, Vec<u8>)> {
+    pub(super) fn read_kv(store: &dyn FlatStorage, offset: usize) -> Result<(Vec<u8>, Vec<u8>)> {
         let mut read_offset = offset;
         let key_len = store.read_u32(read_offset)?;
         read_offset += std::mem::size_of::<u32>();
@@ -298,9 +99,18 @@ impl AOStorage {
         return Ok((key, data));
     }
 
-    fn get_tree_cmp(&self, tree_id: u32) -> Rc<RefCell<AOStorageCmp>> {
-        let cmp = Rc::new(RefCell::new(AOStorageCmp {
+    fn get_tree_cmp(&self, tree_id: u32) -> Rc<RefCell<StorageNodeCmp>> {
+        let cmp = Rc::new(RefCell::new(StorageNodeCmp {
             store: self.store.clone(),
+            cmp: self.cmp.get(&tree_id).unwrap().clone(),
+        }));
+        return cmp;
+    }
+
+    fn make_cmp(&self, tree_id: u32, key: &[u8]) -> Rc<RefCell<StorageKeyCmpRef>> {
+        let cmp = Rc::new(RefCell::new(StorageKeyCmpRef {
+            store: self.store.clone(),
+            user_key: key.to_vec(),
             cmp: self.cmp.get(&tree_id).unwrap().clone(),
         }));
         return cmp;
@@ -316,7 +126,7 @@ impl AOStorage {
                 c.borrow_mut().offset = 0;
                 c
             } else {
-                let s = Rc::new(RefCell::new(AOStorageNodeStorage {
+                let s = Rc::new(RefCell::new(StorageNodeStorage {
                     offset: 0,
                     cmp: Some(self.get_tree_cmp(tree_id)),
                     nodes: HashMap::new(),
@@ -347,7 +157,12 @@ impl AOStorage {
                 &crate::tree::record::Record::from_u32(key_offset),
             )?;
         }
+        self.save_trans()?;
 
+        Ok(())
+    }
+
+    fn save_trans(&mut self) -> Result<()> {
         let mut trans_list = Vec::new();
         let flat_store = self.store.borrow_mut();
 
@@ -451,7 +266,7 @@ impl AOStorage {
 
             let tree_id = store.read_u32(offset)?;
 
-            let s = Rc::new(RefCell::new(AOStorageNodeStorage {
+            let s = Rc::new(RefCell::new(StorageNodeStorage {
                 offset: offset as u32,
                 cmp: Some(self.get_tree_cmp(tree_id)),
                 nodes: HashMap::new(),
@@ -519,29 +334,36 @@ impl AOStorage {
                 node.borrow_mut().right = right;
                 s.borrow_mut()
                     .add_node_with_offset(&node, node_offset as usize);
-                //self.nodes.insert(id.0, node);
             }
         }
         Ok(())
     }
 
-    pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        self.load_trans()?;
+    fn get_storage_for_tree(
+        &self,
+        tree_id: u32,
+    ) -> Result<Option<Rc<RefCell<StorageNodeStorage>>>> {
         let storage_res = self.tree_storages.get(&tree_id);
         if storage_res.is_none() {
             return Ok(None);
         }
-        let storage = storage_res.unwrap().clone();
+        return Ok(Some(storage_res.unwrap().clone()));
+    }
+
+    pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
+        self.load_trans()?;
+
+        let storage = if let Some(x) = self.get_storage_for_tree(tree_id)? {
+            x.borrow_mut().set_cmp(self.make_cmp(tree_id, key));
+            x
+        } else {
+            return Ok(None);
+        };
+
         let root = storage.borrow().get_root();
         if root.is_none() {
             return Ok(None);
         }
-        let cmp = Rc::new(RefCell::new(AOSStorageKeyCmpRef {
-            store: self.store.clone(),
-            user_key: key.to_vec(),
-            cmp: self.cmp.get(&tree_id).unwrap().clone(),
-        }));
-        storage.borrow_mut().set_cmp(cmp);
 
         let mut a = storage.borrow_mut();
         let find_res = crate::tree::read::find(&mut *a, &root.unwrap().clone(), std::u32::MAX)?;
@@ -570,14 +392,14 @@ mod tests {
         }
     }
 
-    impl AOSKeyCmp for MockStorageKeyCmp {
+    impl KeyCmp for MockStorageKeyCmp {
         fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
             key1.cmp(key2)
         }
     }
 
     struct MockPageStorage {
-        hdr: RefCell<SingleElementStore<AOStorageParams>>,
+        hdr: RefCell<SingleElementStore<StorageParams>>,
         space: RefCell<Vec<u8>>,
     }
 
@@ -594,13 +416,13 @@ mod tests {
         }
     }
 
-    impl AppendOnlyStruct for MockPageStorage {
-        fn header_write(&self, h: &AOStorageParams) -> Result<()> {
+    impl FlatStorage for MockPageStorage {
+        fn header_write(&self, h: &StorageParams) -> Result<()> {
             self.hdr.borrow_mut().replace(h.clone());
             Ok(())
         }
 
-        fn header_read(&self) -> Result<AOStorageParams> {
+        fn header_read(&self) -> Result<StorageParams> {
             if !self.hdr.borrow().is_empty() {
                 let rf = self.hdr.borrow_mut();
                 let value = rf.as_value();
@@ -687,13 +509,13 @@ mod tests {
 
     #[test]
     fn db() -> Result<()> {
-        let mut all_cmp: HashMap<u32, Rc<RefCell<dyn AOSKeyCmp>>> = HashMap::new();
+        let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
         let cmp = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
         all_cmp.insert(1u32, cmp);
 
         let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
-        let params = AOStorageParams::default();
-        let mut storage = AOStorage::new(fstore.clone(), &params, all_cmp)?;
+        let params = StorageParams::default();
+        let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
         let max_key = 400;
         for key in 0..max_key {
             if key == 200 {

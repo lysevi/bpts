@@ -50,20 +50,14 @@ mod tests {
 
     use super::*;
     use crate::{
-        tree::{
-            debug,
-            mocks::MockNodeStorage,
-            node::Node,
-            params::{self, TreeParams},
-        },
+        tree::{debug, mocks::MockNodeStorage, node::Node, TreeParams},
         types::Id,
     };
 
     fn many_inserts(t: usize, maxnodecount: usize) -> crate::Result<()> {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(params::TreeParams::default_with_t(t));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut key: u32 = 1;

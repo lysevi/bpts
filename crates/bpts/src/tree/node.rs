@@ -8,7 +8,7 @@ use record::Record;
 
 pub type RcNode = Rc<RefCell<Node>>;
 
-pub trait KeyCmp {
+pub trait NodeKeyCmp {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering;
 }
 
@@ -99,7 +99,7 @@ impl Node {
         return self.keys_count == 0;
     }
 
-    pub fn find_key(&self, key: u32, cmp: &dyn KeyCmp) -> Option<u32> {
+    pub fn find_key(&self, key: u32, cmp: &dyn NodeKeyCmp) -> Option<u32> {
         if self.is_leaf {
             panic!("logic error");
         }
@@ -122,7 +122,7 @@ impl Node {
         return None;
     }
 
-    pub fn find(&self, cmp: &dyn KeyCmp, key: u32) -> Option<Record> {
+    pub fn find(&self, cmp: &dyn NodeKeyCmp, key: u32) -> Option<Record> {
         if !self.is_leaf {
             if cmp.compare(key, self.keys[0]).is_lt() {
                 return Some(self.data.first().unwrap().clone());

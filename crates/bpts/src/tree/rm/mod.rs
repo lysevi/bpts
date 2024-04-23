@@ -1,6 +1,6 @@
 use crate::{
     tree::{
-        node::{KeyCmp, Node, RcNode},
+        node::{Node, NodeKeyCmp, RcNode},
         nodestorage::NodeStorage,
     },
     utils::*,
@@ -14,7 +14,7 @@ pub mod rebalancing;
 pub mod rollup;
 pub mod take_from;
 
-fn erase_from_node(cmp: &dyn KeyCmp, target: &mut Node, key: u32) {
+fn erase_from_node(cmp: &dyn NodeKeyCmp, target: &mut Node, key: u32) {
     let is_leaf = target.is_leaf;
 
     if !is_leaf {
