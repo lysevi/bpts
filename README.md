@@ -8,6 +8,7 @@
   - [ ] astore - commit.
 - [ ] astore - is_closed.
 - [ ] test - many trees.
+- [ ] file storage
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
@@ -19,13 +20,10 @@
   - [ ] - benchmark - node::find
   - [ ] - benchmark - split::insert_key_to_parent
   - [ ] - criterion
-- [ ] - Record is a array with common type.
-- [ ] single transaction for many trees.
+- [ ] Record is a array with common type.
 - [ ] logger
 - [ ] query language: tablename.where(x => column<3).take(10)
 - [ ] bulk loading
-- [ ] COW (storage.commit(), storage.rollback())
-   - [ ] Meta-page store all tree. link to prev. meta-page
 - [ ] tables
    - [ ] indexes
 - [ ] - bloom in transaction
