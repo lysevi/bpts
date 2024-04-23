@@ -34,6 +34,7 @@ pub fn split_node<Storage: NodeStorage>(
 
         is_new_root = false;
         parent_node = storage.get_node(target_node.borrow().parent)?;
+        storage.mark_as_changed(parent_node.borrow().id);
     }
 
     let params = storage.get_params();
@@ -131,6 +132,7 @@ pub fn split_node<Storage: NodeStorage>(
                 middle_key,
                 new_brother.borrow().id,
             );
+            storage.mark_as_changed(ref_to_parent.id);
             ref_to_parent.keys_count += 1;
             ref_to_parent.data_count += 1;
         }

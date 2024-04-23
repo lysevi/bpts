@@ -1,6 +1,5 @@
 use crate::{
     tree::{node::Node, nodestorage::NodeStorage},
-    types::Id,
     utils::{insert_to_array, remove_with_shift},
     verbose,
 };
@@ -85,9 +84,6 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
     leaf_ref: &mut Node,
     t: usize,
 ) -> crate::Result<bool> {
-    if !target_ref.is_leaf && target_ref.id == Id(78) {
-        verbose!("!");
-    }
     if leaf_ref.data_count > t {
         let mut middle: Option<u32> = None;
         let mut first_key = target_ref.first_key();
@@ -140,6 +136,8 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
                 rollup_keys(storage, target_ref.parent, first_key, new_min_key)?;
             }
         }
+        storage.mark_as_changed(target_ref.id);
+        storage.mark_as_changed(leaf_ref.id);
         return Ok(true);
     }
     return Ok(false);
@@ -195,7 +193,8 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
                 }
             }
         }
-
+        storage.mark_as_changed(target_ref.id);
+        storage.mark_as_changed(leaf_ref.id);
         return Ok(true);
     }
     return Ok(false);

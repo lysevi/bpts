@@ -127,6 +127,9 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
             leaf_ref.right = target_ref.right;
         }
         leaf_ref.right = target_ref.right;
+
+        storage.mark_as_changed(target_ref.id);
+        storage.mark_as_changed(leaf_ref.id);
         return Ok(true);
     }
     return Ok(false);
@@ -171,7 +174,8 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
             left_side.borrow_mut().right = target_ref.right;
             leaf_ref.left = target_ref.left;
         }
-
+        storage.mark_as_changed(target_ref.id);
+        storage.mark_as_changed(leaf_ref.id);
         return Ok(true);
     }
     return Ok(false);

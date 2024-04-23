@@ -108,5 +108,5 @@ impl NodeStorage for MockNodeStorage {
         return &self.cmp;
     }
 
-    fn mark_as_changed(&mut self, id: Id) {}
+    fn mark_as_changed(&mut self, _id: Id) {}
 }

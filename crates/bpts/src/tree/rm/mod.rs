@@ -59,26 +59,38 @@ pub(super) fn erase_key<Storage: NodeStorage>(
 ) -> Result<RcNode, crate::Error> {
     {
         let mut target_ref = target.borrow_mut();
+        storage.mark_as_changed(target_ref.id);
+
         let first_key = target_ref.keys[0];
-        let cmp = storage.get_cmp();
-        erase_from_node(cmp, &mut target_ref, key);
+        {
+            let cmp = storage.get_cmp();
+            erase_from_node(cmp, &mut target_ref, key);
+        }
+        let mut changed_nodes = None;
         {
             let cmp = storage.get_cmp();
             if target_ref.keys_count > 0
                 && target_ref.is_leaf
                 && cmp.compare(first_key, target_ref.first_key()).is_ne()
             {
-                rollup_keys(
+                let r = rollup_keys(
                     storage,
                     target_ref.parent,
                     first_key,
                     target_ref.first_key(),
                 )?;
+                changed_nodes = Some(r);
+            }
+        }
+        if let Some(lst) = changed_nodes {
+            for id in lst {
+                storage.mark_as_changed(id);
             }
         }
 
         if target_ref.data_count >= storage.get_params().get_min_size_leaf() {
             //update keys in parent
+            let cmp = storage.get_cmp();
             if cmp.compare(first_key, target_ref.keys[0]).is_ne() && target_ref.parent.exists() {
                 let parent = storage.get_node(target_ref.parent)?;
                 parent

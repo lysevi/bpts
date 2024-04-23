@@ -11,7 +11,7 @@ pub(super) fn rollup_keys<Storage: NodeStorage>(
     id: Id,
     key: u32,
     newkey: u32,
-) -> crate::Result<()> {
+) -> crate::Result<Vec<Id>> {
     verbose!("rollup tree: Id:{:?} key:{} newkey:{}", id, key, newkey);
     let cmp = storage.get_cmp();
     let mut f = |x: u32| {

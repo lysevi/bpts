@@ -36,7 +36,7 @@ pub fn insert<Storage: NodeStorage>(
             }
         }
         mut_ref.insert_data(index, key, value.clone());
-
+        storage.mark_as_changed(mut_ref.id);
         if can_insert {
             return Ok(root.clone());
         }
