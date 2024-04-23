@@ -173,6 +173,7 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
             let taked_id = target_ref.last_data().into_id();
             let taked_node = storage.get_node(taked_id)?;
             taked_node.borrow_mut().parent = target_ref.id;
+            storage.mark_as_changed(taked_id);
         }
 
         if target_ref.parent.exists() {
@@ -189,7 +190,10 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
                         let first_child = storage.get_node(first_data.into_id())?;
                         min_key = first_child.borrow().first_key();
                     }
-                    rollup_keys(storage, target_ref.parent, first_key, min_key)?;
+                    let changed = rollup_keys(storage, target_ref.parent, first_key, min_key)?;
+                    for i in changed {
+                        storage.mark_as_changed(i);
+                    }
                 }
             }
         }

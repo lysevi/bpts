@@ -91,6 +91,7 @@ impl NodeStorage for StorageNodeStorage {
     }
 
     fn get_node(&self, id: Id) -> crate::Result<RcNode> {
+        verbose!("get_node {:?}", id);
         let res = self.nodes.get(&id.unwrap());
         if let Some(r) = res {
             Ok(r.clone())
@@ -105,6 +106,7 @@ impl NodeStorage for StorageNodeStorage {
     }
 
     fn erase_node(&mut self, id: &Id) {
+        verbose!("erase_node {:?}", id);
         self.nodes.remove(&id.0);
     }
 
