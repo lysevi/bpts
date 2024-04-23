@@ -153,12 +153,15 @@ fn main() -> Result<()> {
 
     let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
     let params = AOStorageParams::default();
+    println!("{:?}", params.tree_params);
     let mut storage = AOStorage::new(fstore.clone(), &params, all_cmp)?;
 
     let full_time_begin = Instant::now();
     for key in 0..args.count {
         let cur_begin = Instant::now();
-
+        if key == 500 {
+            println!("");
+        }
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         storage.insert(1, &cur_key_sl, &cur_key_sl)?;
 

@@ -1,13 +1,12 @@
 # bpts
 
-- [ ] write changed nodes only.
-  - [ ] mark changed nodes (mark_as_changed)
-  - [ ] write only changed nodes.
 - [ ] read refact:
-   - [ ] don't load the full tree when reading.
+  - [ ] don't load all trees on read. load when starting.
+  - [ ] don't load the full tree when reading.
 - [ ] begin transaction
   - [ ] astore - allocate block.
   - [ ] astore - commit.
+- [ ] astore - is_closed.
 - [ ] test - many trees.
 - [ ] benchmark on memory sorage
   - [ ] median time

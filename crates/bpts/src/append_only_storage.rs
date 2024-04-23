@@ -43,7 +43,8 @@ pub trait AOSKeyCmp {
 #[derive(Clone, Copy)]
 pub struct AOStorageParams {
     offset: u32,
-    tree_params: TreeParams,
+    is_closed: u8,
+    pub tree_params: TreeParams,
 }
 
 pub type StorageKeyCmp = Rc<RefCell<dyn KeyCmp>>;
@@ -65,12 +66,24 @@ impl AOStorageNodeStorage {
         self.add_node(node);
         self.nodes_to_offset.insert(node.borrow().id.0, offset);
     }
+
+    fn get_node_offset(&self, id: Id) -> Option<usize> {
+        if let Some(v) = self.nodes_to_offset.get(&id.0) {
+            return Some(*v);
+        }
+        return None;
+    }
+
+    fn set_node_offset(&mut self, id: Id, offset: usize) {
+        self.nodes_to_offset.insert(id.0, offset);
+    }
 }
 
 impl AOStorageParams {
     pub fn default() -> Self {
         Self {
             offset: 0,
+            is_closed: 1,
             tree_params: TreeParams::default(),
         }
     }
@@ -244,6 +257,8 @@ impl AOStorage {
     }
 
     pub fn close(&mut self) -> Result<()> {
+        self.params.is_closed = 1;
+        self.store.borrow_mut().header_write(&self.params)?;
         Ok(())
     }
 
@@ -343,11 +358,18 @@ impl AOStorage {
             }
             let mut nodes_offsets = Vec::new();
             {
-                let cur_store = ns.1.borrow();
+                let mut cur_store = ns.1.borrow_mut();
+                let mut new_offsets = HashMap::new();
 
                 for node in cur_store.nodes.values() {
-                    nodes_offsets.push(flat_store.size());
+                    if let Some(exists_offset) = cur_store.get_node_offset(node.borrow().id) {
+                        nodes_offsets.push(exists_offset);
+                        continue;
+                    }
+                    let cur_node_offset = flat_store.size();
                     let node_ref = node.borrow();
+                    nodes_offsets.push(cur_node_offset);
+                    new_offsets.insert(node.borrow().id, cur_node_offset);
                     flat_store.write_id(node_ref.id)?;
                     flat_store.write_bool(node_ref.is_leaf)?;
                     flat_store.write_id(node_ref.parent)?;
@@ -365,6 +387,9 @@ impl AOStorage {
                             Record::Empty => todo!(),
                         }
                     }
+                }
+                for o in new_offsets {
+                    cur_store.set_node_offset(o.0, o.1);
                 }
             }
 
