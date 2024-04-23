@@ -22,7 +22,7 @@ impl Display for Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[macro_export]
-#[cfg(feature = "verbose")]
+//#[cfg(feature = "verbose")]
 macro_rules! verbose {
     () => {
         print!("\n")
@@ -32,9 +32,9 @@ macro_rules! verbose {
     }};
 }
 
-#[macro_export]
-#[cfg(not(feature = "verbose"))]
-macro_rules! verbose {
-    () => {};
-    ($($arg:tt)*) => {{}};
-}
+// #[macro_export]
+// #[cfg(not(feature = "verbose"))]
+// macro_rules! verbose {
+//     () => {};
+//     ($($arg:tt)*) => {{}};
+// }

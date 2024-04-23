@@ -415,6 +415,49 @@ impl Storage {
         let d = Self::read_kdata(&*self.store.borrow(), offset as usize)?;
         return Ok(Some(d));
     }
+
+    pub fn dump_tree(&self, tree_id: u32, name: String) -> String {
+        let storage = self.tree_storages.get(&tree_id).unwrap();
+        let root = storage.borrow().get_root().unwrap();
+        return crate::tree::debug::storage_to_string(
+            &*storage.borrow(),
+            root.clone(),
+            true,
+            &name,
+        );
+    }
+
+    pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
+        self.load_trans()?;
+        {
+            let storage = if let Some(t) = self.tree_storages.get(&tree_id) {
+                let c = t.clone();
+                c.borrow_mut()
+                    .set_offset(0)
+                    .set_cmp(self.make_cmp(tree_id, key));
+                c
+            } else {
+                let s = StorageNodeStorage::new(
+                    0u32,
+                    self.make_cmp(tree_id, key),
+                    self.params.tree_params,
+                );
+
+                self.tree_storages.insert(tree_id, s.clone());
+                s.clone()
+            };
+
+            let root = storage.borrow().get_root();
+            if root.is_none() {
+                return Ok(());
+            }
+
+            let mut a = storage.borrow_mut();
+            crate::tree::remove::remove_key(&mut *a, &root.unwrap().clone(), std::u32::MAX)?;
+        }
+        self.save_trans()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -557,11 +600,10 @@ mod tests {
         let params = StorageParams::default();
         let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
         let max_key = 400;
+        let mut all_keys = Vec::new();
         for key in 0..max_key {
-            if key == 200 {
-                println!("");
-            };
             println!("insert {}", key);
+            all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             storage.insert(1, &cur_key_sl, &cur_key_sl)?;
             {
@@ -571,23 +613,57 @@ mod tests {
                 assert_eq!(value, cur_key_sl)
             }
 
-            for search_key in 0..key {
-                println!("read {}", search_key);
-                let key_sl = unsafe { any_as_u8_slice(&search_key) };
-                let find_res = storage.find(1, key_sl)?;
-                assert!(find_res.is_some());
-                let value = &find_res.unwrap()[..];
-                assert_eq!(value, key_sl)
-            }
+            // for search_key in 0..key {
+            //     println!("read {}", search_key);
+            //     let key_sl = unsafe { any_as_u8_slice(&search_key) };
+            //     let find_res = storage.find(1, key_sl)?;
+            //     assert!(find_res.is_some());
+            //     let value = &find_res.unwrap()[..];
+            //     assert_eq!(value, key_sl)
+            // }
         }
 
-        for key in 0..max_key {
+        for key in all_keys.iter() {
             println!("read {}", key);
-            let key_sl = unsafe { any_as_u8_slice(&key) };
+            let key_sl = unsafe { any_as_u8_slice(key) };
             let find_res = storage.find(1, key_sl)?;
             assert!(find_res.is_some());
             let value = &find_res.unwrap()[..];
             assert_eq!(value, key_sl)
+        }
+
+        while all_keys.len() > 0 {
+            let key = all_keys[0];
+            all_keys.remove(0);
+            if key == 200 {
+                println!("");
+            }
+            println!("remove {}", key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            let str_before = storage.dump_tree(1, String::from("before"));
+            storage.remove(1, &cur_key_sl)?;
+            let str_after = storage.dump_tree(1, String::from("after"));
+
+            //crate::tree::debug::print_states(&[&str_before, &str_after]);
+            {
+                let find_res = storage.find(1, cur_key_sl)?;
+                assert!(find_res.is_none());
+            }
+
+            for search_key in all_keys.iter() {
+                if key == 200 && *search_key == 201 {
+                    println!("");
+                }
+                println!("read {}", search_key);
+                let key_sl = unsafe { any_as_u8_slice(search_key) };
+                let find_res = storage.find(1, key_sl)?;
+                if find_res.is_none() {
+                    crate::tree::debug::print_states(&[&str_before, &str_after]);
+                }
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, key_sl)
+            }
         }
 
         let mut hdr = fstore.borrow().header_read()?;

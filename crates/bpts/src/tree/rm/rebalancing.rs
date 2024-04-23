@@ -98,6 +98,7 @@ pub(in super::super) fn rebalancing<Storage: NodeStorage>(
     if update_parent && target_ref.parent.exists() {
         let link_to_parent = storage.get_node(target_ref.parent)?;
         if link_to_parent.borrow().keys_count < t {
+            storage.mark_as_changed(target_ref.parent);
             return rebalancing(storage, &link_to_parent, root);
         }
     }

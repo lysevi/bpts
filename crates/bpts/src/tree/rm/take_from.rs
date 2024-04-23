@@ -178,7 +178,7 @@ pub(super) fn try_take_from_high<Storage: NodeStorage>(
         if target_ref.parent.exists() {
             let parent = storage.get_node(leaf_ref.parent)?;
             parent.borrow_mut().update_key(leaf_ref.id, new_min_key);
-
+            storage.mark_as_changed(parent.borrow().id);
             if leaf_ref.parent != target_ref.parent {
                 let parent = storage.get_node(leaf_ref.parent)?;
                 if parent.borrow().data_count > 0 {

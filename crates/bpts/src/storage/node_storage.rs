@@ -7,6 +7,7 @@ use crate::{
         TreeParams,
     },
     types::Id,
+    verbose,
 };
 
 use super::KeyCmpRc;
@@ -116,6 +117,7 @@ impl NodeStorage for StorageNodeStorage {
     }
 
     fn mark_as_changed(&mut self, id: Id) {
+        verbose!("mark_as_changed {:?}", id);
         self.nodes_to_offset.remove(&id.0);
     }
 }
