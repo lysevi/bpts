@@ -14,6 +14,7 @@ pub fn split_node<Storage: NodeStorage>(
     // println!(        "split:is_leaf:{} target:{:?}",        target_node.borrow().is_leaf,        target_node.borrow().id    );
     let parent_node: RcNode;
     let is_new_root;
+    storage.mark_as_changed(target_node.borrow().id);
     if target_node.borrow().parent.is_empty()
     /*|| ref_target.is_leaf */
     {
@@ -83,6 +84,7 @@ pub fn split_node<Storage: NodeStorage>(
             if child_num != target_id {
                 let child = storage.get_node(child_num)?;
                 child.borrow_mut().parent = new_id;
+                storage.mark_as_changed(child_num);
             }
         }
 
@@ -105,9 +107,12 @@ pub fn split_node<Storage: NodeStorage>(
         if ref_to_brother.right.exists() {
             let right_brother = storage.get_node(ref_to_brother.right)?;
             right_brother.borrow_mut().left = new_id;
+            storage.mark_as_changed(ref_to_brother.right);
         }
         target_node.borrow_mut().right = ref_to_brother.id;
         ref_to_brother.left = target_node.borrow().id;
+        storage.mark_as_changed(ref_to_brother.id);
+        storage.mark_as_changed(target_node.borrow_mut().id);
     }
 
     //let lowest_key = ref_to_brother.keys[0];
@@ -119,7 +124,7 @@ pub fn split_node<Storage: NodeStorage>(
         ref_to_parent.data[0] = Record::from_id(target_node.borrow().id);
         ref_to_parent.data[1] = Record::from_id(new_brother.borrow().id);
         ref_to_parent.data_count = 2;
-
+        storage.mark_as_changed(ref_to_parent.id);
         return Ok(parent_node.clone());
     } else {
         let can_insert = parent_node.borrow().can_insert(t);

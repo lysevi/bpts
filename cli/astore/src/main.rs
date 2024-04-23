@@ -200,7 +200,7 @@ fn main() -> Result<()> {
     let duration = full_time_begin.elapsed();
 
     println!("");
-    println!(" size: {}", fstore.borrow().size() as f32 / 1024f32);
+    println!(" size: {}", fstore.borrow().size() / 1024);
     println!(" total elapsed: {:?}", duration);
     Ok(())
 }

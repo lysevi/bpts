@@ -28,16 +28,18 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
     if !target.is_leaf {
         let min_data_node = storage.get_node(max_data.into_id()).unwrap();
         min_data_node.borrow_mut().parent = target.id;
+        storage.mark_as_changed(min_data_node.borrow().id);
     } else {
         insert_to_array(&mut target.keys, 0, max_key);
         target.keys_count += 1;
+        storage.mark_as_changed(target.id);
     }
 
     //utils::insert_to_array(&mut target.keys, 0, max_key);
     insert_to_array(&mut target.data, 0, max_data);
     low_side.keys_count -= 1;
     low_side.data_count -= 1;
-
+    storage.mark_as_changed(low_side.id);
     //target.keys_count += 1;
     target.data_count += 1;
 }
@@ -91,7 +93,7 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
         if !target_ref.is_leaf {
             if leaf_ref.parent == target_ref.parent {
                 let parent = storage.get_node(target_ref.parent)?;
-                let parent_ref = parent.borrow_mut();
+                let parent_ref = parent.borrow();
                 middle = parent_ref.find_key(first_key, storage.get_cmp());
             }
             // else if leaf_ref.parent != target_ref.parent {
@@ -112,12 +114,14 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
             let taked_id = target_ref.first_data().into_id();
             let taked_node = storage.get_node(taked_id)?;
             taked_node.borrow_mut().parent = target_ref.id;
+            storage.mark_as_changed(taked_node.borrow().id);
         }
         if target_ref.parent.exists() {
             let link_to_parent = storage.get_node(target_ref.parent)?;
             link_to_parent
                 .borrow_mut()
                 .update_key(target_ref.id, taken_key);
+            storage.mark_as_changed(link_to_parent.borrow().id);
 
             let mut new_min_key = taken_key;
             if !target_ref.is_leaf {

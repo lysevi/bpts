@@ -96,6 +96,7 @@ pub(super) fn erase_key<Storage: NodeStorage>(
                 parent
                     .borrow_mut()
                     .update_key(target_ref.id, target_ref.first_key());
+                storage.mark_as_changed(target_ref.parent);
             }
 
             return Ok(root.unwrap());

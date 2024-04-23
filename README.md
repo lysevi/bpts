@@ -3,7 +3,6 @@
 - [ ] read refact:
   - [ ] don't load all trees on read. load when starting.
   - [ ] don't load the full tree when reading.
-- [ ] remove keys.
 - [ ] begin transaction
   - [ ] astore - allocate block.
   - [ ] astore - commit.
