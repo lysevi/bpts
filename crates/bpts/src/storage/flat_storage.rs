@@ -1,10 +1,13 @@
+use super::store::StorageHeader;
 use super::StorageParams;
 use crate::types::Id;
 use crate::Result;
 
 pub trait FlatStorage {
-    fn header_write(&self, h: &StorageParams) -> Result<()>;
-    fn header_read(&self) -> Result<StorageParams>;
+    fn params_write(&self, h: &StorageParams) -> Result<()>;
+    fn params_read(&self) -> Result<StorageParams>;
+    fn header_write(&self, h: &StorageHeader) -> Result<()>;
+    fn header_read(&self) -> Result<StorageHeader>;
 
     fn size(&self) -> usize;
     fn write_id(&self, v: Id) -> Result<()>;

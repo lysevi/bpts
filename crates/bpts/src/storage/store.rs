@@ -11,6 +11,7 @@ use super::cmp::StorageKeyCmpRef;
 use super::cmp::StorageNodeCmp;
 use super::flat_storage::FlatStorage;
 use super::node_storage::{StorageNodeStorage, StorageNodeStorageRc};
+use super::MAGIC_HEADER;
 use super::MAGIC_TRANSACTION;
 use super::MAGIC_TRANSACTION_LIST;
 use super::U32SZ;
@@ -21,9 +22,17 @@ use super::{KeyCmp, StorageParams};
 params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
  */
 
+#[derive(Clone, Copy)]
+pub struct StorageHeader {
+    magic: u32,
+    offset: u32,
+    is_closed: u8,
+}
+
 pub struct Storage {
     store: Rc<RefCell<dyn FlatStorage>>,
     params: StorageParams,
+    header: StorageHeader,
     cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     tree_storages: HashMap<u32, StorageNodeStorageRc>,
 }
@@ -34,13 +43,19 @@ impl Storage {
         params: &StorageParams,
         cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     ) -> Result<Self> {
-        let mut p = params.clone();
-        p.is_closed = 0;
-        s.borrow_mut().header_write(&p)?;
+        let p = params.clone();
+        s.borrow_mut().params_write(&p)?;
 
+        let h = StorageHeader {
+            magic: MAGIC_HEADER,
+            is_closed: 0,
+            offset: 0,
+        };
+        s.borrow_mut().header_write(&h)?;
         Ok(Storage {
             store: s,
             params: p,
+            header: h,
             cmp: cmp,
             tree_storages: HashMap::new(),
         })
@@ -50,18 +65,25 @@ impl Storage {
         s: Rc<RefCell<dyn FlatStorage>>,
         cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     ) -> Result<Self> {
-        let params = s.borrow().header_read()?;
+        let params = s.borrow().params_read()?;
+        let header = s.borrow().header_read()?;
+
+        if header.magic != MAGIC_HEADER {
+            todo!("fsck")
+        }
+
         Ok(Storage {
             store: s,
             cmp: cmp,
             params: params,
+            header: header,
             tree_storages: HashMap::new(),
         })
     }
 
     pub fn close(&mut self) -> Result<()> {
-        self.params.is_closed = 1;
-        self.store.borrow_mut().header_write(&self.params)?;
+        self.header.is_closed = 1;
+        self.store.borrow_mut().header_write(&self.header)?;
         Ok(())
     }
 
@@ -204,7 +226,7 @@ impl Storage {
             trans_list.push(cur_store_offset);
         }
 
-        self.params.offset = flat_store.size() as u32;
+        self.header.offset = flat_store.size() as u32;
 
         flat_store.write_u32(MAGIC_TRANSACTION_LIST)?;
         flat_store.write_u32(trans_list.len() as u32)?;
@@ -212,7 +234,7 @@ impl Storage {
             flat_store.write_u32(i)?;
         }
 
-        flat_store.header_write(&self.params)?;
+        flat_store.header_write(&self.header)?;
         Ok(())
     }
 
@@ -371,13 +393,15 @@ mod tests {
     }
 
     struct MockPageStorage {
-        hdr: RefCell<SingleElementStore<StorageParams>>,
+        hdr: RefCell<SingleElementStore<StorageHeader>>,
+        params: RefCell<SingleElementStore<StorageParams>>,
         space: RefCell<Vec<u8>>,
     }
 
     impl MockPageStorage {
         pub fn new() -> MockPageStorage {
             MockPageStorage {
+                params: RefCell::new(SingleElementStore::new()),
                 hdr: RefCell::new(SingleElementStore::new()),
                 space: RefCell::new(Vec::new()),
             }
@@ -389,12 +413,26 @@ mod tests {
     }
 
     impl FlatStorage for MockPageStorage {
-        fn header_write(&self, h: &StorageParams) -> Result<()> {
+        fn params_write(&self, h: &StorageParams) -> Result<()> {
+            self.params.borrow_mut().replace(h.clone());
+            Ok(())
+        }
+
+        fn params_read(&self) -> Result<StorageParams> {
+            if !self.params.borrow().is_empty() {
+                let rf = self.params.borrow_mut();
+                let value = rf.as_value();
+                return Ok(value);
+            }
+            panic!();
+        }
+
+        fn header_write(&self, h: &StorageHeader) -> Result<()> {
             self.hdr.borrow_mut().replace(h.clone());
             Ok(())
         }
 
-        fn header_read(&self) -> Result<StorageParams> {
+        fn header_read(&self) -> Result<StorageHeader> {
             if !self.hdr.borrow().is_empty() {
                 let rf = self.hdr.borrow_mut();
                 let value = rf.as_value();

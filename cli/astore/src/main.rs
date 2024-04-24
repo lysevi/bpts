@@ -4,6 +4,7 @@ use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc, time::Instant}
 
 use bpts::{
     prelude::*,
+    storage::store::StorageHeader,
     types::{Id, SingleElementStore},
     utils::any_as_u8_slice,
 };
@@ -35,13 +36,15 @@ impl KeyCmp for MockStorageKeyCmp {
 }
 
 struct MockPageStorage {
-    hdr: RefCell<SingleElementStore<StorageParams>>,
+    hdr: RefCell<SingleElementStore<StorageHeader>>,
+    params: RefCell<SingleElementStore<StorageParams>>,
     space: RefCell<Vec<u8>>,
 }
 
 impl MockPageStorage {
     pub fn new() -> MockPageStorage {
         MockPageStorage {
+            params: RefCell::new(SingleElementStore::new()),
             hdr: RefCell::new(SingleElementStore::new()),
             space: RefCell::new(Vec::new()),
         }
@@ -53,12 +56,26 @@ impl MockPageStorage {
 }
 
 impl FlatStorage for MockPageStorage {
-    fn header_write(&self, h: &StorageParams) -> Result<()> {
+    fn params_write(&self, h: &StorageParams) -> Result<()> {
+        self.params.borrow_mut().replace(h.clone());
+        Ok(())
+    }
+
+    fn params_read(&self) -> Result<StorageParams> {
+        if !self.params.borrow().is_empty() {
+            let rf = self.params.borrow_mut();
+            let value = rf.as_value();
+            return Ok(value);
+        }
+        panic!();
+    }
+
+    fn header_write(&self, h: &StorageHeader) -> Result<()> {
         self.hdr.borrow_mut().replace(h.clone());
         Ok(())
     }
 
-    fn header_read(&self) -> Result<StorageParams> {
+    fn header_read(&self) -> Result<StorageHeader> {
         if !self.hdr.borrow().is_empty() {
             let rf = self.hdr.borrow_mut();
             let value = rf.as_value();
@@ -66,7 +83,6 @@ impl FlatStorage for MockPageStorage {
         }
         panic!();
     }
-
     fn size(&self) -> usize {
         self.space.borrow_mut().len()
     }
