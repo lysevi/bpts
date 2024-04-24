@@ -2,15 +2,16 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     tree::{
-        node::{NodeKeyCmp, RcNode},
+        node::{Node, NodeKeyCmp, RcNode},
         nodestorage::NodeStorage,
+        record::Record,
         TreeParams,
     },
     types::Id,
-    verbose,
+    verbose, Result,
 };
 
-use super::KeyCmpRc;
+use super::{flat_storage::FlatStorage, KeyCmpRc, MAGIC_TRANSACTION, U32SZ, U8SZ};
 
 pub(super) type StorageNodeStorageRc = Rc<RefCell<StorageNodeStorage>>;
 
@@ -60,6 +61,139 @@ impl StorageNodeStorage {
 
     pub(super) fn set_node_offset(&mut self, id: Id, offset: usize) {
         self.nodes_to_offset.insert(id.0, offset);
+    }
+
+    fn save_node(flat_store: &dyn FlatStorage, n: &Node) -> Result<()> {
+        flat_store.write_id(n.id)?;
+        flat_store.write_bool(n.is_leaf)?;
+        flat_store.write_id(n.parent)?;
+        flat_store.write_id(n.left)?;
+        flat_store.write_id(n.right)?;
+        flat_store.write_u32(n.keys_count as u32)?;
+        flat_store.write_u32(n.data_count as u32)?;
+
+        for k in n.key_iter() {
+            flat_store.write_u32(*k)?;
+        }
+
+        for d in n.data_iter() {
+            match *d {
+                Record::Value(v) => flat_store.write_u32(v)?,
+                Record::Ptr(ptr) => flat_store.write_id(ptr)?,
+                Record::Empty => todo!(),
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn save(&mut self, tree_id: u32, flat_store: &dyn FlatStorage) -> Result<u32> {
+        if self.offset != 0 {
+            return Ok(self.offset);
+        }
+        let mut nodes_offsets = Vec::new();
+
+        let mut new_offsets = HashMap::new();
+
+        for node in self.nodes.values() {
+            let node_ref = node.borrow();
+            if let Some(exists_offset) = self.get_node_offset(node_ref.id) {
+                nodes_offsets.push(exists_offset);
+                continue;
+            }
+            let cur_write_offset = flat_store.size();
+
+            nodes_offsets.push(cur_write_offset);
+            new_offsets.insert(node_ref.id, cur_write_offset);
+
+            Self::save_node(&*flat_store, &node_ref)?;
+        }
+        for o in new_offsets {
+            self.set_node_offset(o.0, o.1);
+        }
+
+        self.offset = flat_store.size() as u32;
+        flat_store.write_u32(MAGIC_TRANSACTION)?;
+        flat_store.write_u32(tree_id)?;
+        flat_store.write_u32(nodes_offsets.len() as u32)?;
+        for i in nodes_offsets {
+            flat_store.write_u32(i as u32)?;
+        }
+        Ok(self.offset)
+    }
+
+    fn load_node(&self, node_offset: u32, flat_store: &dyn FlatStorage) -> Result<RcNode> {
+        let mut offset = node_offset as usize;
+        let id = flat_store.read_id(offset)?;
+        offset += U32SZ;
+        let is_leaf = flat_store.read_bool(offset)?;
+        offset += U8SZ;
+        let parent = flat_store.read_id(offset)?;
+        offset += U32SZ;
+        let left = flat_store.read_id(offset)?;
+        offset += U32SZ;
+        let right = flat_store.read_id(offset)?;
+        offset += U32SZ;
+        let keys_count = flat_store.read_u32(offset)?;
+        offset += U32SZ;
+        let data_count = flat_store.read_u32(offset)?;
+        offset += U32SZ;
+
+        let mut keys = Vec::with_capacity(keys_count as usize);
+        keys.resize(self.tree_params.get_keys_count(), 0u32);
+
+        let mut data = Vec::with_capacity(keys_count as usize);
+        data.resize(self.tree_params.get_keys_count(), Record::Empty);
+        for i in 0..keys_count {
+            let key = flat_store.read_u32(offset)?;
+            offset += U32SZ;
+            keys[i as usize] = key;
+        }
+
+        for i in 0..data_count {
+            let d = flat_store.read_u32(offset)?;
+            offset += U32SZ;
+            data[i as usize] = if is_leaf {
+                Record::Value(d)
+            } else {
+                Record::Ptr(Id(d))
+            };
+        }
+
+        let node = Node::new_with_links(
+            id,
+            is_leaf,
+            keys,
+            data,
+            keys_count as usize,
+            data_count as usize,
+            parent,
+            left,
+            right,
+        );
+
+        return Ok(node);
+    }
+
+    pub(super) fn load_trans(
+        &mut self,
+        start_offset: usize,
+        flat_store: &dyn FlatStorage,
+    ) -> Result<()> {
+        let mut offset = start_offset;
+        let count: u32 = flat_store.read_u32(offset)?;
+        offset += U32SZ;
+        let mut nodes_offsets = Vec::new();
+        for _i in 0..count {
+            let node_pos: u32 = flat_store.read_u32(offset)?;
+            offset += U32SZ;
+            nodes_offsets.push(node_pos);
+        }
+
+        for node_offset in nodes_offsets {
+            let node = self.load_node(node_offset, flat_store)?;
+            self.add_node_with_offset(&node, node_offset as usize);
+        }
+        Ok(())
     }
 }
 

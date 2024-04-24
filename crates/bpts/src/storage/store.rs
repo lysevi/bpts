@@ -4,7 +4,6 @@ use std::rc::Rc;
 
 use crate::tree::node::Node;
 use crate::tree::nodestorage::NodeStorage;
-use crate::tree::record::Record;
 use crate::types::Id;
 use crate::Result;
 
@@ -12,16 +11,16 @@ use super::cmp::StorageKeyCmpRef;
 use super::cmp::StorageNodeCmp;
 use super::flat_storage::FlatStorage;
 use super::node_storage::{StorageNodeStorage, StorageNodeStorageRc};
+use super::MAGIC_TRANSACTION;
+use super::MAGIC_TRANSACTION_LIST;
+use super::U32SZ;
+use super::U8SZ;
 use super::{KeyCmp, StorageParams};
 
 /*
 params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
  */
 
-const MAGIC_TRANSACTION: u32 = 0x66996699;
-const MAGIC_TRANSACTION_LIST: u32 = 0xDDDBDDDB;
-const U8SZ: usize = std::mem::size_of::<u8>();
-const U32SZ: usize = std::mem::size_of::<u32>();
 pub struct Storage {
     store: Rc<RefCell<dyn FlatStorage>>,
     params: StorageParams,
@@ -201,39 +200,8 @@ impl Storage {
 
         for ns in self.tree_storages.iter() {
             let mut cur_store = ns.1.borrow_mut();
-            if cur_store.offset != 0 {
-                trans_list.push(cur_store.offset);
-                continue;
-            }
-            let mut nodes_offsets = Vec::new();
-
-            let mut new_offsets = HashMap::new();
-
-            for node in cur_store.nodes.values() {
-                let node_ref = node.borrow();
-                if let Some(exists_offset) = cur_store.get_node_offset(node_ref.id) {
-                    nodes_offsets.push(exists_offset);
-                    continue;
-                }
-                let cur_write_offset = flat_store.size();
-
-                nodes_offsets.push(cur_write_offset);
-                new_offsets.insert(node_ref.id, cur_write_offset);
-
-                Self::save_node(&*flat_store, &node_ref)?;
-            }
-            for o in new_offsets {
-                cur_store.set_node_offset(o.0, o.1);
-            }
-
-            cur_store.offset = flat_store.size() as u32;
-            trans_list.push(flat_store.size() as u32);
-            flat_store.write_u32(MAGIC_TRANSACTION)?;
-            flat_store.write_u32(*ns.0)?;
-            flat_store.write_u32(nodes_offsets.len() as u32)?;
-            for i in nodes_offsets {
-                flat_store.write_u32(i as u32)?;
-            }
+            let cur_store_offset = cur_store.save(*ns.0, &*flat_store)?;
+            trans_list.push(cur_store_offset);
         }
 
         self.params.offset = flat_store.size() as u32;
@@ -248,29 +216,6 @@ impl Storage {
         Ok(())
     }
 
-    fn save_node(flat_store: &dyn FlatStorage, n: &Node) -> Result<()> {
-        flat_store.write_id(n.id)?;
-        flat_store.write_bool(n.is_leaf)?;
-        flat_store.write_id(n.parent)?;
-        flat_store.write_id(n.left)?;
-        flat_store.write_id(n.right)?;
-        flat_store.write_u32(n.keys_count as u32)?;
-        flat_store.write_u32(n.data_count as u32)?;
-
-        for k in n.key_iter() {
-            flat_store.write_u32(*k)?;
-        }
-
-        for d in n.data_iter() {
-            match *d {
-                Record::Value(v) => flat_store.write_u32(v)?,
-                Record::Ptr(ptr) => flat_store.write_id(ptr)?,
-                Record::Empty => todo!(),
-            }
-        }
-        Ok(())
-    }
-
     fn load_trans(&mut self) -> Result<()> {
         self.tree_storages.clear();
         let store = self.store.borrow();
@@ -280,6 +225,7 @@ impl Storage {
         }
 
         let mut trees_offsets = Vec::new();
+        // loading tree offsets
         {
             let mut offset = hdr.offset as usize;
             let magic_lst = store.read_u32(offset)?;
@@ -297,15 +243,18 @@ impl Storage {
             }
         }
 
+        // tree loading.
         for start in trees_offsets {
             let mut offset = start as usize;
             let magic = store.read_u32(offset)?;
+            offset += U32SZ;
+
             if magic != MAGIC_TRANSACTION {
                 panic!();
             }
-            offset += U32SZ;
 
             let tree_id = store.read_u32(offset)?;
+            offset += U32SZ;
 
             let s = StorageNodeStorage::new(
                 offset as u32,
@@ -314,67 +263,7 @@ impl Storage {
             );
             self.tree_storages.insert(tree_id, s.clone());
 
-            offset += U32SZ;
-            let count: u32 = store.read_u32(offset)?;
-            offset += U32SZ;
-            let mut nodes_offsets = Vec::new();
-            for _i in 0..count {
-                let node_pos: u32 = store.read_u32(offset)?;
-                offset += U32SZ;
-                nodes_offsets.push(node_pos);
-            }
-
-            for node_offset in nodes_offsets {
-                offset = node_offset as usize;
-                let id = store.read_id(offset)?;
-                offset += U32SZ;
-                let is_leaf = store.read_bool(offset)?;
-                offset += U8SZ;
-                let parent = store.read_id(offset)?;
-                offset += U32SZ;
-                let left = store.read_id(offset)?;
-                offset += U32SZ;
-                let right = store.read_id(offset)?;
-                offset += U32SZ;
-                let keys_count = store.read_u32(offset)?;
-                offset += U32SZ;
-                let data_count = store.read_u32(offset)?;
-                offset += U32SZ;
-
-                let mut keys = Vec::with_capacity(keys_count as usize);
-                keys.resize(self.params.tree_params.get_keys_count(), 0u32);
-
-                let mut data = Vec::with_capacity(keys_count as usize);
-                data.resize(self.params.tree_params.get_keys_count(), Record::Empty);
-                for i in 0..keys_count {
-                    let key = store.read_u32(offset)?;
-                    offset += U32SZ;
-                    keys[i as usize] = key;
-                }
-
-                for i in 0..data_count {
-                    let d = store.read_u32(offset)?;
-                    offset += U32SZ;
-                    data[i as usize] = if is_leaf {
-                        Record::Value(d)
-                    } else {
-                        Record::Ptr(Id(d))
-                    };
-                }
-                let node = Node::new(
-                    id,
-                    is_leaf,
-                    keys,
-                    data,
-                    keys_count as usize,
-                    data_count as usize,
-                );
-                node.borrow_mut().parent = parent;
-                node.borrow_mut().left = left;
-                node.borrow_mut().right = right;
-                s.borrow_mut()
-                    .add_node_with_offset(&node, node_offset as usize);
-            }
+            s.borrow_mut().load_trans(offset, &*self.store.borrow())?;
         }
         Ok(())
     }

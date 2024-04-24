@@ -26,6 +26,30 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn new_with_links(
+        id: Id,
+        is_leaf: bool,
+        keys: Vec<u32>,
+        data: Vec<Record>,
+        keys_count: usize,
+        data_count: usize,
+        parent: Id,
+        left: Id,
+        right: Id,
+    ) -> RcNode {
+        Rc::new(RefCell::new(Node {
+            id: id,
+            is_leaf: is_leaf,
+            keys: keys,
+            data: data,
+            keys_count,
+            data_count,
+            left,
+            parent,
+            right,
+        }))
+    }
+
     pub fn new(
         id: Id,
         is_leaf: bool,
