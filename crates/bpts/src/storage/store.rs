@@ -524,9 +524,7 @@ mod tests {
         while all_keys.len() > 0 {
             let key = all_keys[0];
             all_keys.remove(0);
-            if key == 200 {
-                println!("");
-            }
+
             println!("remove {}", key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             let str_before = storage.dump_tree(1, String::from("before"));
@@ -540,9 +538,78 @@ mod tests {
             }
 
             for search_key in all_keys.iter() {
-                if key == 200 && *search_key == 201 {
-                    println!("");
+                println!("read {}", search_key);
+                let key_sl = unsafe { any_as_u8_slice(search_key) };
+                let find_res = storage.find(1, key_sl)?;
+                if find_res.is_none() {
+                    crate::tree::debug::print_states(&[&str_before, &str_after]);
                 }
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, key_sl)
+            }
+        }
+
+        let mut hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 0);
+        storage.close()?;
+        hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 1);
+        println!("size: {}kb", fstore.borrow().size() as f32 / 1024f32);
+        Ok(())
+    }
+
+    #[test]
+    fn db_rev() -> Result<()> {
+        let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
+        let cmp = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
+        all_cmp.insert(1u32, cmp);
+
+        let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
+        let params = StorageParams::default();
+        let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
+        let max_key = 400;
+        let mut all_keys = Vec::new();
+        for key in 0..max_key {
+            println!("insert {}", key);
+            all_keys.push(key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            storage.insert(1, &cur_key_sl, &cur_key_sl)?;
+            {
+                let find_res = storage.find(1, cur_key_sl)?;
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, cur_key_sl)
+            }
+        }
+
+        for key in all_keys.iter() {
+            println!("read {}", key);
+            let key_sl = unsafe { any_as_u8_slice(key) };
+            let find_res = storage.find(1, key_sl)?;
+            assert!(find_res.is_some());
+            let value = &find_res.unwrap()[..];
+            assert_eq!(value, key_sl)
+        }
+
+        while all_keys.len() > 0 {
+            let last = all_keys.len() - 1;
+            let key = all_keys[last];
+            all_keys.remove(last);
+
+            println!("remove {}", key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            let str_before = storage.dump_tree(1, String::from("before"));
+            storage.remove(1, &cur_key_sl)?;
+            let str_after = storage.dump_tree(1, String::from("after"));
+
+            //crate::tree::debug::print_states(&[&str_before, &str_after]);
+            {
+                let find_res = storage.find(1, cur_key_sl)?;
+                assert!(find_res.is_none());
+            }
+
+            for search_key in all_keys.iter() {
                 println!("read {}", search_key);
                 let key_sl = unsafe { any_as_u8_slice(search_key) };
                 let find_res = storage.find(1, key_sl)?;
