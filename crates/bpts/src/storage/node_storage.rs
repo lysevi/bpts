@@ -22,8 +22,8 @@ pub(super) type StorageNodeStorageRc = Rc<RefCell<StorageNodeStorage>>;
 pub struct StorageNodeStorage {
     pub(super) offset: u32,
     pub(super) cmp: Option<KeyCmpRc>,
-    pub(super) nodes: Box<RefCell<HashMap<u32, RcNode>>>,
-    pub(super) nodes_to_offset: Box<RefCell<HashMap<u32, usize>>>,
+    pub(super) nodes: RefCell<HashMap<u32, RcNode>>,
+    pub(super) nodes_to_offset: RefCell<HashMap<u32, usize>>,
     pub tree_params: TreeParams,
     flat_store: Rc<RefCell<dyn FlatStorage>>,
 }
@@ -38,8 +38,8 @@ impl StorageNodeStorage {
         Rc::new(RefCell::new(StorageNodeStorage {
             offset: offset as u32,
             cmp: Some(cmp),
-            nodes: Box::new(RefCell::new(HashMap::new())),
-            nodes_to_offset: Box::new(RefCell::new(HashMap::new())),
+            nodes: RefCell::new(HashMap::new()),
+            nodes_to_offset: RefCell::new(HashMap::new()),
             tree_params: params,
             flat_store: flat_store,
         }))
