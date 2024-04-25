@@ -187,6 +187,7 @@ impl Storage {
                 let s = StorageNodeStorage::new(
                     0u32,
                     self.get_tree_cmp(tree_id),
+                    self.store.clone(),
                     self.params.tree_params,
                 );
 
@@ -199,7 +200,7 @@ impl Storage {
             let root = if let Some(t) = storage_ref.get_root() {
                 t.clone()
             } else {
-                let root_node = Node::new_leaf_with_size(Id(tree_id), tparams.t);
+                let root_node = Node::new_leaf_with_size(Id(1), tparams.t);
                 storage_ref.add_node(&root_node);
                 root_node
             };
@@ -281,11 +282,12 @@ impl Storage {
             let s = StorageNodeStorage::new(
                 offset as u32,
                 self.get_tree_cmp(tree_id),
+                self.store.clone(),
                 self.params.tree_params,
             );
             self.tree_storages.insert(tree_id, s.clone());
 
-            s.borrow_mut().load_trans(offset, &*self.store.borrow())?;
+            s.borrow_mut().load_trans(offset)?;
         }
         Ok(())
     }
@@ -351,6 +353,7 @@ impl Storage {
                 let s = StorageNodeStorage::new(
                     0u32,
                     self.make_cmp(tree_id, key),
+                    self.store.clone(),
                     self.params.tree_params,
                 );
 
@@ -530,6 +533,9 @@ mod tests {
         let mut all_keys = Vec::new();
         for key in 0..max_key {
             println!("insert {}", key);
+            if key == 255 {
+                println!("");
+            }
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             storage.insert(1, &cur_key_sl, &cur_key_sl)?;

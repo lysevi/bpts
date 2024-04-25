@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use crate::{
     tree::{
@@ -18,23 +22,26 @@ pub(super) type StorageNodeStorageRc = Rc<RefCell<StorageNodeStorage>>;
 pub struct StorageNodeStorage {
     pub(super) offset: u32,
     pub(super) cmp: Option<KeyCmpRc>,
-    pub(super) nodes: HashMap<u32, RcNode>,
-    pub(super) nodes_to_offset: HashMap<u32, usize>,
+    pub(super) nodes: Box<RefCell<HashMap<u32, RcNode>>>,
+    pub(super) nodes_to_offset: Box<RefCell<HashMap<u32, usize>>>,
     pub tree_params: TreeParams,
+    flat_store: Rc<RefCell<dyn FlatStorage>>,
 }
 
 impl StorageNodeStorage {
     pub(super) fn new(
         offset: u32,
         cmp: KeyCmpRc,
+        flat_store: Rc<RefCell<dyn FlatStorage>>,
         params: TreeParams,
     ) -> Rc<RefCell<StorageNodeStorage>> {
         Rc::new(RefCell::new(StorageNodeStorage {
             offset: offset as u32,
             cmp: Some(cmp),
-            nodes: HashMap::new(),
-            nodes_to_offset: HashMap::new(),
+            nodes: Box::new(RefCell::new(HashMap::new())),
+            nodes_to_offset: Box::new(RefCell::new(HashMap::new())),
             tree_params: params,
+            flat_store: flat_store,
         }))
     }
     pub(super) fn set_cmp(&mut self, c: KeyCmpRc) -> &mut Self {
@@ -47,20 +54,25 @@ impl StorageNodeStorage {
         self
     }
 
-    pub(super) fn add_node_with_offset(&mut self, node: &RcNode, offset: usize) {
-        self.add_node(node);
-        self.nodes_to_offset.insert(node.borrow().id.0, offset);
-    }
+    // pub(super) fn add_node_with_offset(&self, node: &RcNode, offset: usize) {
+    //     let ref_node = node.borrow();
+    //     self.nodes
+    //         .borrow_mut()
+    //         .insert(ref_node.id.unwrap(), node.clone());
+    //     self.nodes_to_offset
+    //         .borrow_mut()
+    //         .insert(node.borrow().id.0, offset);
+    // }
 
     pub(super) fn get_node_offset(&self, id: Id) -> Option<usize> {
-        if let Some(v) = self.nodes_to_offset.get(&id.0) {
+        if let Some(v) = self.nodes_to_offset.borrow().get(&id.0) {
             return Some(*v);
         }
         return None;
     }
 
     pub(super) fn set_node_offset(&mut self, id: Id, offset: usize) {
-        self.nodes_to_offset.insert(id.0, offset);
+        self.nodes_to_offset.borrow_mut().insert(id.0, offset);
     }
 
     fn save_node(flat_store: &dyn FlatStorage, n: &Node) -> Result<()> {
@@ -94,7 +106,24 @@ impl StorageNodeStorage {
 
         let mut new_offsets = HashMap::new();
 
-        for node in self.nodes.values() {
+        let mut loaded_nodes = HashSet::new();
+        let mut all_nodes = Vec::with_capacity(self.nodes.borrow().len());
+        for i in self.nodes.borrow().values() {
+            loaded_nodes.insert(i.borrow().id.0);
+            if i.borrow().parent.is_empty() {
+                if all_nodes.len() == 0 {
+                    all_nodes.push(i.clone())
+                } else {
+                    let firts = all_nodes[0].clone();
+                    all_nodes[0] = i.clone();
+                    all_nodes.push(firts);
+                }
+            } else {
+                all_nodes.push(i.clone());
+            }
+        }
+        assert!(self.get_root().unwrap().borrow().id == all_nodes[0].borrow().id);
+        for node in all_nodes {
             let node_ref = node.borrow();
             if let Some(exists_offset) = self.get_node_offset(node_ref.id) {
                 nodes_offsets.push(exists_offset);
@@ -106,6 +135,11 @@ impl StorageNodeStorage {
             new_offsets.insert(node_ref.id, cur_write_offset);
 
             Self::save_node(&*flat_store, &node_ref)?;
+        }
+        for i in self.nodes_to_offset.borrow().iter() {
+            if !loaded_nodes.contains(i.0) {
+                nodes_offsets.push(*i.1);
+            }
         }
         for o in new_offsets {
             self.set_node_offset(o.0, o.1);
@@ -119,6 +153,15 @@ impl StorageNodeStorage {
             flat_store.write_u32(i as u32)?;
         }
         Ok(self.offset)
+    }
+
+    fn load_node_header(&mut self, node_offset: u32) -> Result<()> {
+        let offset = node_offset as usize;
+        let id = self.flat_store.borrow().read_id(offset)?;
+        self.nodes_to_offset
+            .borrow_mut()
+            .insert(id.0, node_offset as usize);
+        Ok(())
     }
 
     fn load_node(&self, node_offset: u32, flat_store: &dyn FlatStorage) -> Result<RcNode> {
@@ -174,24 +217,30 @@ impl StorageNodeStorage {
         return Ok(node);
     }
 
-    pub(super) fn load_trans(
-        &mut self,
-        start_offset: usize,
-        flat_store: &dyn FlatStorage,
-    ) -> Result<()> {
-        let mut offset = start_offset;
-        let count: u32 = flat_store.read_u32(offset)?;
-        offset += U32SZ;
+    pub(super) fn load_trans(&mut self, start_offset: usize) -> Result<()> {
         let mut nodes_offsets = Vec::new();
-        for _i in 0..count {
-            let node_pos: u32 = flat_store.read_u32(offset)?;
+        {
+            let fstore_ref = self.flat_store.borrow();
+            let mut offset = start_offset;
+            let count: u32 = fstore_ref.read_u32(offset)?;
             offset += U32SZ;
-            nodes_offsets.push(node_pos);
-        }
 
+            for _i in 0..count {
+                let node_pos: u32 = fstore_ref.read_u32(offset)?;
+                offset += U32SZ;
+                nodes_offsets.push(node_pos);
+            }
+        }
+        let mut is_first = true;
         for node_offset in nodes_offsets {
-            let node = self.load_node(node_offset, flat_store)?;
-            self.add_node_with_offset(&node, node_offset as usize);
+            self.load_node_header(node_offset)?;
+            if is_first {
+                let node = self.load_node(node_offset, &*self.flat_store.borrow())?;
+                self.nodes
+                    .borrow_mut()
+                    .insert(node.borrow().id.0, node.clone());
+                is_first = false;
+            }
         }
         Ok(())
     }
@@ -199,13 +248,14 @@ impl StorageNodeStorage {
 
 impl NodeStorage for StorageNodeStorage {
     fn get_root(&self) -> Option<RcNode> {
-        if self.nodes.len() == 1 {
-            let res = self.nodes.iter().next();
+        let nodes_ref = self.nodes.borrow();
+        if nodes_ref.len() == 1 {
+            let res = nodes_ref.iter().next();
             let res = res.unwrap();
             let res = res.1;
             return Some(res.clone());
         }
-        for i in &self.nodes {
+        for i in nodes_ref.iter() {
             let node = i.1;
             if !node.borrow().is_leaf && node.borrow().parent.is_empty() {
                 return Some(node.clone());
@@ -214,34 +264,54 @@ impl NodeStorage for StorageNodeStorage {
         None
     }
     fn get_new_id(&self) -> Id {
-        let max = self.nodes.keys().into_iter().max_by(|x, y| x.cmp(y));
-        match max {
-            Some(x) => {
-                let n = x + 1;
-                Id(n)
-            }
-            None => Id(1),
-        }
+        let nodes = self.nodes.borrow();
+        let max_id1 = nodes
+            .keys()
+            .into_iter()
+            .max_by(|x, y| x.cmp(y))
+            .unwrap_or(&0u32);
+
+        let nodes_offsets = self.nodes_to_offset.borrow();
+        let max_id2 = nodes_offsets
+            .keys()
+            .into_iter()
+            .max_by(|x, y| x.cmp(y))
+            .unwrap_or(&0u32);
+
+        return Id(std::cmp::max(*max_id1, *max_id2) + 1);
     }
 
     fn get_node(&self, id: Id) -> crate::Result<RcNode> {
         verbose!("get_node {:?}", id);
-        let res = self.nodes.get(&id.unwrap());
-        if let Some(r) = res {
-            Ok(r.clone())
-        } else {
-            Err(crate::Error::Fail(format!("not found Id={}", id.0)))
+
+        {
+            let nodes = self.nodes.borrow();
+            let res = nodes.get(&id.unwrap());
+            if let Some(r) = res {
+                return Ok(r.clone());
+            }
+        }
+        {
+            if let Some(node_offset) = self.nodes_to_offset.borrow().get(&id.0) {
+                let node = self.load_node(*node_offset as u32, &*self.flat_store.borrow())?;
+                self.nodes.borrow_mut().insert(id.0, node.clone());
+                Ok(node)
+            } else {
+                Err(crate::Error::Fail(format!("not found Id={}", id.0)))
+            }
         }
     }
 
     fn add_node(&mut self, node: &RcNode) {
         let ref_node = node.borrow();
-        self.nodes.insert(ref_node.id.unwrap(), node.clone());
+        self.nodes
+            .borrow_mut()
+            .insert(ref_node.id.unwrap(), node.clone());
     }
 
     fn erase_node(&mut self, id: &Id) {
         verbose!("erase_node {:?}", id);
-        self.nodes.remove(&id.0);
+        self.nodes.borrow_mut().remove(&id.0);
     }
 
     fn get_params(&self) -> &TreeParams {
@@ -254,7 +324,7 @@ impl NodeStorage for StorageNodeStorage {
 
     fn mark_as_changed(&mut self, id: Id) {
         verbose!("mark_as_changed {:?}", id);
-        self.nodes_to_offset.remove(&id.0);
+        self.nodes_to_offset.borrow_mut().remove(&id.0);
     }
 }
 
