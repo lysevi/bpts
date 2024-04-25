@@ -172,6 +172,7 @@ fn main() -> Result<()> {
     let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
 
     let full_time_begin = Instant::now();
+
     for key in 0..args.count {
         let cur_begin = Instant::now();
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
@@ -181,7 +182,7 @@ fn main() -> Result<()> {
 
         if !args.quiet {
             print!(
-                "\rwrite cur:{}% size:{} time:{:?}",
+                "\rwrite cur:{}% size:{} time:{:?}                ",
                 (100f32 * key as f32) / (args.count as f32),
                 fstore.borrow().size(),
                 cur_duration
@@ -205,7 +206,7 @@ fn main() -> Result<()> {
         let cur_duration = cur_begin.elapsed();
         if !args.quiet {
             print!(
-                "\rread cur:{}% time:{:?}",
+                "\rread cur:{}% time:{:?}                ",
                 (100f32 * key as f32) / (args.count as f32),
                 cur_duration
             );
