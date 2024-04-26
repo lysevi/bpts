@@ -213,12 +213,12 @@ impl Storage {
                 &crate::tree::record::Record::from_u32(key_offset),
             )?;
         }
-        self.save_trans()?;
+        self.save_trees()?;
 
         Ok(())
     }
 
-    fn save_trans(&mut self) -> Result<()> {
+    fn save_trees(&mut self) -> Result<()> {
         let mut trans_list = Vec::new();
         let flat_store = self.store.borrow_mut();
 
@@ -369,7 +369,7 @@ impl Storage {
             let mut a = storage.borrow_mut();
             crate::tree::remove::remove_key(&mut *a, &root.unwrap().clone(), std::u32::MAX)?;
         }
-        self.save_trans()?;
+        self.save_trees()?;
         Ok(())
     }
 }
