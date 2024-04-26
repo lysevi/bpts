@@ -54,16 +54,6 @@ impl StorageNodeStorage {
         self
     }
 
-    // pub(super) fn add_node_with_offset(&self, node: &RcNode, offset: usize) {
-    //     let ref_node = node.borrow();
-    //     self.nodes
-    //         .borrow_mut()
-    //         .insert(ref_node.id.unwrap(), node.clone());
-    //     self.nodes_to_offset
-    //         .borrow_mut()
-    //         .insert(node.borrow().id.0, offset);
-    // }
-
     pub(super) fn get_node_offset(&self, id: Id) -> Option<usize> {
         if let Some(v) = self.nodes_to_offset.borrow().get(&id.0) {
             return Some(*v);
@@ -155,13 +145,11 @@ impl StorageNodeStorage {
         Ok(self.offset)
     }
 
-    fn load_node_header(&mut self, node_offset: u32) -> Result<()> {
+    fn read_node_header(node_offset: u32, fstore: &dyn FlatStorage) -> Result<Id> {
         let offset = node_offset as usize;
-        let id = self.flat_store.borrow().read_id(offset)?;
-        self.nodes_to_offset
-            .borrow_mut()
-            .insert(id.0, node_offset as usize);
-        Ok(())
+        let id = fstore.read_id(offset)?;
+
+        Ok(id)
     }
 
     fn load_node(&self, node_offset: u32, flat_store: &dyn FlatStorage) -> Result<RcNode> {
@@ -217,23 +205,32 @@ impl StorageNodeStorage {
         return Ok(node);
     }
 
-    pub(super) fn load_trans(&mut self, start_offset: usize) -> Result<()> {
+    fn load_nodes_offsets(store: &dyn FlatStorage, start_offset: usize) -> Result<Vec<u32>> {
         let mut nodes_offsets = Vec::new();
-        {
-            let fstore_ref = self.flat_store.borrow();
-            let mut offset = start_offset;
-            let count: u32 = fstore_ref.read_u32(offset)?;
-            offset += U32SZ;
+        let mut offset = start_offset;
+        let count: u32 = store.read_u32(offset)?;
+        offset += U32SZ;
 
-            for _i in 0..count {
-                let node_pos: u32 = fstore_ref.read_u32(offset)?;
-                offset += U32SZ;
-                nodes_offsets.push(node_pos);
-            }
+        for _i in 0..count {
+            let node_pos: u32 = store.read_u32(offset)?;
+            offset += U32SZ;
+            nodes_offsets.push(node_pos);
         }
+        return Ok(nodes_offsets);
+    }
+
+    pub(super) fn load(&mut self, start_offset: usize) -> Result<()> {
+        let offset = start_offset + U32SZ + U32SZ; //MAGIC + ID
+        let fstore_ref = self.flat_store.borrow();
+
+        let nodes_offsets = Self::load_nodes_offsets(&*fstore_ref, offset)?;
+
         let mut is_first = true;
         for node_offset in nodes_offsets {
-            self.load_node_header(node_offset)?;
+            let node_hdr = Self::read_node_header(node_offset, &*fstore_ref)?;
+            self.nodes_to_offset
+                .borrow_mut()
+                .insert(node_hdr.0, node_offset as usize);
             if is_first {
                 let node = self.load_node(node_offset, &*self.flat_store.borrow())?;
                 self.nodes

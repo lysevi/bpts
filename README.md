@@ -6,7 +6,6 @@
 - [ ] begin transaction
   - [ ] astore - allocate block.
   - [ ] astore - commit.
-- [ ] test - many trees.
 - [ ] file storage
 - [ ] benchmark on memory sorage
   - [ ] median time

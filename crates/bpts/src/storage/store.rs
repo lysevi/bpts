@@ -176,6 +176,7 @@ impl Storage {
         let tparams = self.params.tree_params.clone();
 
         let key_offset = Self::insert_kv(&*self.store.borrow_mut(), key, data)?;
+        //TODO refact!
         {
             let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
                 let c = t.clone();
@@ -239,7 +240,7 @@ impl Storage {
         Ok(())
     }
 
-    fn load_trans(&mut self) -> Result<()> {
+    fn load_trees(&mut self) -> Result<()> {
         self.tree_storages.clear();
         let store = self.store.borrow();
         let hdr = store.header_read()?;
@@ -277,17 +278,16 @@ impl Storage {
             }
 
             let tree_id = store.read_u32(offset)?;
-            offset += U32SZ;
 
             let s = StorageNodeStorage::new(
-                offset as u32,
+                start as u32,
                 self.get_tree_cmp(tree_id),
                 self.store.clone(),
                 self.params.tree_params,
             );
             self.tree_storages.insert(tree_id, s.clone());
 
-            s.borrow_mut().load_trans(offset)?;
+            s.borrow_mut().load(start as usize)?;
         }
         Ok(())
     }
@@ -304,7 +304,7 @@ impl Storage {
     }
 
     pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
-        self.load_trans()?;
+        self.load_trees()?;
 
         let storage = if let Some(x) = self.get_storage_for_tree(tree_id)? {
             x.borrow_mut().set_cmp(self.make_cmp(tree_id, key));
@@ -341,7 +341,7 @@ impl Storage {
     }
 
     pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
-        self.load_trans()?;
+        self.load_trees()?;
         {
             let storage = if let Some(t) = self.tree_storages.get(&tree_id) {
                 let c = t.clone();
@@ -533,9 +533,7 @@ mod tests {
         let mut all_keys = Vec::new();
         for key in 0..max_key {
             println!("insert {}", key);
-            if key == 255 {
-                println!("");
-            }
+
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             storage.insert(1, &cur_key_sl, &cur_key_sl)?;
@@ -657,6 +655,92 @@ mod tests {
                 println!("read {}", search_key);
                 let key_sl = unsafe { any_as_u8_slice(search_key) };
                 let find_res = storage.find(1, key_sl)?;
+                if find_res.is_none() {
+                    crate::tree::debug::print_states(&[&str_before, &str_after]);
+                }
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, key_sl)
+            }
+        }
+
+        let mut hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 0);
+        storage.close()?;
+        hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 1);
+        println!("size: {}kb", fstore.borrow().size() as f32 / 1024f32);
+        Ok(())
+    }
+
+    #[test]
+    fn db_many_trees() -> Result<()> {
+        let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
+        let cmp1 = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
+        let cmp2 = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
+        all_cmp.insert(1u32, cmp1);
+        all_cmp.insert(2u32, cmp2);
+
+        let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
+        let params = StorageParams::default();
+        let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
+        let max_key = 400;
+        let mut all_keys = Vec::new();
+        for key in 0..max_key {
+            println!("insert {}", key);
+            let tree_id = if key % 2 == 0 { 1 } else { 2 };
+
+            all_keys.push(key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            storage.insert(tree_id, &cur_key_sl, &cur_key_sl)?;
+            {
+                let find_res = storage.find(tree_id, cur_key_sl)?;
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, cur_key_sl)
+            }
+
+            // for search_key in 0..key {
+            //     println!("read {}", search_key);
+            //     let key_sl = unsafe { any_as_u8_slice(&search_key) };
+            //     let find_res = storage.find(1, key_sl)?;
+            //     assert!(find_res.is_some());
+            //     let value = &find_res.unwrap()[..];
+            //     assert_eq!(value, key_sl)
+            // }
+        }
+
+        for key in all_keys.iter() {
+            println!("read {}", key);
+            let search_tree_id = if key % 2 == 0 { 1 } else { 2 };
+            let key_sl = unsafe { any_as_u8_slice(key) };
+            let find_res = storage.find(search_tree_id, key_sl)?;
+            assert!(find_res.is_some());
+            let value = &find_res.unwrap()[..];
+            assert_eq!(value, key_sl)
+        }
+
+        while all_keys.len() > 0 {
+            let key = all_keys[0];
+            all_keys.remove(0);
+            let tree_id = if key % 2 == 0 { 1 } else { 2 };
+            println!("remove {}", key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            let str_before = storage.dump_tree(tree_id, String::from("before"));
+            storage.remove(tree_id, &cur_key_sl)?;
+            let str_after = storage.dump_tree(tree_id, String::from("after"));
+
+            //crate::tree::debug::print_states(&[&str_before, &str_after]);
+            {
+                let find_res = storage.find(tree_id, cur_key_sl)?;
+                assert!(find_res.is_none());
+            }
+
+            for search_key in all_keys.iter() {
+                println!("read {}", search_key);
+                let search_tree_id = if search_key % 2 == 0 { 1 } else { 2 };
+                let key_sl = unsafe { any_as_u8_slice(search_key) };
+                let find_res = storage.find(search_tree_id, key_sl)?;
                 if find_res.is_none() {
                     crate::tree::debug::print_states(&[&str_before, &str_after]);
                 }
