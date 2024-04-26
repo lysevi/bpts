@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use crate::tree::node::Node;
 use crate::tree::nodestorage::NodeStorage;
+use crate::tree::TreeParams;
 use crate::types::Id;
 use crate::Result;
 
@@ -172,50 +173,15 @@ impl Storage {
         return cmp;
     }
 
-    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
-        let tparams = self.params.tree_params.clone();
-
-        let key_offset = Self::insert_kv(&*self.store.borrow_mut(), key, data)?;
-        //TODO refact!
-        {
-            let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
-                let c = t.clone();
-                c.borrow_mut()
-                    .set_offset(0)
-                    .set_cmp(self.get_tree_cmp(tree_id));
-                c
-            } else {
-                let s = StorageNodeStorage::new(
-                    0u32,
-                    self.get_tree_cmp(tree_id),
-                    self.store.clone(),
-                    self.params.tree_params,
-                );
-
-                self.tree_storages.insert(tree_id, s.clone());
-                s.clone()
-            };
-
-            let mut storage_ref = (*target_storage).borrow_mut();
-
-            let root = if let Some(t) = storage_ref.get_root() {
-                t.clone()
-            } else {
-                let root_node = Node::new_leaf_with_size(Id(1), tparams.t);
-                storage_ref.add_node(&root_node);
-                root_node
-            };
-
-            let _insert_res = crate::tree::insert::insert(
-                &mut *storage_ref,
-                &root,
-                key_offset,
-                &crate::tree::record::Record::from_u32(key_offset),
-            )?;
-        }
-        self.save_trees()?;
-
-        Ok(())
+    pub fn dump_tree(&self, tree_id: u32, name: String) -> String {
+        let storage = self.tree_storages.get(&tree_id).unwrap();
+        let root = storage.borrow().get_root().unwrap();
+        return crate::tree::debug::storage_to_string(
+            &*storage.borrow(),
+            root.clone(),
+            true,
+            &name,
+        );
     }
 
     fn save_trees(&mut self) -> Result<()> {
@@ -292,7 +258,7 @@ impl Storage {
         Ok(())
     }
 
-    fn get_storage_for_tree(
+    fn get_exist_storage_for_tree(
         &self,
         tree_id: u32,
     ) -> Result<Option<Rc<RefCell<StorageNodeStorage>>>> {
@@ -303,10 +269,66 @@ impl Storage {
         return Ok(Some(storage_res.unwrap().clone()));
     }
 
+    fn get_or_create_storage_for_tree(
+        &mut self,
+        tree_id: u32,
+    ) -> Result<Rc<RefCell<StorageNodeStorage>>> {
+        let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
+            let c = t.clone();
+            c.borrow_mut()
+                .set_offset(0)
+                .set_cmp(self.get_tree_cmp(tree_id));
+            c
+        } else {
+            let s = StorageNodeStorage::new(
+                0u32,
+                self.get_tree_cmp(tree_id),
+                self.store.clone(),
+                self.params.tree_params,
+            );
+
+            self.tree_storages.insert(tree_id, s.clone());
+            s.clone()
+        };
+        Ok(target_storage)
+    }
+
+    fn insert_to_tree(&mut self, tree_id: u32, key_offset: u32, tparams: TreeParams) -> Result<()> {
+        let target_storage = self.get_or_create_storage_for_tree(tree_id)?;
+
+        let mut storage_ref = (*target_storage).borrow_mut();
+
+        let root = if let Some(t) = storage_ref.get_root() {
+            t.clone()
+        } else {
+            let root_node = Node::new_leaf_with_size(Id(1), tparams.t);
+            storage_ref.add_node(&root_node);
+            root_node
+        };
+
+        let _insert_res = crate::tree::insert::insert(
+            &mut *storage_ref,
+            &root,
+            key_offset,
+            &crate::tree::record::Record::from_u32(key_offset),
+        )?;
+        Ok(())
+    }
+
+    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
+        let tparams = self.params.tree_params.clone();
+
+        let key_offset = Self::insert_kv(&*self.store.borrow_mut(), key, data)?;
+        self.insert_to_tree(tree_id, key_offset, tparams)?;
+        self.save_trees()?;
+
+        Ok(())
+    }
+
     pub fn find(&mut self, tree_id: u32, key: &[u8]) -> Result<Option<Vec<u8>>> {
         self.load_trees()?;
 
-        let storage = if let Some(x) = self.get_storage_for_tree(tree_id)? {
+        let storage = if let Some(x) = self.get_exist_storage_for_tree(tree_id)? {
             x.borrow_mut().set_cmp(self.make_cmp(tree_id, key));
             x
         } else {
@@ -329,38 +351,15 @@ impl Storage {
         return Ok(Some(d));
     }
 
-    pub fn dump_tree(&self, tree_id: u32, name: String) -> String {
-        let storage = self.tree_storages.get(&tree_id).unwrap();
-        let root = storage.borrow().get_root().unwrap();
-        return crate::tree::debug::storage_to_string(
-            &*storage.borrow(),
-            root.clone(),
-            true,
-            &name,
-        );
-    }
-
     pub fn remove(&mut self, tree_id: u32, key: &[u8]) -> Result<()> {
         self.load_trees()?;
-        {
-            let storage = if let Some(t) = self.tree_storages.get(&tree_id) {
-                let c = t.clone();
-                c.borrow_mut()
-                    .set_offset(0)
-                    .set_cmp(self.make_cmp(tree_id, key));
-                c
-            } else {
-                let s = StorageNodeStorage::new(
-                    0u32,
-                    self.make_cmp(tree_id, key),
-                    self.store.clone(),
-                    self.params.tree_params,
-                );
 
-                self.tree_storages.insert(tree_id, s.clone());
-                s.clone()
-            };
-
+        if let Some(t) = self.tree_storages.get(&tree_id) {
+            let storage = t.clone();
+            storage
+                .borrow_mut()
+                .set_offset(0)
+                .set_cmp(self.make_cmp(tree_id, key));
             let root = storage.borrow().get_root();
             if root.is_none() {
                 return Ok(());
@@ -368,7 +367,10 @@ impl Storage {
 
             let mut a = storage.borrow_mut();
             crate::tree::remove::remove_key(&mut *a, &root.unwrap().clone(), std::u32::MAX)?;
-        }
+        } else {
+            return Ok(());
+        };
+
         self.save_trees()?;
         Ok(())
     }
@@ -406,7 +408,7 @@ mod tests {
             MockPageStorage {
                 params: RefCell::new(SingleElementStore::new()),
                 hdr: RefCell::new(SingleElementStore::new()),
-                space: RefCell::new(Vec::new()),
+                space: RefCell::new(Vec::with_capacity(1024 * 1024 * 5)),
             }
         }
 
@@ -532,7 +534,7 @@ mod tests {
         let max_key = 400;
         let mut all_keys = Vec::new();
         for key in 0..max_key {
-            println!("insert {}", key);
+            //println!("insert {}", key);
 
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
@@ -555,7 +557,7 @@ mod tests {
         }
 
         for key in all_keys.iter() {
-            println!("read {}", key);
+            //println!("read {}", key);
             let key_sl = unsafe { any_as_u8_slice(key) };
             let find_res = storage.find(1, key_sl)?;
             assert!(find_res.is_some());
@@ -567,7 +569,7 @@ mod tests {
             let key = all_keys[0];
             all_keys.remove(0);
 
-            println!("remove {}", key);
+            //println!("remove {}", key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             let str_before = storage.dump_tree(1, String::from("before"));
             storage.remove(1, &cur_key_sl)?;
@@ -580,7 +582,7 @@ mod tests {
             }
 
             for search_key in all_keys.iter() {
-                println!("read {}", search_key);
+                //println!("read {}", search_key);
                 let key_sl = unsafe { any_as_u8_slice(search_key) };
                 let find_res = storage.find(1, key_sl)?;
                 if find_res.is_none() {
@@ -613,7 +615,7 @@ mod tests {
         let max_key = 400;
         let mut all_keys = Vec::new();
         for key in 0..max_key {
-            println!("insert {}", key);
+            //println!("insert {}", key);
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             storage.insert(1, &cur_key_sl, &cur_key_sl)?;
@@ -626,7 +628,7 @@ mod tests {
         }
 
         for key in all_keys.iter() {
-            println!("read {}", key);
+            // println!("read {}", key);
             let key_sl = unsafe { any_as_u8_slice(key) };
             let find_res = storage.find(1, key_sl)?;
             assert!(find_res.is_some());
@@ -639,7 +641,7 @@ mod tests {
             let key = all_keys[last];
             all_keys.remove(last);
 
-            println!("remove {}", key);
+            //println!("remove {}", key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             let str_before = storage.dump_tree(1, String::from("before"));
             storage.remove(1, &cur_key_sl)?;
@@ -652,7 +654,7 @@ mod tests {
             }
 
             for search_key in all_keys.iter() {
-                println!("read {}", search_key);
+                //println!("read {}", search_key);
                 let key_sl = unsafe { any_as_u8_slice(search_key) };
                 let find_res = storage.find(1, key_sl)?;
                 if find_res.is_none() {
@@ -687,7 +689,7 @@ mod tests {
         let max_key = 400;
         let mut all_keys = Vec::new();
         for key in 0..max_key {
-            println!("insert {}", key);
+            //println!("insert {}", key);
             let tree_id = if key % 2 == 0 { 1 } else { 2 };
 
             all_keys.push(key);
@@ -711,7 +713,7 @@ mod tests {
         }
 
         for key in all_keys.iter() {
-            println!("read {}", key);
+            //println!("read {}", key);
             let search_tree_id = if key % 2 == 0 { 1 } else { 2 };
             let key_sl = unsafe { any_as_u8_slice(key) };
             let find_res = storage.find(search_tree_id, key_sl)?;
@@ -724,7 +726,7 @@ mod tests {
             let key = all_keys[0];
             all_keys.remove(0);
             let tree_id = if key % 2 == 0 { 1 } else { 2 };
-            println!("remove {}", key);
+            // println!("remove {}", key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             let str_before = storage.dump_tree(tree_id, String::from("before"));
             storage.remove(tree_id, &cur_key_sl)?;
@@ -737,7 +739,7 @@ mod tests {
             }
 
             for search_key in all_keys.iter() {
-                println!("read {}", search_key);
+                //println!("read {}", search_key);
                 let search_tree_id = if search_key % 2 == 0 { 1 } else { 2 };
                 let key_sl = unsafe { any_as_u8_slice(search_key) };
                 let find_res = storage.find(search_tree_id, key_sl)?;

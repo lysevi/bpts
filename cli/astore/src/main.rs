@@ -46,7 +46,7 @@ impl MockPageStorage {
         MockPageStorage {
             params: RefCell::new(SingleElementStore::new()),
             hdr: RefCell::new(SingleElementStore::new()),
-            space: RefCell::new(Vec::new()),
+            space: RefCell::new(Vec::with_capacity(1024 * 1024 * 20)),
         }
     }
 
