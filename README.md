@@ -1,18 +1,16 @@
 # bpts
 
+- [ ] file base storage.
+  - [ ] begin transaction
+    - [ ] astore - allocate block.
+    - [ ] astore - commit.
 - [ ] read refact:
   - [ ] don't load all trees on read. load when starting.
   - [x] don't load the full tree when reading.
-- [ ] begin transaction
-  - [ ] astore - allocate block.
-  - [ ] astore - commit.
-- [ ] file storage
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
   - [ ] 99 percentile time
-- [ ] transaction is NodeStorage. 
-  - [ ] Lazy load - method "load" to load data from buffer.
 - [ ] - binary search in nodes.
   - [ ] - benchmark - node::find_key
   - [ ] - benchmark - node::find
