@@ -10,6 +10,7 @@ pub mod utils;
 #[derive(Debug)]
 pub enum Error {
     Fail(String),
+    IO(std::io::Error),
     IsFull,
 }
 

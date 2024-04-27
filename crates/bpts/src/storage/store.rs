@@ -25,9 +25,9 @@ params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
 
 #[derive(Clone, Copy)]
 pub struct StorageHeader {
-    magic: u32,
-    offset: u32,
-    is_closed: u8,
+    pub(crate) magic: u32,
+    pub(crate) offset: u32,
+    pub(crate) is_closed: u8,
 }
 
 pub struct Storage {
@@ -418,6 +418,10 @@ mod tests {
     }
 
     impl FlatStorage for MockPageStorage {
+        fn close(&self) -> Result<()> {
+            Ok(())
+        }
+
         fn params_write(&self, h: &StorageParams) -> Result<()> {
             self.params.borrow_mut().replace(h.clone());
             Ok(())

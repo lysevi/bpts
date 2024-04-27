@@ -1,10 +1,12 @@
+extern crate tempfile;
+
 use clap::Parser;
 
-use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc, time::Instant};
+use std::{cell::RefCell, collections::HashMap, io::Write, path::PathBuf, rc::Rc, time::Instant};
 
 use bpts::{
     prelude::*,
-    storage::store::StorageHeader,
+    storage::{file_storage::FileStorage, store::StorageHeader},
     types::{Id, SingleElementStore},
     utils::any_as_u8_slice,
 };
@@ -19,6 +21,14 @@ struct Args {
     /// data count
     #[arg(short, long, default_value_t = 10000)]
     count: i32,
+
+    // use in-memory storage
+    #[arg(short, long, default_value_t = false)]
+    memstorage: bool,
+
+    // use in-memory storage
+    #[arg(short, long)]
+    filename: Option<PathBuf>,
 }
 
 struct MockStorageKeyCmp {}
@@ -49,13 +59,13 @@ impl MockPageStorage {
             space: RefCell::new(Vec::with_capacity(1024 * 1024 * 20)),
         }
     }
-
-    pub fn size(&self) -> usize {
-        self.space.borrow().len()
-    }
 }
 
 impl FlatStorage for MockPageStorage {
+    fn close(&self) -> Result<()> {
+        Ok(())
+    }
+
     fn params_write(&self, h: &StorageParams) -> Result<()> {
         self.params.borrow_mut().replace(h.clone());
         Ok(())
@@ -162,11 +172,30 @@ impl FlatStorage for MockPageStorage {
 fn main() -> Result<()> {
     let args = Args::parse();
     println!("{:?}", args);
+
+    let tempdir = tempfile::tempdir().unwrap();
+    let pathbuff = if args.filename.is_none() {
+        tempdir.path().join("astorage.db")
+    } else {
+        args.filename.unwrap()
+    };
+    let filename = pathbuff.to_str().unwrap();
+    if std::path::Path::new(&filename).is_file() {
+        println!("removing {:?}", filename);
+        std::fs::remove_file(filename).unwrap();
+    }
+
+    println!("dbfile: {}", filename);
     let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
     let cmp = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
     all_cmp.insert(1u32, cmp);
 
-    let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
+    let fstore: Rc<RefCell<dyn FlatStorage>> = if args.memstorage {
+        Rc::new(RefCell::new(MockPageStorage::new()))
+    } else {
+        Rc::new(RefCell::new(FileStorage::new(&filename)?))
+    };
+
     let params = StorageParams::default();
     println!("{:?}", params.tree_params);
     let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
@@ -184,7 +213,7 @@ fn main() -> Result<()> {
             print!(
                 "\rwrite cur:{}% size:{} time:{:?}                ",
                 (100f32 * key as f32) / (args.count as f32),
-                fstore.borrow().size(),
+                fstore.borrow().size() / 1024,
                 cur_duration
             );
             let _ = std::io::stdout().flush();

@@ -1,4 +1,5 @@
 pub(self) mod cmp;
+pub mod file_storage;
 pub mod flat_storage;
 pub mod node_storage;
 pub mod store;
@@ -19,6 +20,7 @@ pub trait KeyCmp {
 
 pub type KeyCmpRc = Rc<RefCell<dyn NodeKeyCmp>>;
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct StorageParams {
     pub tree_params: TreeParams,
