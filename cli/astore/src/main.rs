@@ -202,6 +202,7 @@ fn main() -> Result<()> {
 
     let full_time_begin = Instant::now();
 
+    let write_time_begin = Instant::now();
     for key in 0..args.count {
         let cur_begin = Instant::now();
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
@@ -220,10 +221,13 @@ fn main() -> Result<()> {
         }
     }
 
+    let write_duration = write_time_begin.elapsed();
+
     if !args.quiet {
         println!("");
     }
 
+    let read_time_begin = Instant::now();
     for key in 0..args.count {
         let cur_begin = Instant::now();
 
@@ -242,11 +246,14 @@ fn main() -> Result<()> {
             let _ = std::io::stdout().flush();
         }
     }
+    let read_duration = read_time_begin.elapsed();
 
     let duration = full_time_begin.elapsed();
 
     println!("");
     println!(" size: {}", fstore.borrow().size() / 1024);
+    println!(" total write time: {:?}", write_duration);
+    println!(" total read time: {:?}", read_duration);
     println!(" total elapsed: {:?}", duration);
     Ok(())
 }
