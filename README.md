@@ -2,7 +2,7 @@
 
 - [ ] file base storage.
   - [ ] begin transaction
-    - [ ] astore - allocate block.
+    - [ ] astore - allocate block (sizew from param)
     - [ ] astore - commit.
 - [ ] transaction
   - [ ] - copy trees to transaction
