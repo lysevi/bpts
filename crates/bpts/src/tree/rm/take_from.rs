@@ -14,8 +14,6 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
 ) {
     verbose!("take_from_low target={:?} low={:?}", target.id, low_side.id);
 
-    //let mut min_key = target.first_key();
-
     if !target.is_leaf && middle.is_some() {
         verbose!("take_from_low insert middle");
         insert_to_array(&mut target.keys, 0, middle.unwrap());
@@ -35,12 +33,10 @@ pub(super) fn take_from_low<Storage: NodeStorage>(
         storage.mark_as_changed(target.id);
     }
 
-    //utils::insert_to_array(&mut target.keys, 0, max_key);
     insert_to_array(&mut target.data, 0, max_data);
     low_side.keys_count -= 1;
     low_side.data_count -= 1;
     storage.mark_as_changed(low_side.id);
-    //target.keys_count += 1;
     target.data_count += 1;
 }
 
@@ -96,18 +92,10 @@ pub(super) fn try_take_from_low<Storage: NodeStorage>(
                 let parent_ref = parent.borrow();
                 middle = parent_ref.find_key(first_key, storage.get_cmp());
             }
-            // else if leaf_ref.parent != target_ref.parent {
-            //     let parent = storage.get_node(target_ref.parent)?;
-            //     let parent_ref = parent.borrow_mut();
-            //     middle = parent_ref.find_key(first_key, storage.get_cmp())
-            // }
             if middle.is_none() {
                 let first_child = storage.get_node(target_ref.data[0].into_id())?;
                 middle = Some(first_child.borrow().first_key());
             }
-            // } else {
-            //     todo!();
-            // }
         }
         take_from_low(storage, target_ref, leaf_ref, middle);
         if !target_ref.is_leaf {

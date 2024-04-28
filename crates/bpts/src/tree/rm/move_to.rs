@@ -176,7 +176,7 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
                 let first_child = storage.get_node(first_data.into_id())?;
                 new_min_key = first_child.borrow().first_key();
             }
-            //TODO checks;
+
             rollup_keys(storage, leaf_ref.parent, min_key, new_min_key)?;
         }
 
