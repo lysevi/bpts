@@ -58,6 +58,20 @@ impl FileStorage {
         }
         Ok(())
     }
+
+    fn read<T, const SIZE: usize>(&self, seek: std::io::SeekFrom) -> Result<T> {
+        let mut file = self.file.borrow_mut();
+        let state = file.seek(seek);
+        if state.is_err() {
+            return Err(crate::Error::IO(state.err().unwrap()));
+        }
+        let mut out = [0u8; SIZE];
+        let state = file.read(&mut out);
+        if state.is_err() {
+            return Err(crate::Error::IO(state.err().unwrap()));
+        }
+        return Ok(unsafe { (out.as_ptr() as *const T).read() });
+    }
 }
 
 impl FlatStorage for FileStorage {
@@ -77,19 +91,10 @@ impl FlatStorage for FileStorage {
     }
 
     fn params_read(&self) -> Result<crate::prelude::StorageParams> {
-        let mut fref = self.file.borrow_mut();
-        let state = fref.seek(std::io::SeekFrom::Start(0));
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
         const STORAGE_PARAMS_SIZE: usize = std::mem::size_of::<crate::prelude::StorageParams>();
-        let mut output = [0u8; STORAGE_PARAMS_SIZE];
-        let state = fref.read(&mut output);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        let result = unsafe { (output.as_ptr() as *const crate::prelude::StorageParams).read() };
-        return Ok(result);
+        return self.read::<crate::prelude::StorageParams, STORAGE_PARAMS_SIZE>(
+            std::io::SeekFrom::Start(0),
+        );
     }
 
     fn header_write(&self, h: &super::store::StorageHeader) -> Result<()> {
@@ -99,20 +104,9 @@ impl FlatStorage for FileStorage {
 
     fn header_read(&self) -> Result<super::store::StorageHeader> {
         const STORAGE_HEADER_SIZE: usize = std::mem::size_of::<super::store::StorageHeader>();
-
-        let mut fref = self.file.borrow_mut();
-        let state = fref.seek(std::io::SeekFrom::End(-(STORAGE_HEADER_SIZE as i64)));
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-
-        let mut output = [0u8; STORAGE_HEADER_SIZE];
-        let state = fref.read(&mut output);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        let result = unsafe { (output.as_ptr() as *const super::store::StorageHeader).read() };
-        return Ok(result);
+        return self.read::<super::store::StorageHeader, STORAGE_HEADER_SIZE>(
+            std::io::SeekFrom::End(-(STORAGE_HEADER_SIZE as i64)),
+        );
     }
 
     fn size(&self) -> usize {
@@ -158,58 +152,33 @@ impl FlatStorage for FileStorage {
     }
 
     fn read_bool(&self, seek: usize) -> Result<bool> {
-        let mut file = self.file.borrow_mut();
-        file.seek(std::io::SeekFrom::Start(seek as u64)).unwrap();
-        let mut out = [0u8; 1];
-        let state = file.read(&mut out);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        return Ok(out[0] == 1);
+        const SIZE: usize = std::mem::size_of::<u8>();
+        let v = self.read::<u8, SIZE>(std::io::SeekFrom::Start(seek as u64))?;
+        return Ok(v == 1);
     }
 
     fn read_u8(&self, seek: usize) -> Result<u8> {
-        let mut file = self.file.borrow_mut();
-        file.seek(std::io::SeekFrom::Start(seek as u64)).unwrap();
-        let mut out = [0u8; 1];
-        let state = file.read(&mut out);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        return Ok(out[0]);
+        const SIZE: usize = std::mem::size_of::<u8>();
+        let v = self.read::<u8, SIZE>(std::io::SeekFrom::Start(seek as u64))?;
+        return Ok(v);
     }
 
     fn read_u16(&self, seek: usize) -> Result<u16> {
-        let mut file = self.file.borrow_mut();
-        file.seek(std::io::SeekFrom::Start(seek as u64)).unwrap();
-        let mut out = [0u8; 2];
-        let state = file.read(&mut out);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        return Ok(unsafe { (out.as_ptr() as *const u16).read() });
+        const SIZE: usize = std::mem::size_of::<u16>();
+        let v = self.read::<u16, SIZE>(std::io::SeekFrom::Start(seek as u64))?;
+        return Ok(v);
     }
 
     fn read_u32(&self, seek: usize) -> Result<u32> {
-        let mut file = self.file.borrow_mut();
-        file.seek(std::io::SeekFrom::Start(seek as u64)).unwrap();
-        let mut out = [0u8; 4];
-        let state = file.read(&mut out);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        return Ok(unsafe { (out.as_ptr() as *const u32).read() });
+        const SIZE: usize = std::mem::size_of::<u32>();
+        let v = self.read::<u32, SIZE>(std::io::SeekFrom::Start(seek as u64))?;
+        return Ok(v);
     }
 
     fn read_u64(&self, seek: usize) -> Result<u64> {
-        let mut file = self.file.borrow_mut();
-        file.seek(std::io::SeekFrom::Start(seek as u64)).unwrap();
-        let mut out = [0u8; 8];
-        let state = file.read(&mut out);
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        return Ok(unsafe { (out.as_ptr() as *const u64).read() });
+        const SIZE: usize = std::mem::size_of::<u64>();
+        let v = self.read::<u64, SIZE>(std::io::SeekFrom::Start(seek as u64))?;
+        return Ok(v);
     }
 }
 
