@@ -5,6 +5,7 @@ use crate::Result;
 
 pub trait FlatStorage {
     fn close(&self) -> Result<()>;
+    fn flush(&self) -> Result<()>;
     fn params_write(&self, h: &StorageParams) -> Result<()>;
     fn params_read(&self) -> Result<StorageParams>;
     fn header_write(&self, h: &StorageHeader) -> Result<()>;

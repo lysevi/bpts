@@ -3,6 +3,7 @@
 - [ ] file base storage.
   - [ ] begin transaction
     - [ ] astore - allocate block (sizew from param)
+      - [ ] - use wrap of flat_storage.
     - [ ] astore - commit.
 - [ ] transaction
   - [ ] - copy trees to transaction

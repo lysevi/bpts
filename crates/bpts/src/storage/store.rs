@@ -203,6 +203,7 @@ impl Storage {
         }
 
         flat_store.header_write(&self.header)?;
+        flat_store.flush()?;
         Ok(())
     }
 
@@ -418,6 +419,9 @@ mod tests {
     }
 
     impl FlatStorage for MockPageStorage {
+        fn flush(&self) -> Result<()> {
+            Ok(())
+        }
         fn close(&self) -> Result<()> {
             Ok(())
         }

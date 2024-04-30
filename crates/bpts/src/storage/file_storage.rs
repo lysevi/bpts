@@ -45,20 +45,6 @@ impl FileStorage {
         Ok(())
     }
 
-    fn write_slice_with_sync(&self, value: &[u8]) -> Result<()> {
-        let mut file = self.file.borrow_mut();
-        let state = file.write(value);
-
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        let state = file.sync_all();
-        if state.is_err() {
-            return Err(crate::Error::IO(state.err().unwrap()));
-        }
-        Ok(())
-    }
-
     fn read<T, const SIZE: usize>(&self, seek: std::io::SeekFrom) -> Result<T> {
         let mut file = self.file.borrow_mut();
         let state = file.seek(seek);
@@ -75,14 +61,15 @@ impl FileStorage {
 }
 
 impl FlatStorage for FileStorage {
-    fn close(&self) -> Result<()> {
-        let f = self.file.borrow_mut();
-        let state = f.sync_all();
+    fn flush(&self) -> Result<()> {
+        let state = self.file.borrow().sync_all();
         if state.is_err() {
             return Err(crate::Error::IO(state.err().unwrap()));
         }
-
         Ok(())
+    }
+    fn close(&self) -> Result<()> {
+        self.flush()
     }
 
     fn params_write(&self, h: &crate::prelude::StorageParams) -> Result<()> {
@@ -99,7 +86,7 @@ impl FlatStorage for FileStorage {
 
     fn header_write(&self, h: &super::store::StorageHeader) -> Result<()> {
         let ptr = unsafe { any_as_u8_slice(h) };
-        return self.write_slice_with_sync(ptr);
+        return self.write_slice(ptr);
     }
 
     fn header_read(&self) -> Result<super::store::StorageHeader> {
