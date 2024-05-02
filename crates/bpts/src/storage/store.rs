@@ -174,7 +174,11 @@ impl Storage {
     }
 
     pub fn dump_tree(&self, tree_id: u32, name: String) -> String {
-        let storage = self.tree_storages.get(&tree_id).unwrap();
+        let storage_opt = self.tree_storages.get(&tree_id);
+        if storage_opt.is_none() {
+            return "".to_string();
+        }
+        let storage = storage_opt.unwrap();
         let root = storage.borrow().get_root().unwrap();
         return crate::tree::debug::storage_to_string(
             &*storage.borrow(),
