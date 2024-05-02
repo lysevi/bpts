@@ -56,7 +56,9 @@ impl KeyCmp for StorageKeyCmp {
 }
 
 fn main() -> Result<()> {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    args.bufstorage = true;
+    args.count = 500;
     println!("{:?}", args);
 
     let tempdir = tempfile::tempdir().unwrap();
