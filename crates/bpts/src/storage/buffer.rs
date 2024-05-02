@@ -1,6 +1,38 @@
 use crate::Error;
 use crate::Result;
 
+macro_rules! create_write_method {
+    ($fn_name:ident, $type_name:ty) => {
+        pub fn $fn_name(&mut self, v: $type_name) -> Result<()> {
+            let sz = std::mem::size_of_val(&v);
+            if self.pos + sz - 1 < self.data.len() {
+                let mut mask = 0xff as $type_name;
+                for i in 0..sz {
+                    self.data[self.pos] = ((v & mask) >> i * 8) as u8;
+                    self.pos += 1;
+                    mask = mask << (8 as $type_name);
+                }
+                return Ok(());
+            }
+            Err(Error::IsFull)
+        }
+    };
+}
+
+macro_rules! create_read_method {
+    ($fn_name:ident, $type_name:ty) => {
+        pub fn $fn_name(&self, seek: usize) -> Result<$type_name> {
+            let sz = std::mem::size_of::<$type_name>();
+            let mut result: $type_name = 0;
+
+            for i in 0..sz {
+                result = result | ((self.data[seek + i] as $type_name) << (8 * i));
+            }
+            return Ok(result);
+        }
+    };
+}
+
 pub(super) struct Buffer {
     pub data: Vec<u8>,
     pub pos: usize,
@@ -25,13 +57,11 @@ impl Buffer {
         self.pos = 0;
     }
 
+    //create_write_method!(write_u8, u8);
+
     pub fn write_bool(&mut self, v: bool) -> Result<()> {
-        if self.pos < self.data.len() {
-            self.data[self.pos] = if v { 1 } else { 0 };
-            self.pos += 1;
-            return Ok(());
-        }
-        Err(Error::IsFull)
+        let val = if v { 1 } else { 0 };
+        return self.write_u8(val);
     }
 
     pub fn write_u8(&mut self, v: u8) -> Result<()> {
@@ -43,89 +73,18 @@ impl Buffer {
         Err(Error::IsFull)
     }
 
-    pub fn write_u16(&mut self, v: u16) -> Result<()> {
-        if self.pos + 1 < self.data.len() {
-            self.data[self.pos] = (v & 0x00ff) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0xff00) >> 8) as u8;
-            self.pos += 1;
-            return Ok(());
-        }
-        Err(Error::IsFull)
-    }
-
-    pub fn write_u32(&mut self, v: u32) -> Result<()> {
-        if self.pos + 3 < self.data.len() {
-            self.data[self.pos] = (v & 0x0000_00ff) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x0000_ff00) >> 8) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x00ff_0000) >> 16) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0xff00_0000) >> 24) as u8;
-            self.pos += 1;
-            return Ok(());
-        }
-        Err(Error::IsFull)
-    }
-
-    pub fn write_u64(&mut self, v: u64) -> Result<()> {
-        if self.pos + 7 < self.data.len() {
-            self.data[self.pos] = (v & 0x0000_0000_0000_00ff) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x0000_0000_0000_ff00) >> 8) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x0000_0000_00ff_0000) >> 16) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x0000_0000_ff00_0000) >> 24) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x0000_00ff_0000_0000) >> 32) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x0000_ff00_0000_0000) >> 40) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0x00ff_0000_0000_0000) >> 48) as u8;
-            self.pos += 1;
-            self.data[self.pos] = ((v & 0xff00_0000_0000_0000) >> 56) as u8;
-            self.pos += 1;
-            return Ok(());
-        }
-        Err(Error::IsFull)
-    }
+    create_write_method!(write_u16, u16);
+    create_write_method!(write_u32, u32);
+    create_write_method!(write_u64, u64);
 
     fn read_bool(&self, seek: usize) -> Result<bool> {
-        return Ok(self.data[seek] == 1);
+        return Ok(self.read_u8(seek)? == 1);
     }
 
-    fn read_u8(&self, seek: usize) -> Result<u8> {
-        return Ok(self.data[seek]);
-    }
-
-    fn read_u16(&self, seek: usize) -> Result<u16> {
-        let a = self.data[seek] as u16;
-        let b = self.data[seek + 1] as u16;
-        return Ok(b << 8 | a);
-    }
-
-    fn read_u32(&self, seek: usize) -> Result<u32> {
-        let a = self.data[seek] as u32;
-        let b = self.data[seek + 1] as u32;
-        let c = self.data[seek + 2] as u32;
-        let d = self.data[seek + 3] as u32;
-        Ok((d << 24) | (c << 16) | (b << 8) | a)
-    }
-
-    fn read_u64(&self, seek: usize) -> Result<u64> {
-        let a = self.data[seek] as u64;
-        let b = self.data[seek + 1] as u64;
-        let c = self.data[seek + 2] as u64;
-        let d = self.data[seek + 3] as u64;
-
-        let e = self.data[seek + 4] as u64;
-        let f = self.data[seek + 5] as u64;
-        let g = self.data[seek + 6] as u64;
-        let h = self.data[seek + 7] as u64;
-        Ok((h << 56) | (g << 48) | (f << 40) | (e << 32) | (d << 24) | (c << 16) | (b << 8) | a)
-    }
+    create_read_method!(read_u8, u8);
+    create_read_method!(read_u16, u16);
+    create_read_method!(read_u32, u32);
+    create_read_method!(read_u64, u64);
 }
 
 #[cfg(test)]
