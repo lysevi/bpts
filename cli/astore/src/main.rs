@@ -96,6 +96,9 @@ fn main() -> Result<()> {
 
     let write_time_begin = Instant::now();
     for key in 0..args.count {
+        if key == 199 {
+            println!("\n {} ", key);
+        }
         let cur_begin = Instant::now();
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         storage.insert(1, &cur_key_sl, &cur_key_sl)?;
@@ -111,6 +114,12 @@ fn main() -> Result<()> {
             );
             let _ = std::io::stdout().flush();
         }
+
+        let find_res = storage.find(1, cur_key_sl)?;
+        if find_res.is_none() {
+            println!("\n {} ", key);
+        }
+        assert!(find_res.is_some());
     }
 
     let write_duration = write_time_begin.elapsed();
