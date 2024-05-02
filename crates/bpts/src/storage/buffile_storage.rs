@@ -4,6 +4,7 @@ use crate::types::Id;
 use crate::utils::any_as_u8_slice;
 use crate::{Error, Result};
 
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::prelude::*;
@@ -67,7 +68,7 @@ impl BufFileStorage {
 
 impl FlatStorage for BufFileStorage {
     fn flush(&self) -> Result<()> {
-        let buf_ref = self.buffer.borrow();
+        let mut buf_ref = self.buffer.borrow_mut();
         let sl = buf_ref.as_slice();
         if sl.len() > 0 {
             let state = self.file.borrow_mut().write(sl);
@@ -75,6 +76,8 @@ impl FlatStorage for BufFileStorage {
                 return Err(crate::Error::IO(state.err().unwrap()));
             }
         }
+        buf_ref.reset();
+
         let state = self.file.borrow().sync_all();
         if state.is_err() {
             return Err(crate::Error::IO(state.err().unwrap()));

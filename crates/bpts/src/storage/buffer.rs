@@ -21,6 +21,10 @@ impl Buffer {
         return &self.data[0..self.pos];
     }
 
+    pub fn reset(&mut self) {
+        self.pos = 0;
+    }
+
     pub fn write_bool(&mut self, v: bool) -> Result<()> {
         if self.pos < self.data.len() {
             self.data[self.pos] = if v { 1 } else { 0 };

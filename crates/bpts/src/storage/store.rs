@@ -201,7 +201,7 @@ impl Storage {
         for i in trans_list {
             flat_store.write_u32(i)?;
         }
-
+        flat_store.flush()?;
         flat_store.header_write(&self.header)?;
         flat_store.flush()?;
         Ok(())
