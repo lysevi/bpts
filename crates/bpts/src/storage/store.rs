@@ -99,6 +99,8 @@ impl Storage {
         for i in data.iter() {
             store.write_u8(*i)?;
         }
+        //TODO read from buffer;
+        store.flush()?;
         return Ok(offset as u32);
     }
 

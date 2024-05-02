@@ -195,6 +195,9 @@ mod tests {
 
     impl KeyCmp for MockStorageKeyCmp {
         fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
+            if key1.len() != key2.len() {
+                panic!()
+            }
             key1.cmp(key2)
         }
     }

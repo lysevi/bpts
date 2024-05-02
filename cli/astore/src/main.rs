@@ -6,8 +6,7 @@ use std::{cell::RefCell, collections::HashMap, io::Write, path::PathBuf, rc::Rc,
 
 use bpts::{
     prelude::*,
-    storage::{buffile_storage::BufFileStorage, file_storage::FileStorage, store::StorageHeader},
-    types::{Id, SingleElementStore},
+    storage::{buffile_storage::BufFileStorage, file_storage::FileStorage},
     utils::any_as_u8_slice,
 };
 
@@ -51,14 +50,15 @@ impl StorageKeyCmp {
 
 impl KeyCmp for StorageKeyCmp {
     fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
+        if key1.len() != key2.len() {
+            panic!()
+        }
         key1.cmp(key2)
     }
 }
 
 fn main() -> Result<()> {
-    let mut args = Args::parse();
-    args.bufstorage = true;
-    args.count = 500;
+    let args = Args::parse();
     println!("{:?}", args);
 
     let tempdir = tempfile::tempdir().unwrap();
@@ -79,11 +79,14 @@ fn main() -> Result<()> {
     all_cmp.insert(1u32, cmp);
 
     let fstore: Rc<RefCell<dyn FlatStorage>> = if args.memstorage {
+        println!("create memstorage...");
         Rc::new(RefCell::new(MemStorage::new()))
     } else {
         if args.bufstorage {
+            println!("create bufstorage...");
             Rc::new(RefCell::new(BufFileStorage::new(&filename, args.bufsize)?))
         } else {
+            println!("create flatstorage...");
             Rc::new(RefCell::new(FileStorage::new(&filename)?))
         }
     };
@@ -96,14 +99,11 @@ fn main() -> Result<()> {
 
     let write_time_begin = Instant::now();
     for key in 0..args.count {
-        if key == 199 {
-            println!("\n {} ", key);
-        }
         let cur_begin = Instant::now();
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
-        let before = storage.dump_tree(1, "before".to_owned());
+        //let before = storage.dump_tree(1, "before".to_owned());
         storage.insert(1, &cur_key_sl, &cur_key_sl)?;
-        let after1 = storage.dump_tree(1, "after1".to_owned());
+        //let after1 = storage.dump_tree(1, "after1".to_owned());
         let cur_duration = cur_begin.elapsed();
 
         if !args.quiet {
@@ -117,8 +117,8 @@ fn main() -> Result<()> {
         }
 
         let find_res = storage.find(1, cur_key_sl)?;
-        let after2 = storage.dump_tree(1, "after2".to_owned());
-        bpts::tree::debug::print_states(&[&before, &after1, &after2]);
+        //let after2 = storage.dump_tree(1, "after2".to_owned());
+        //bpts::tree::debug::print_states(&[&before, &after1, &after2]);
         if find_res.is_none() {
             println!("\n {} ", key);
         }

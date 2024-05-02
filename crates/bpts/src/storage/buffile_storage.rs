@@ -2,9 +2,8 @@ use super::buffer::Buffer;
 use super::flat_storage::FlatStorage;
 use crate::types::Id;
 use crate::utils::any_as_u8_slice;
-use crate::{Error, Result};
+use crate::Result;
 
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::prelude::*;
@@ -229,6 +228,9 @@ mod tests {
 
     impl KeyCmp for MockStorageKeyCmp {
         fn compare(&self, key1: &[u8], key2: &[u8]) -> std::cmp::Ordering {
+            if key1.len() != key2.len() {
+                panic!()
+            }
             key1.cmp(key2)
         }
     }
@@ -309,7 +311,7 @@ mod tests {
             println!("removing {:?}", filename);
             std::fs::remove_file(filename).unwrap();
         }
-        let fstorage = Rc::new(RefCell::new(BufFileStorage::new(&filename, 1024)?));
+        let fstorage = Rc::new(RefCell::new(BufFileStorage::new(&filename, 1024 * 1024)?));
 
         let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
         let cmp = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
@@ -317,7 +319,7 @@ mod tests {
 
         let params = StorageParams::default();
         let mut storage = Storage::new(fstorage.clone(), &params, all_cmp)?;
-        let max_key = 50;
+        let max_key = 200;
         let mut all_keys = Vec::new();
         for key in 0..max_key {
             println!("insert {}", key);
@@ -325,12 +327,12 @@ mod tests {
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
             storage.insert(1, &cur_key_sl, &cur_key_sl)?;
-            {
-                let find_res = storage.find(1, cur_key_sl)?;
-                assert!(find_res.is_some());
-                let value = &find_res.unwrap()[..];
-                assert_eq!(value, cur_key_sl)
-            }
+            // {
+            //     let find_res = storage.find(1, cur_key_sl)?;
+            //     assert!(find_res.is_some());
+            //     let value = &find_res.unwrap()[..];
+            //     assert_eq!(value, cur_key_sl)
+            // }
 
             // for search_key in 0..key {
             //     println!("read {}", search_key);

@@ -92,21 +92,21 @@ impl Buffer {
         Err(Error::IsFull)
     }
 
-    pub fn read_bool(&self, seek: usize) -> Result<bool> {
+    fn read_bool(&self, seek: usize) -> Result<bool> {
         return Ok(self.data[seek] == 1);
     }
 
-    pub fn read_u8(&self, seek: usize) -> Result<u8> {
+    fn read_u8(&self, seek: usize) -> Result<u8> {
         return Ok(self.data[seek]);
     }
 
-    pub fn read_u16(&self, seek: usize) -> Result<u16> {
+    fn read_u16(&self, seek: usize) -> Result<u16> {
         let a = self.data[seek] as u16;
         let b = self.data[seek + 1] as u16;
         return Ok(b << 8 | a);
     }
 
-    pub fn read_u32(&self, seek: usize) -> Result<u32> {
+    fn read_u32(&self, seek: usize) -> Result<u32> {
         let a = self.data[seek] as u32;
         let b = self.data[seek + 1] as u32;
         let c = self.data[seek + 2] as u32;
@@ -114,7 +114,7 @@ impl Buffer {
         Ok((d << 24) | (c << 16) | (b << 8) | a)
     }
 
-    pub fn read_u64(&self, seek: usize) -> Result<u64> {
+    fn read_u64(&self, seek: usize) -> Result<u64> {
         let a = self.data[seek] as u64;
         let b = self.data[seek + 1] as u64;
         let c = self.data[seek + 2] as u64;
