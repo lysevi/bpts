@@ -67,6 +67,14 @@ impl BufFileStorage {
 
 impl FlatStorage for BufFileStorage {
     fn flush(&self) -> Result<()> {
+        let buf_ref = self.buffer.borrow();
+        let sl = buf_ref.as_slice();
+        if sl.len() > 0 {
+            let state = self.file.borrow_mut().write(sl);
+            if state.is_err() {
+                return Err(crate::Error::IO(state.err().unwrap()));
+            }
+        }
         let state = self.file.borrow().sync_all();
         if state.is_err() {
             return Err(crate::Error::IO(state.err().unwrap()));
@@ -104,7 +112,7 @@ impl FlatStorage for BufFileStorage {
     fn size(&self) -> usize {
         let mut file = self.file.borrow_mut();
         let pos = file.seek(std::io::SeekFrom::End(0)).unwrap();
-        return pos as usize;
+        return pos as usize + self.buffer.borrow().size();
     }
 
     fn write_id(&self, v: crate::types::Id) -> Result<()> {
@@ -112,30 +120,48 @@ impl FlatStorage for BufFileStorage {
     }
 
     fn write_bool(&self, v: bool) -> Result<()> {
-        let value = match v {
-            true => 1u8,
-            false => 0u8,
-        };
-        return self.write_slice(&[value]);
+        let res = self.buffer.borrow_mut().write_bool(v);
+        if res.is_err() {
+            self.flush()?;
+            return self.buffer.borrow_mut().write_bool(v);
+        }
+        return Ok(());
     }
 
     fn write_u8(&self, v: u8) -> Result<()> {
-        return self.write_slice(&[v]);
+        let res = self.buffer.borrow_mut().write_u8(v);
+        if res.is_err() {
+            self.flush()?;
+            return self.buffer.borrow_mut().write_u8(v);
+        }
+        return Ok(());
     }
 
     fn write_u16(&self, v: u16) -> Result<()> {
-        let sl = unsafe { any_as_u8_slice(&v) };
-        return self.write_slice(sl);
+        let res = self.buffer.borrow_mut().write_u16(v);
+        if res.is_err() {
+            self.flush()?;
+            return self.buffer.borrow_mut().write_u16(v);
+        }
+        return Ok(());
     }
 
     fn write_u32(&self, v: u32) -> Result<()> {
-        let sl = unsafe { any_as_u8_slice(&v) };
-        return self.write_slice(sl);
+        let res = self.buffer.borrow_mut().write_u32(v);
+        if res.is_err() {
+            self.flush()?;
+            return self.buffer.borrow_mut().write_u32(v);
+        }
+        return Ok(());
     }
 
     fn write_u64(&self, v: u64) -> Result<()> {
-        let sl = unsafe { any_as_u8_slice(&v) };
-        return self.write_slice(sl);
+        let res = self.buffer.borrow_mut().write_u64(v);
+        if res.is_err() {
+            self.flush()?;
+            return self.buffer.borrow_mut().write_u64(v);
+        }
+        return Ok(());
     }
 
     fn read_id(&self, seek: usize) -> Result<crate::types::Id> {
