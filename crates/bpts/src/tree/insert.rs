@@ -25,14 +25,13 @@ pub fn insert<Storage: NodeStorage>(
 
         let mut index = mut_ref.keys_count;
         for i in 0..mut_ref.keys_count {
-            if cmp.compare(mut_ref.keys[i], key).is_gt() {
-                index = i;
-                break;
-            }
-
-            if cmp.compare(mut_ref.keys[i], key).is_eq() {
-                index = i;
-                break;
+            let cmp_res = cmp.compare(mut_ref.keys[i], key);
+            match cmp_res {
+                std::cmp::Ordering::Less => continue,
+                std::cmp::Ordering::Greater | std::cmp::Ordering::Equal => {
+                    index = i;
+                    break;
+                }
             }
         }
         mut_ref.insert_data(index, key, value.clone());
