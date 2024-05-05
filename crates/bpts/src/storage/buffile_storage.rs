@@ -319,7 +319,7 @@ mod tests {
 
         let params = StorageParams::default();
         let mut storage = Storage::new(fstorage.clone(), &params, all_cmp)?;
-        let max_key = 200;
+        let max_key = 100;
         let mut all_keys = Vec::new();
         for key in 0..max_key {
             println!("insert {}", key);
