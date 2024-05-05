@@ -2,8 +2,8 @@
 
 - [ ] file base storage.
   - [ ] begin transaction
-    - [ ] astore - allocate block (sizew from param)
-      - [ ] - use wrap of flat_storage.
+    - [x] astore - allocate block (sizew from param)
+      - [x] - use wrap of flat_storage.
     - [ ] astore - commit.
 - [ ] transaction
   - [ ] - copy trees to transaction
@@ -11,6 +11,7 @@
 - [ ] read refact:
   - [ ] don't load all trees on read. load when starting.
   - [x] don't load the full tree when reading.
+- [ ] fsck
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
