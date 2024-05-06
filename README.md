@@ -11,6 +11,7 @@
 - [ ] read refact:
   - [ ] don't load all trees on read. load when starting.
   - [x] don't load the full tree when reading.
+- [ ] - update value
 - [ ] fsck
 - [ ] benchmark on memory sorage
   - [ ] median time
