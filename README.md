@@ -4,15 +4,16 @@
   - [ ] begin transaction
     - [x] astore - allocate block (sizew from param)
       - [x] - use wrap of flat_storage.
+    - [ ] - copy trees to transaction
     - [ ] astore - commit.
-- [ ] transaction
-  - [ ] - copy trees to transaction
-  - [x] - FlatStorage::sync()
+    - [ ] update offset in transactions.
+    - [x] - FlatStorage::sync()
 - [ ] read refact:
   - [ ] don't load all trees on read. load when starting.
   - [x] don't load the full tree when reading.
 - [ ] - update value
 - [ ] fsck
+- [ ] bloom
 - [ ] benchmark on memory sorage
   - [ ] median time
   - [ ] mean time
