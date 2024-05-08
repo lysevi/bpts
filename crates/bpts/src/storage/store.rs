@@ -31,6 +31,7 @@ pub struct StorageHeader {
 }
 
 pub struct Storage {
+    transaction: u64,
     store: Rc<RefCell<dyn FlatStorage>>,
     params: StorageParams,
     header: StorageHeader,
@@ -54,6 +55,7 @@ impl Storage {
         };
         s.borrow_mut().header_write(&h)?;
         Ok(Storage {
+            transaction: 0,
             store: s,
             params: p,
             header: h,
@@ -74,6 +76,7 @@ impl Storage {
         }
 
         Ok(Storage {
+            transaction: 0,
             store: s,
             cmp: cmp,
             params: params,
@@ -322,7 +325,22 @@ impl Storage {
         Ok(())
     }
 
-    pub fn insert(&mut self, tree_id: u32, key: &[u8], data: &[u8]) -> Result<()> {
+    pub fn begin_transaction(&mut self) -> Result<u64> {
+        self.transaction += 1;
+        return Ok(self.transaction);
+    }
+
+    pub fn commit_transaction(&mut self, t: u64) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn insert(
+        &mut self,
+        transaction: u64,
+        tree_id: u32,
+        key: &[u8],
+        data: &[u8],
+    ) -> Result<()> {
         let tparams = self.params.tree_params.clone();
 
         let key_offset = Self::insert_kv(&*self.store.borrow_mut(), key, data)?;
@@ -552,7 +570,9 @@ mod tests {
 
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
-            storage.insert(1, &cur_key_sl, &cur_key_sl)?;
+            let tr = storage.begin_transaction()?;
+            storage.insert(tr, 1, &cur_key_sl, &cur_key_sl)?;
+            storage.commit_transaction(tr)?;
             {
                 let find_res = storage.find(1, cur_key_sl)?;
                 assert!(find_res.is_some());
@@ -632,7 +652,9 @@ mod tests {
             //println!("insert {}", key);
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
-            storage.insert(1, &cur_key_sl, &cur_key_sl)?;
+            let tr = storage.begin_transaction()?;
+            storage.insert(tr, 1, &cur_key_sl, &cur_key_sl)?;
+            storage.commit_transaction(tr)?;
             {
                 let find_res = storage.find(1, cur_key_sl)?;
                 assert!(find_res.is_some());
@@ -708,7 +730,9 @@ mod tests {
 
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
-            storage.insert(tree_id, &cur_key_sl, &cur_key_sl)?;
+            let tr = storage.begin_transaction()?;
+            storage.insert(tr, tree_id, &cur_key_sl, &cur_key_sl)?;
+            storage.commit_transaction(tr)?;
             {
                 let find_res = storage.find(tree_id, cur_key_sl)?;
                 assert!(find_res.is_some());

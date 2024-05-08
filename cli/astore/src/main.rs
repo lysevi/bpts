@@ -102,7 +102,9 @@ fn main() -> Result<()> {
         let cur_begin = Instant::now();
         let cur_key_sl = unsafe { any_as_u8_slice(&key) };
         //let before = storage.dump_tree(1, "before".to_owned());
-        storage.insert(1, &cur_key_sl, &cur_key_sl)?;
+        let tr = storage.begin_transaction()?;
+        storage.insert(tr, 1, &cur_key_sl, &cur_key_sl)?;
+        storage.commit_transaction(tr)?;
         //let after1 = storage.dump_tree(1, "after1".to_owned());
         let cur_duration = cur_begin.elapsed();
 

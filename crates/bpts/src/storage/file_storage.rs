@@ -292,7 +292,9 @@ mod tests {
 
             all_keys.push(key);
             let cur_key_sl = unsafe { any_as_u8_slice(&key) };
-            storage.insert(1, &cur_key_sl, &cur_key_sl)?;
+            let tr = storage.begin_transaction()?;
+            storage.insert(tr, 1, &cur_key_sl, &cur_key_sl)?;
+            storage.commit_transaction(tr)?;
             {
                 let find_res = storage.find(1, cur_key_sl)?;
                 assert!(find_res.is_some());
