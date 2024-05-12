@@ -23,6 +23,27 @@ use super::{KeyCmp, StorageParams};
 params:.... key+data.... [node] tree [links to node]  TRANSLIST [links to tree]
  */
 
+pub struct Trans {
+    tree_storages: HashMap<u32, StorageNodeStorageRc>,
+}
+
+impl Trans {
+    fn new() -> Self {
+        Trans {
+            tree_storages: HashMap::new(),
+        }
+    }
+
+    fn add_tree(&mut self, tree_id: u32, tree_st: StorageNodeStorageRc) {
+        self.tree_storages.insert(tree_id, tree_st);
+    }
+
+    fn get_tree(&mut self, tree_id: u32) -> StorageNodeStorageRc {
+        let result = self.tree_storages.get(&tree_id);
+        return result.unwrap().clone();
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct StorageHeader {
     pub(crate) magic: u32,
@@ -37,6 +58,7 @@ pub struct Storage {
     header: StorageHeader,
     cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>>,
     tree_storages: HashMap<u32, StorageNodeStorageRc>,
+    t: HashMap<u64, Trans>,
 }
 
 impl Storage {
@@ -61,6 +83,7 @@ impl Storage {
             header: h,
             cmp: cmp,
             tree_storages: HashMap::new(),
+            t: HashMap::new(),
         })
     }
 
@@ -82,6 +105,7 @@ impl Storage {
             params: params,
             header: header,
             tree_storages: HashMap::new(),
+            t: HashMap::new(),
         })
     }
 
@@ -327,10 +351,16 @@ impl Storage {
 
     pub fn begin_transaction(&mut self) -> Result<u64> {
         self.transaction += 1;
+        self.t.insert(self.transaction, Trans::new());
         return Ok(self.transaction);
     }
 
     pub fn commit_transaction(&mut self, t: u64) -> Result<()> {
+        let target = self.t.get(&t);
+        if target.is_none() {
+            //TODO test
+            return Err(crate::Error::TransactionNotFound);
+        }
         Ok(())
     }
 

@@ -11,6 +11,7 @@ pub enum Error {
     Fail(String),
     IO(std::io::Error),
     IsFull,
+    TransactionNotFound,
 }
 
 impl Display for Error {
