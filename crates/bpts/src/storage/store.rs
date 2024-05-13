@@ -38,6 +38,10 @@ impl Trans {
         self.tree_storages.insert(tree_id, tree_st);
     }
 
+    fn contains_tree(&mut self, tree_id: u32) -> bool {
+        self.tree_storages.contains_key(&tree_id)
+    }
+
     fn get_tree(&mut self, tree_id: u32) -> StorageNodeStorageRc {
         let result = self.tree_storages.get(&tree_id);
         return result.unwrap().clone();
@@ -305,30 +309,37 @@ impl Storage {
 
     fn get_or_create_storage_for_tree(
         &mut self,
+        transaction: u64,
         tree_id: u32,
     ) -> Result<Rc<RefCell<StorageNodeStorage>>> {
+        let tcmp = self.get_tree_cmp(tree_id);
+        let target_trans = self.t.get_mut(&transaction).unwrap();
+        if target_trans.contains_tree(tree_id) {
+            return Ok(target_trans.get_tree(tree_id));
+        }
+
         let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
             let c = t.clone();
-            c.borrow_mut()
-                .set_offset(0)
-                .set_cmp(self.get_tree_cmp(tree_id));
+            c.borrow_mut().set_offset(0).set_cmp(tcmp);
+            target_trans.add_tree(tree_id, c.clone());
             c
         } else {
-            let s = StorageNodeStorage::new(
-                0u32,
-                self.get_tree_cmp(tree_id),
-                self.store.clone(),
-                self.params.tree_params,
-            );
-
-            self.tree_storages.insert(tree_id, s.clone());
+            let s =
+                StorageNodeStorage::new(0u32, tcmp, self.store.clone(), self.params.tree_params);
+            target_trans.add_tree(tree_id, s.clone());
             s.clone()
         };
         Ok(target_storage)
     }
 
-    fn insert_to_tree(&mut self, tree_id: u32, key_offset: u32, tparams: TreeParams) -> Result<()> {
-        let target_storage = self.get_or_create_storage_for_tree(tree_id)?;
+    fn insert_to_tree(
+        &mut self,
+        transaction: u64,
+        tree_id: u32,
+        key_offset: u32,
+        tparams: TreeParams,
+    ) -> Result<()> {
+        let target_storage = self.get_or_create_storage_for_tree(transaction, tree_id)?;
 
         let mut storage_ref = (*target_storage).borrow_mut();
 
@@ -356,11 +367,18 @@ impl Storage {
     }
 
     pub fn commit_transaction(&mut self, t: u64) -> Result<()> {
-        let target = self.t.get(&t);
-        if target.is_none() {
+        let res = self.t.get(&t);
+        if res.is_none() {
             //TODO test
             return Err(crate::Error::TransactionNotFound);
         }
+        let target = res.unwrap();
+
+        for kv in target.tree_storages.iter() {
+            self.tree_storages.insert(*kv.0, kv.1.clone());
+        }
+        self.t.remove(&t);
+        self.save_trees()?;
         Ok(())
     }
 
@@ -374,8 +392,7 @@ impl Storage {
         let tparams = self.params.tree_params.clone();
 
         let key_offset = Self::insert_kv(&*self.store.borrow_mut(), key, data)?;
-        self.insert_to_tree(tree_id, key_offset, tparams)?;
-        self.save_trees()?;
+        self.insert_to_tree(transaction, tree_id, key_offset, tparams)?;
 
         Ok(())
     }
