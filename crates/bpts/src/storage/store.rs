@@ -244,6 +244,9 @@ impl Storage {
     }
 
     fn load_trees(&mut self) -> Result<()> {
+        if self.tree_storages.len() > 0 {
+            return Ok(());
+        }
         self.tree_storages.clear();
         let store = self.store.borrow();
         let hdr = store.header_read()?;
