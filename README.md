@@ -10,6 +10,7 @@
     - [x] - FlatStorage::sync()
     - [ ] - group update
     - [ ] - read under transaction
+    - [ ] - clone tree storage to transaction.
 - [ ] - update value
 - [ ] fsck
 - [ ] bloom
