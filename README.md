@@ -9,8 +9,9 @@
     - [x] update offset in transactions.
     - [x] - FlatStorage::sync()
     - [ ] - group update
-    - [ ] - read under transaction
     - [ ] - clone tree storage to transaction.
+    - [ ] - read under transaction
+    - [ ] - rollback transaction
 - [ ] - update value
 - [ ] fsck
 - [ ] bloom
