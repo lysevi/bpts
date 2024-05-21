@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     tree::{
-        node::{Node, NodeKeyCmp, RcNode},
+        node::{self, Node, NodeKeyCmp, RcNode},
         nodestorage::NodeStorage,
         record::Record,
         TreeParams,
@@ -42,6 +42,27 @@ impl StorageNodeStorage {
             nodes_to_offset: RefCell::new(HashMap::new()),
             tree_params: params,
             flat_store: flat_store,
+        }))
+    }
+
+    pub(super) fn clone(&self) -> Rc<RefCell<StorageNodeStorage>> {
+        let mut nodes: HashMap<u32, RcNode> = HashMap::new();
+        let src = self.nodes.borrow();
+        for i in src.iter() {
+            let nr = (*i.1).borrow().clone();
+            nodes.insert(*i.0, nr);
+        }
+
+        let offsets = (self.nodes_to_offset.borrow()).clone();
+        let cmp = self.cmp.clone();
+        let p = self.tree_params.clone();
+        Rc::new(RefCell::new(StorageNodeStorage {
+            offset: 0u32,
+            cmp: cmp,
+            nodes: RefCell::new(nodes),
+            nodes_to_offset: RefCell::new(offsets),
+            tree_params: p,
+            flat_store: self.flat_store.clone(),
         }))
     }
     pub(super) fn set_cmp(&mut self, c: KeyCmpRc) -> &mut Self {

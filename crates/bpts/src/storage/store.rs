@@ -321,7 +321,7 @@ impl Storage {
 
         let tcmp = self.get_tree_cmp(tree_id);
         let target_storage = if let Some(t) = self.tree_storages.get(&tree_id) {
-            let c = t.clone();
+            let c = t.borrow().clone();
             c.borrow_mut().set_offset(0).set_cmp(tcmp);
             c
         } else {
@@ -380,6 +380,16 @@ impl Storage {
         self.commit(targetrc.clone());
         self.t.remove(&t);
         self.save_trees()?;
+        Ok(())
+    }
+
+    pub fn rollback_transaction(&mut self, t: u64) -> Result<()> {
+        let res = self.t.get(&t);
+        if res.is_none() {
+            //TODO test
+            return Err(crate::Error::TransactionNotFound);
+        }
+        self.t.remove(&t);
         Ok(())
     }
 
@@ -838,6 +848,72 @@ mod tests {
                 if find_res.is_none() {
                     crate::tree::debug::print_states(&[&str_before, &str_after]);
                 }
+                assert!(find_res.is_some());
+                let value = &find_res.unwrap()[..];
+                assert_eq!(value, key_sl)
+            }
+        }
+
+        let mut hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 0);
+        storage.close()?;
+        hdr = fstore.borrow().header_read()?;
+        assert!(hdr.is_closed == 1);
+        println!("size: {}kb", fstore.borrow().size() as f32 / 1024f32);
+        Ok(())
+    }
+
+    #[test]
+    fn db_rollback() -> Result<()> {
+        let mut all_cmp: HashMap<u32, Rc<RefCell<dyn KeyCmp>>> = HashMap::new();
+        let cmp = Rc::new(RefCell::new(MockStorageKeyCmp::new()));
+        all_cmp.insert(1u32, cmp);
+
+        let fstore = Rc::new(RefCell::new(MockPageStorage::new()));
+        let params = StorageParams::default();
+        let mut storage = Storage::new(fstore.clone(), &params, all_cmp)?;
+        let max_key = 100;
+        let mut all_keys = Vec::new();
+        for key in 0..max_key {
+            //println!("insert {}", key);
+
+            all_keys.push(key);
+            let cur_key_sl = unsafe { any_as_u8_slice(&key) };
+            let tr = storage.begin_transaction()?;
+            storage.insert(tr, 1, &cur_key_sl, &cur_key_sl)?;
+            if key % 2 == 1 {
+                storage.rollback_transaction(tr)?;
+                {
+                    let find_res = storage.find(1, cur_key_sl)?;
+                    assert!(find_res.is_none());
+                }
+            } else {
+                storage.commit_transaction(tr)?;
+                {
+                    let find_res = storage.find(1, cur_key_sl)?;
+                    assert!(find_res.is_some());
+                    let value = &find_res.unwrap()[..];
+                    assert_eq!(value, cur_key_sl)
+                }
+            }
+
+            // for search_key in 0..key {
+            //     println!("read {}", search_key);
+            //     let key_sl = unsafe { any_as_u8_slice(&search_key) };
+            //     let find_res = storage.find(1, key_sl)?;
+            //     assert!(find_res.is_some());
+            //     let value = &find_res.unwrap()[..];
+            //     assert_eq!(value, key_sl)
+            // }
+        }
+
+        for key in all_keys.iter() {
+            //println!("read {}", key);
+            let key_sl = unsafe { any_as_u8_slice(key) };
+            let find_res = storage.find(1, key_sl)?;
+            if key % 2 == 1 {
+                assert!(find_res.is_none());
+            } else {
                 assert!(find_res.is_some());
                 let value = &find_res.unwrap()[..];
                 assert_eq!(value, key_sl)
