@@ -5,9 +5,9 @@ use crate::{
 use std::{collections::HashMap, rc::Rc};
 
 use super::{
-    node::{KeyCmp, RcNode},
+    node::{NodeKeyCmp, RcNode},
     nodestorage::NodeStorage,
-    params::TreeParams,
+    TreeParams,
 };
 
 pub struct MockKeyCmp {}
@@ -18,7 +18,7 @@ impl MockKeyCmp {
     }
 }
 
-impl KeyCmp for MockKeyCmp {
+impl NodeKeyCmp for MockKeyCmp {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering {
         key1.cmp(&key2)
     }
@@ -104,7 +104,9 @@ impl NodeStorage for MockNodeStorage {
         &self.params
     }
 
-    fn get_cmp(&self) -> &dyn KeyCmp {
+    fn get_cmp(&self) -> &dyn NodeKeyCmp {
         return &self.cmp;
     }
+
+    fn mark_as_changed(&mut self, _id: Id) {}
 }

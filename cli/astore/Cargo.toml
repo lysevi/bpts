@@ -1,5 +1,5 @@
 [package]
-name = "memstore"
+name = "astore"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 bpts={path="../../crates/bpts"}
 clap = { version = "4.5.4", features = ["derive"] }
+tempfile ="*"

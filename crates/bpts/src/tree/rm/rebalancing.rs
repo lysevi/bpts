@@ -32,8 +32,10 @@ pub(in super::super) fn rebalancing<Storage: NodeStorage>(
         if target_ref.parent.is_empty() {
             if target_ref.data_count > 0 && !target_ref.is_leaf {
                 storage.erase_node(&target_ref.id);
+                storage.mark_as_changed(target_ref.id);
                 let new_root = storage.get_node(target_ref.data[0].into_id())?;
                 new_root.borrow_mut().parent.clear();
+                storage.mark_as_changed(new_root.borrow().id);
                 return Ok(new_root);
             }
             return Ok(target.clone());
@@ -98,6 +100,7 @@ pub(in super::super) fn rebalancing<Storage: NodeStorage>(
     if update_parent && target_ref.parent.exists() {
         let link_to_parent = storage.get_node(target_ref.parent)?;
         if link_to_parent.borrow().keys_count < t {
+            storage.mark_as_changed(target_ref.parent);
             return rebalancing(storage, &link_to_parent, root);
         }
     }

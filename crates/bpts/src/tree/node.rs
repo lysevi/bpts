@@ -8,7 +8,7 @@ use record::Record;
 
 pub type RcNode = Rc<RefCell<Node>>;
 
-pub trait KeyCmp {
+pub trait NodeKeyCmp {
     fn compare(&self, key1: u32, key2: u32) -> std::cmp::Ordering;
 }
 
@@ -26,6 +26,30 @@ pub struct Node {
 }
 
 impl Node {
+    pub fn new_with_links(
+        id: Id,
+        is_leaf: bool,
+        keys: Vec<u32>,
+        data: Vec<Record>,
+        keys_count: usize,
+        data_count: usize,
+        parent: Id,
+        left: Id,
+        right: Id,
+    ) -> RcNode {
+        Rc::new(RefCell::new(Node {
+            id: id,
+            is_leaf: is_leaf,
+            keys: keys,
+            data: data,
+            keys_count,
+            data_count,
+            left,
+            parent,
+            right,
+        }))
+    }
+
     pub fn new(
         id: Id,
         is_leaf: bool,
@@ -58,6 +82,20 @@ impl Node {
             left: other.left,
             parent: other.parent,
             right: other.right,
+        }))
+    }
+
+    pub fn clone(&self) -> RcNode {
+        Rc::new(RefCell::new(Node {
+            id: self.id,
+            is_leaf: self.is_leaf,
+            keys: Vec::clone(&self.keys),
+            data: Vec::clone(&self.data),
+            keys_count: self.keys_count,
+            data_count: self.data_count,
+            left: self.left,
+            parent: self.parent,
+            right: self.right,
         }))
     }
 
@@ -99,7 +137,7 @@ impl Node {
         return self.keys_count == 0;
     }
 
-    pub fn find_key(&self, key: u32, cmp: &dyn KeyCmp) -> Option<u32> {
+    pub fn find_key(&self, key: u32, cmp: &dyn NodeKeyCmp) -> Option<u32> {
         if self.is_leaf {
             panic!("logic error");
         }
@@ -122,7 +160,7 @@ impl Node {
         return None;
     }
 
-    pub fn find(&self, cmp: &dyn KeyCmp, key: u32) -> Option<Record> {
+    pub fn find(&self, cmp: &dyn NodeKeyCmp, key: u32) -> Option<Record> {
         if !self.is_leaf {
             if cmp.compare(key, self.keys[0]).is_lt() {
                 return Some(self.data.first().unwrap().clone());

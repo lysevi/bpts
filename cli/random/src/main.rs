@@ -7,7 +7,7 @@ use bpts::tree::read::find;
 use bpts::tree::record::Record;
 use bpts::tree::remove::remove_key;
 use bpts::{
-    tree::{mocks::MockNodeStorage, node::Node, params::TreeParams},
+    tree::{mocks::MockNodeStorage, node::Node, TreeParams},
     types::Id,
 };
 use rand::prelude::*;

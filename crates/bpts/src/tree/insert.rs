@@ -25,18 +25,17 @@ pub fn insert<Storage: NodeStorage>(
 
         let mut index = mut_ref.keys_count;
         for i in 0..mut_ref.keys_count {
-            if cmp.compare(mut_ref.keys[i], key).is_gt() {
-                index = i;
-                break;
-            }
-
-            if cmp.compare(mut_ref.keys[i], key).is_eq() {
-                index = i;
-                break;
+            let cmp_res = cmp.compare(mut_ref.keys[i], key);
+            match cmp_res {
+                std::cmp::Ordering::Less => continue,
+                std::cmp::Ordering::Greater | std::cmp::Ordering::Equal => {
+                    index = i;
+                    break;
+                }
             }
         }
         mut_ref.insert_data(index, key, value.clone());
-
+        storage.mark_as_changed(mut_ref.id);
         if can_insert {
             return Ok(root.clone());
         }
@@ -50,20 +49,14 @@ mod tests {
 
     use super::*;
     use crate::{
-        tree::{
-            debug,
-            mocks::MockNodeStorage,
-            node::Node,
-            params::{self, TreeParams},
-        },
+        tree::{debug, mocks::MockNodeStorage, node::Node, TreeParams},
         types::Id,
     };
 
     fn many_inserts(t: usize, maxnodecount: usize) -> crate::Result<()> {
         let mut root_node = Node::new_leaf_with_size(Id(1), t);
 
-        let mut storage: MockNodeStorage =
-            MockNodeStorage::new(params::TreeParams::default_with_t(t));
+        let mut storage: MockNodeStorage = MockNodeStorage::new(TreeParams::default_with_t(t));
         storage.add_node(&root_node);
 
         let mut key: u32 = 1;

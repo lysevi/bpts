@@ -1,12 +1,6 @@
 use std::fmt::Display;
-pub mod bloom;
-pub mod datalist;
-pub mod freelist;
-pub mod mfile;
-pub mod page;
 pub mod prelude;
 pub mod storage;
-pub mod transaction;
 pub mod tree;
 pub mod types;
 pub mod utils;
@@ -14,7 +8,9 @@ pub mod utils;
 #[derive(Debug)]
 pub enum Error {
     Fail(String),
+    IO(std::io::Error),
     IsFull,
+    TransactionNotFound,
 }
 
 impl Display for Error {

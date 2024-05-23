@@ -69,9 +69,11 @@ pub(super) fn move_to_higher(
         if !target.is_leaf {
             let node = storage.get_node(data.into_id()).unwrap();
             node.borrow_mut().parent = high_side.id;
+            storage.mark_as_changed(node.borrow().id);
         }
     }
-
+    storage.mark_as_changed(target.id);
+    storage.mark_as_changed(high_side.id);
     high_side.keys_count += target.keys_count;
     high_side.data_count += target.data_count;
 }
@@ -95,14 +97,17 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
             }
             new_min_of_parent = Some(parent_ref.first_key());
             parent_ref.erase_link(target_ref.id);
+            storage.mark_as_changed(parent_ref.id);
         }
 
         move_to_lower(target_ref, leaf_ref, middle)?;
+        storage.mark_as_changed(leaf_ref.id);
 
         if !target_ref.is_leaf {
             for i in target_ref.data_iter() {
                 let node = storage.get_node(i.into_id())?;
                 node.borrow_mut().parent = leaf_ref.id;
+                storage.mark_as_changed(node.borrow_mut().id);
             }
         }
 
@@ -111,22 +116,30 @@ pub(super) fn try_move_to_low<Storage: NodeStorage>(
         if target_ref.parent.exists() && leaf_ref.parent != target_ref.parent {
             let parent = storage.get_node(target_ref.parent)?;
             if parent.borrow().data_count > 0 {
-                rollup_keys(
+                let changed_nodes = rollup_keys(
                     storage,
                     target_ref.parent,
                     first_key,
                     new_min_of_parent.unwrap(),
                 )?;
+                for i in changed_nodes {
+                    storage.mark_as_changed(i);
+                }
             }
         }
 
-        //TODO! check result;
         if target_ref.right.exists() {
             let right_side = storage.get_node(target_ref.right)?;
             right_side.borrow_mut().left = target_ref.left;
             leaf_ref.right = target_ref.right;
+
+            storage.mark_as_changed(right_side.borrow().id);
+            storage.mark_as_changed(leaf_ref.id);
         }
         leaf_ref.right = target_ref.right;
+
+        storage.mark_as_changed(target_ref.id);
+        storage.mark_as_changed(leaf_ref.id);
         return Ok(true);
     }
     return Ok(false);
@@ -147,6 +160,7 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
                 middle = parent.borrow().find_key(min_key, storage.get_cmp());
             }
             parent.borrow_mut().erase_link(target_ref.id);
+            storage.mark_as_changed(parent.borrow().id);
         }
 
         move_to_higher(storage, target_ref, leaf_ref, middle);
@@ -162,16 +176,18 @@ pub(super) fn try_move_to_high<Storage: NodeStorage>(
                 let first_child = storage.get_node(first_data.into_id())?;
                 new_min_key = first_child.borrow().first_key();
             }
-            //TODO checks;
+
             rollup_keys(storage, leaf_ref.parent, min_key, new_min_key)?;
         }
 
         if target_ref.left.exists() {
             let left_side = storage.get_node(target_ref.left)?;
             left_side.borrow_mut().right = target_ref.right;
+            storage.mark_as_changed(left_side.borrow().id);
             leaf_ref.left = target_ref.left;
         }
-
+        storage.mark_as_changed(target_ref.id);
+        storage.mark_as_changed(leaf_ref.id);
         return Ok(true);
     }
     return Ok(false);

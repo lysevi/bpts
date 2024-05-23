@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Hash)]
 pub struct Id(pub u32);
 
 const EMPTY_ID: Id = Id(std::u32::MAX);
