@@ -1,5 +1,4 @@
 use std::fmt::Display;
-pub mod bloom;
 pub mod prelude;
 pub mod storage;
 pub mod tree;
